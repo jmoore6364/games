@@ -1,0 +1,9 @@
+{
+  "name": "super-moore-bros",
+  "version": "0.1.0",
+  "description": "A classic side-scrolling platformer homage, vanilla JS + canvas",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
