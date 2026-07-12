@@ -627,8 +627,13 @@ export function initSprites() {
   const k1 = makeSprite(KOOPA1, KOOPA_PAL), k2 = makeSprite(KOOPA2, KOOPA_PAL);
   SPR.koopa = [{ r: flipped(k1), l: k1 }, { r: flipped(k2), l: k2 }]; // authored facing left
   SPR.shell = makeSprite(SHELL, KOOPA_PAL);
+  const RED_PAL = { ...KOOPA_PAL, G: '#e03828', L: '#f8a878' };
+  const r1 = makeSprite(KOOPA1, RED_PAL), r2 = makeSprite(KOOPA2, RED_PAL);
+  SPR.koopaRed = [{ r: flipped(r1), l: r1 }, { r: flipped(r2), l: r2 }];
+  SPR.shellRed = makeSprite(SHELL, RED_PAL);
 
   SPR.mushroom = makeSprite(MUSHROOM, MUSH_PAL);
+  SPR.mushroom1up = makeSprite(MUSHROOM, { ...MUSH_PAL, R: '#10a848' });
   SPR.flower = makeSprite(FLOWER, FLOWER_PAL);
   SPR.coin = COIN_FRAMES.map(f => makeSprite(f, COIN_PAL));
   SPR.fireball = makeSprite(FIREBALL, FIREBALL_PAL);

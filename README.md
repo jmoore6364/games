@@ -24,10 +24,11 @@ npm start          # serves at http://localhost:8123
 ## Features
 
 - Classic feel: acceleration, skidding, run boost, variable-height jumps, coyote time
-- Two worlds: 1-1 overworld and 1-2 underground (dark cave, blue-brick tileset),
-  with powerup size carried between levels
+- Three worlds: 1-1 overworld, 1-2 underground (dark cave, blue-brick tileset,
+  its own music), 1-3 athletic (floating platforms over the void, red koopas
+  that hold their ground) — powerup size carried between levels
 - Question blocks (coins + powerups), breakable bricks with shard particles,
-  secret star bricks
+  secret star bricks and hidden 1UP mushrooms
 - Mushroom → big, fire flower → fireballs, invincibility star (rainbow flicker,
   plows through enemies)
 - Goombas, koopas with kickable spinning shells and combo scoring, piranha

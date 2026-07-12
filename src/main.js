@@ -1,11 +1,11 @@
-import { Input } from './input.js';
+﻿import { Input } from './input.js';
 import { initTouch } from './touch.js';
 import { sound } from './audio.js';
 import { initSprites, SPR, TILES, drawText } from './sprites.js';
 import { LEVELS, LEVEL_NAMES, TILE, ROWS, T, tileAt, setTile } from './level.js';
 import {
   Player, Goomba, Koopa, Mushroom, FireFlower, CoinPop, Fireball, Shard, Popup, Star,
-  Piranha, Enemy, overlaps,
+  Piranha, Puff, Enemy, overlaps,
 } from './entities.js';
 
 const W = 256, H = 240;
@@ -90,10 +90,10 @@ const game = {
         sound.tone('square', 200, 800, 0.25, 0.4);
       }
       this.bumpKillEnemies(tx, ty);
-    } else if (t === T.QS) {
+    } else if (t === T.QS || t === T.Q1) {
       setTile(this.level, tx, ty, T.USED);
       this.bumps.push({ tx, ty, t: 0 });
-      this.entities.push(new Star(tx, ty - 1));
+      this.entities.push(t === T.QS ? new Star(tx, ty - 1) : new Mushroom(tx, ty - 1, true));
       sound.tone('square', 200, 800, 0.25, 0.4);
       this.bumpKillEnemies(tx, ty);
     } else if (t === T.BRICK) {
@@ -154,17 +154,30 @@ function startGame() {
   game.levelIdx = 0;
   resetLevel(true);
   game.state = 'play';
-  sound.startMusic();
+  sound.startMusic(game.level.theme === 'underground' ? 1 : 0);
 }
 
 function nextLevel() {
   game.levelIdx++;
   resetLevel(false, game.player.size);
   game.state = 'play';
-  sound.startMusic();
+  sound.startMusic(game.level.theme === 'underground' ? 1 : 0);
 }
 
 // ---------------------------------------------------------------- update ----
+
+// Drop a spawned enemy onto the first solid tile below its column.
+function spawnOnPlatform(e) {
+  const tx = Math.floor((e.x + e.w / 2) / TILE);
+  for (let ty = 0; ty < ROWS; ty++) {
+    if (tileAt(game.level, tx, ty) !== T.EMPTY) {
+      e.y = ty * TILE - e.h;
+      return e;
+    }
+  }
+  e.y = 13 * TILE - e.h;
+  return e;
+}
 
 function updatePlay() {
   const p = game.player;
@@ -176,6 +189,7 @@ function updatePlay() {
     game.entities.push(
       s.type === 'piranha' ? new Piranha(s.cx, s.top)
       : s.type === 'koopa' ? new Koopa(s.x, 13 * TILE - 14)
+      : s.type === 'koopared' ? spawnOnPlatform(new Koopa(s.x, 0, true))
       : new Goomba(s.x, 13 * TILE - 13));
   }
 
@@ -227,6 +241,8 @@ function updatePlay() {
           e.stomp(game);
           p.vy = input.down('jump') ? -6.5 : -4;
           p.y = e.y - p.h;
+          game.entities.push(
+            new Puff(e.x + 2, e.y - 2, -0.6), new Puff(e.x + e.w - 4, e.y - 2, 0.6));
         } else if (e.harmful) {
           p.hurt(game);
         }
@@ -274,7 +290,7 @@ function updatePlay() {
       game.saveHighScore();
     } else {
       resetLevel(false);
-      sound.startMusic();
+      sound.startMusic(game.level.theme === 'underground' ? 1 : 0);
     }
   }
 
@@ -377,7 +393,8 @@ function drawCastle(x) {
 const TILE_IMG = () => {
   const s = TILES[game.level.theme] || TILES.overworld;
   return {
-    [T.GROUND]: s.ground, [T.BRICK]: s.brick, [T.Q]: s.q, [T.QM]: s.q, [T.QS]: s.brick,
+    [T.GROUND]: s.ground, [T.BRICK]: s.brick, [T.Q]: s.q, [T.QM]: s.q,
+    [T.QS]: s.brick, [T.Q1]: s.brick,
     [T.USED]: s.used, [T.HARD]: s.hard,
     [T.PIPE_TL]: s.pipeTL, [T.PIPE_TR]: s.pipeTR,
     [T.PIPE_L]: s.pipeL, [T.PIPE_R]: s.pipeR,

@@ -236,6 +236,11 @@ export class Player {
       }
     }
 
+    // kick up dust while skidding
+    if (this.skidding && this.onGround && (game.frame & 3) === 0) {
+      game.entities.push(new Puff(this.x + this.w / 2 - 1, this.y + this.h - 3, -this.facing * 0.5));
+    }
+
     this.animT += Math.abs(this.vx) * 0.6;
   }
 
@@ -340,9 +345,10 @@ export class Goomba extends Enemy {
 }
 
 export class Koopa extends Enemy {
-  constructor(x, y) {
+  constructor(x, y, red = false) {
     super(x, y, 14, 14);
     this.vx = -0.5;
+    this.red = red;    // red koopas turn around at platform edges
     this.mode = 'walk'; // walk | shell | spin
     this.animT = 0;
     this.wakeTimer = 0;
@@ -360,6 +366,12 @@ export class Koopa extends Enemy {
       if (++this.wakeTimer > 360) { this.mode = 'walk'; this.vx = -0.5; }
     }
     this.vy = Math.min(this.vy + 0.4, 6);
+    // red koopas stop at ledges (only while calmly walking)
+    if (this.red && this.mode === 'walk' && this.onGround) {
+      const aheadX = this.vx < 0 ? this.x - 1 : this.x + this.w + 1;
+      const below = tileAt(game.level, Math.floor(aheadX / TILE), Math.floor((this.y + this.h + 2) / TILE));
+      if (!SOLID.has(below)) this.vx = -this.vx;
+    }
     moveAndCollide(this, game.level);
     if (this.hitWall) {
       this.vx = -this.vx;
@@ -401,8 +413,8 @@ export class Koopa extends Enemy {
     sound.kick();
   }
   draw(g, camX) {
-    if (this.mode !== 'walk') { drawEntity(g, SPR.shell, this, camX); return; }
-    const f = SPR.koopa[(this.animT / 10 | 0) % 2];
+    if (this.mode !== 'walk') { drawEntity(g, this.red ? SPR.shellRed : SPR.shell, this, camX); return; }
+    const f = (this.red ? SPR.koopaRed : SPR.koopa)[(this.animT / 10 | 0) % 2];
     drawEntity(g, this.vx > 0 ? f.r : f.l, this, camX);
   }
 }
@@ -464,11 +476,12 @@ export class Piranha extends Enemy {
 // ----------------------------------------------------------------- items ----
 
 export class Mushroom {
-  constructor(tx, ty) {
+  constructor(tx, ty, oneUp = false) {
     this.x = tx * TILE + 1; this.y = ty * TILE;
     this.w = 14; this.h = 13;
     this.vx = 0; this.vy = 0;
     this.rise = 16;
+    this.oneUp = oneUp;
     this.dead = false;
   }
   update(game) {
@@ -480,9 +493,15 @@ export class Mushroom {
   }
   collect(game) {
     this.dead = true;
-    game.player.powerUp(game);
+    if (this.oneUp) {
+      game.lives++;
+      game.popups.push(new Popup('1UP!', this.x, this.y - 12));
+      sound.oneUp();
+    } else {
+      game.player.powerUp(game);
+    }
   }
-  draw(g, camX) { drawEntity(g, SPR.mushroom, this, camX); }
+  draw(g, camX) { drawEntity(g, this.oneUp ? SPR.mushroom1up : SPR.mushroom, this, camX); }
 }
 
 export class FireFlower {
@@ -593,6 +612,24 @@ export class Shard { // brick fragments
     g.fillRect(Math.round(this.x - camX), Math.round(this.y), 4, 4);
     g.fillStyle = '#78290c';
     g.fillRect(Math.round(this.x - camX) + 1, Math.round(this.y) + 1, 2, 2);
+  }
+}
+
+export class Puff { // little dust cloud (skids, stomps)
+  constructor(x, y, vx = 0) {
+    this.x = x; this.y = y; this.vx = vx;
+    this.t = 0;
+    this.dead = false;
+  }
+  update() {
+    this.x += this.vx;
+    this.y -= 0.3;
+    if (++this.t > 14) this.dead = true;
+  }
+  draw(g, camX) {
+    const s = this.t < 7 ? 3 : 2;
+    g.fillStyle = this.t < 5 ? '#ffffff' : '#c8c8d8';
+    g.fillRect(Math.round(this.x - camX), Math.round(this.y), s, s);
   }
 }
 

@@ -16,6 +16,24 @@ const MELODY = [
 ];
 const BASS = [48, 48, 45, 45, 48, 48, 43, 43, 48, 48, 45, 45, 53, 55, 48, 48];
 
+// Original cave theme: sparse, minor, echoing.
+const MELODY_CAVE = [
+  57, 0, 60, 0, 64, 0, 60, 0,
+  57, 0, 60, 0, 65, 64, 0, 0,
+  55, 0, 59, 0, 62, 0, 59, 0,
+  57, 0, 60, 0, 57, 0, 0, 0,
+  53, 0, 57, 0, 60, 0, 57, 0,
+  55, 0, 59, 0, 62, 60, 0, 0,
+  52, 0, 55, 0, 59, 0, 62, 0,
+  57, 0, 0, 0, 45, 0, 0, 0,
+];
+const BASS_CAVE = [45, 45, 45, 45, 43, 43, 45, 45, 41, 41, 43, 43, 40, 40, 45, 45];
+
+const TRACKS = [
+  { melody: MELODY, bass: BASS, stepDur: 0.135 },
+  { melody: MELODY_CAVE, bass: BASS_CAVE, stepDur: 0.165 },
+];
+
 class Sound {
   constructor() {
     this.ctx = null;
@@ -108,8 +126,9 @@ class Sound {
   }
   timeWarn() { this.tone('square', 880, 880, 0.08, 0.5); this.tone('square', 880, 880, 0.08, 0.5, 0.15); }
 
-  startMusic() {
+  startMusic(track = 0) {
     if (!this.ctx) return;
+    this.track = track;
     this.musicOn = true;
     this.step = 0;
     this.nextTime = this.ctx.currentTime + 0.1;
@@ -119,16 +138,17 @@ class Sound {
   // Called every frame: schedules music notes just ahead of playback.
   update() {
     if (!this.ctx || !this.musicOn) return;
+    const { melody, bass, stepDur } = TRACKS[this.track || 0];
     while (this.nextTime < this.ctx.currentTime + 0.15) {
-      const i = this.step % MELODY.length;
-      const m = MELODY[i];
+      const i = this.step % melody.length;
+      const m = melody[i];
       const when = this.nextTime - this.ctx.currentTime;
-      if (m) this.tone('square', midi(m), midi(m), this.stepDur * 0.9, 0.35, when, this.musicGain);
+      if (m) this.tone('square', midi(m), midi(m), stepDur * 0.9, 0.35, when, this.musicGain);
       if (i % 4 === 0) {
-        const b = BASS[(i / 4) % BASS.length];
-        this.tone('triangle', midi(b), midi(b), this.stepDur * 3.2, 0.8, when, this.musicGain);
+        const b = bass[(i / 4) % bass.length];
+        this.tone('triangle', midi(b), midi(b), stepDur * 3.2, 0.8, when, this.musicGain);
       }
-      this.nextTime += this.stepDur;
+      this.nextTime += stepDur;
       this.step++;
     }
   }
