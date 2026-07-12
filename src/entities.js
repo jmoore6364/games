@@ -85,6 +85,7 @@ export class Player {
     this.dieTimer = 0;
     this.coyote = 0;
     this.jumpBuf = 0;
+    this.starTimer = 0;
   }
 
   setSize(size) {
@@ -168,6 +169,7 @@ export class Player {
 
     if (this.invuln > 0) this.invuln--;
     if (this.growTimer > 0) this.growTimer--;
+    if (this.starTimer > 0) this.starTimer--;
 
     // ---- horizontal ----
     const left = input.down('left'), right = input.down('right');
@@ -256,6 +258,14 @@ export class Player {
   draw(g, camX) {
     if (this.hidden) return;
     if (this.invuln > 0 && (this.invuln & 4)) return; // blink
+    if (this.starTimer > 0) {
+      // rainbow flicker; slows to a blink as it wears off
+      const fast = this.starTimer > 120 || (this.starTimer & 8);
+      if (fast) g.filter = `hue-rotate(${(this.starTimer * 37) % 360}deg) saturate(2)`;
+      drawEntity(g, this.sprite(), this, camX);
+      g.filter = 'none';
+      return;
+    }
     drawEntity(g, this.sprite(), this, camX);
   }
 }
@@ -434,6 +444,31 @@ export class FireFlower {
     game.player.powerUp(game);
   }
   draw(g, camX) { drawEntity(g, SPR.flower, this, camX); }
+}
+
+export class Star {
+  constructor(tx, ty) {
+    this.x = tx * TILE + 1; this.y = ty * TILE;
+    this.w = 14; this.h = 14;
+    this.vx = 0; this.vy = 0;
+    this.rise = 16;
+    this.dead = false;
+  }
+  update(game) {
+    if (this.rise > 0) { this.y -= 0.5; this.rise -= 0.5; if (this.rise <= 0) this.vx = 1.4; return; }
+    this.vy = Math.min(this.vy + 0.25, 5);
+    moveAndCollide(this, game.level);
+    if (this.onGround) this.vy = -4.2; // bounce
+    if (this.hitWall) this.vx = -this.vx;
+    if (this.y > (ROWS + 2) * TILE) this.dead = true;
+  }
+  collect(game) {
+    this.dead = true;
+    game.player.starTimer = 620;
+    game.addScore(1000, this.x, this.y);
+    sound.powerup();
+  }
+  draw(g, camX) { drawEntity(g, SPR.star, this, camX); }
 }
 
 export class CoinPop {

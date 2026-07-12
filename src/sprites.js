@@ -1,4 +1,4 @@
-// All art is procedurally generated pixel art — original designs, no ripped assets.
+﻿// All art is procedurally generated pixel art - original designs, no ripped assets.
 // Sprites are authored as string grids; letters index into a per-sprite palette.
 
 export const SPR = {};
@@ -480,6 +480,26 @@ const FIREBALL = [
 ];
 const FIREBALL_PAL = { W: '#fff8c0', Y: '#f8b800', R: '#e03828' };
 
+const STAR_PAL = { Y: '#f8b800', W: '#fff8c0', K: '#181008' };
+const STAR = [
+  '.......YY.......',
+  '.......YY.......',
+  '......YYYY......',
+  '......YWWY......',
+  '.....YYWWYY.....',
+  'YYYYYYYWWYYYYYYY',
+  '.YYYYYYYYYYYYY..',
+  '..YYYKYYYYKYYY..',
+  '...YYKYYYYKYY...',
+  '....YYYYYYYY....',
+  '....YYYYYYYY....',
+  '...YYYYYYYYYY...',
+  '...YYYY..YYYY...',
+  '..YYYY....YYYY..',
+  '..YY........YY..',
+  '................',
+];
+
 // ---------------------------------------------------------------- tiles ----
 
 function makeTile(draw) {
@@ -489,10 +509,10 @@ function makeTile(draw) {
   return c;
 }
 
-function buildTiles() {
-  const brickBase = '#c85820', brickDark = '#78290c', brickLight = '#f0a060';
+function buildTileSet(brickBase, brickDark, brickLight) {
+  const set = {};
 
-  TILES.ground = makeTile(g => {
+  set.ground = makeTile(g => {
     g.fillStyle = brickBase; g.fillRect(0, 0, 16, 16);
     g.fillStyle = brickLight; g.fillRect(0, 0, 16, 1); g.fillRect(0, 0, 1, 16);
     g.fillStyle = brickDark;
@@ -501,7 +521,7 @@ function buildTiles() {
     g.fillRect(3, 8, 1, 7); g.fillRect(11, 8, 1, 7);
   });
 
-  TILES.brick = makeTile(g => {
+  set.brick = makeTile(g => {
     g.fillStyle = brickBase; g.fillRect(0, 0, 16, 16);
     g.fillStyle = brickLight; g.fillRect(0, 0, 16, 1);
     g.fillStyle = brickDark;
@@ -509,7 +529,7 @@ function buildTiles() {
     g.fillRect(5, 0, 1, 3); g.fillRect(11, 4, 1, 3); g.fillRect(5, 8, 1, 3); g.fillRect(11, 12, 1, 3);
   });
 
-  TILES.q = makeTile(g => {
+  set.q = makeTile(g => {
     g.fillStyle = '#f8a800'; g.fillRect(0, 0, 16, 16);
     g.fillStyle = '#fff0a0'; g.fillRect(0, 0, 16, 1); g.fillRect(0, 0, 1, 16);
     g.fillStyle = '#a84800'; g.fillRect(15, 0, 1, 16); g.fillRect(0, 15, 16, 1);
@@ -520,7 +540,7 @@ function buildTiles() {
     g.fillRect(8, 7, 3, 2); g.fillRect(7, 8, 2, 2); g.fillRect(7, 12, 2, 2);
   });
 
-  TILES.used = makeTile(g => {
+  set.used = makeTile(g => {
     g.fillStyle = '#985030'; g.fillRect(0, 0, 16, 16);
     g.fillStyle = '#c88060'; g.fillRect(0, 0, 16, 1); g.fillRect(0, 0, 1, 16);
     g.fillStyle = '#502010'; g.fillRect(15, 0, 1, 16); g.fillRect(0, 15, 16, 1);
@@ -528,34 +548,36 @@ function buildTiles() {
     g.fillRect(2, 2, 2, 2); g.fillRect(12, 2, 2, 2); g.fillRect(2, 12, 2, 2); g.fillRect(12, 12, 2, 2);
   });
 
-  TILES.hard = makeTile(g => {
-    g.fillStyle = '#d0885c'; g.fillRect(0, 0, 16, 16);
-    g.fillStyle = '#f8c8a0'; g.fillRect(0, 0, 15, 2); g.fillRect(0, 0, 2, 15);
-    g.fillStyle = '#78290c'; g.fillRect(15, 0, 1, 16); g.fillRect(0, 15, 16, 1);
+  set.hard = makeTile(g => {
+    g.fillStyle = brickBase; g.fillRect(0, 0, 16, 16);
+    g.fillStyle = brickLight; g.fillRect(0, 0, 15, 2); g.fillRect(0, 0, 2, 15);
+    g.fillStyle = brickDark; g.fillRect(15, 0, 1, 16); g.fillRect(0, 15, 16, 1);
     g.fillRect(14, 1, 1, 14); g.fillRect(1, 14, 14, 1);
   });
 
   const pipeBody = '#18b830', pipeLight = '#98e888', pipeDark = '#005810';
-  TILES.pipeTL = makeTile(g => {
+  set.pipeTL = makeTile(g => {
     g.fillStyle = pipeBody; g.fillRect(0, 0, 16, 16);
     g.fillStyle = pipeLight; g.fillRect(1, 0, 3, 16); g.fillRect(0, 0, 16, 1);
     g.fillStyle = pipeDark; g.fillRect(0, 0, 1, 16); g.fillRect(0, 15, 16, 1); g.fillRect(10, 1, 2, 14);
   });
-  TILES.pipeTR = makeTile(g => {
+  set.pipeTR = makeTile(g => {
     g.fillStyle = pipeBody; g.fillRect(0, 0, 16, 16);
     g.fillStyle = pipeLight; g.fillRect(0, 0, 16, 1); g.fillRect(4, 1, 2, 14);
     g.fillStyle = pipeDark; g.fillRect(15, 0, 1, 16); g.fillRect(0, 15, 16, 1); g.fillRect(12, 1, 2, 14);
   });
-  TILES.pipeL = makeTile(g => {
+  set.pipeL = makeTile(g => {
     g.fillStyle = pipeBody; g.fillRect(0, 0, 16, 16);
     g.fillStyle = pipeLight; g.fillRect(3, 0, 3, 16);
     g.fillStyle = pipeDark; g.fillRect(2, 0, 1, 16); g.fillRect(11, 0, 2, 16);
   });
-  TILES.pipeR = makeTile(g => {
+  set.pipeR = makeTile(g => {
     g.fillStyle = pipeBody; g.fillRect(0, 0, 16, 16);
     g.fillStyle = pipeLight; g.fillRect(5, 0, 2, 16);
     g.fillStyle = pipeDark; g.fillRect(13, 0, 1, 16); g.fillRect(10, 0, 2, 16);
   });
+
+  return set;
 }
 
 // ---------------------------------------------------------------- build ----
@@ -587,8 +609,10 @@ export function initSprites() {
   SPR.flower = makeSprite(FLOWER, FLOWER_PAL);
   SPR.coin = COIN_FRAMES.map(f => makeSprite(f, COIN_PAL));
   SPR.fireball = makeSprite(FIREBALL, FIREBALL_PAL);
+  SPR.star = makeSprite(STAR, STAR_PAL);
 
-  buildTiles();
+  TILES.overworld = buildTileSet('#c85820', '#78290c', '#f0a060');
+  TILES.underground = buildTileSet('#3a68c8', '#122a70', '#8caef8');
 }
 
 // Draw sprite bottom-center aligned on an entity's hitbox.

@@ -24,11 +24,16 @@ npm start          # serves at http://localhost:8123
 ## Features
 
 - Classic feel: acceleration, skidding, run boost, variable-height jumps, coyote time
-- Question blocks (coins + powerups), breakable bricks with shard particles
-- Mushroom → big, fire flower → fireballs
+- Two worlds: 1-1 overworld and 1-2 underground (dark cave, blue-brick tileset),
+  with powerup size carried between levels
+- Question blocks (coins + powerups), breakable bricks with shard particles,
+  secret star bricks
+- Mushroom → big, fire flower → fireballs, invincibility star (rainbow flicker,
+  plows through enemies)
 - Goombas, koopas with kickable spinning shells and combo scoring
 - Flagpole finish with height bonus, castle walk-off, time-to-score countdown
 - Coins (100 = 1UP), timer, lives, HUD with a hand-made 3x5 pixel font
+- High score persisted in localStorage
 - Original 8-bar chiptune loop + synthesized sound effects
 
 ## Dev/test hooks (browser console)

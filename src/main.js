@@ -1,9 +1,9 @@
 import { Input } from './input.js';
 import { sound } from './audio.js';
 import { initSprites, SPR, TILES, drawText } from './sprites.js';
-import { buildLevel, TILE, ROWS, T, tileAt, setTile } from './level.js';
+import { LEVELS, LEVEL_NAMES, TILE, ROWS, T, tileAt, setTile } from './level.js';
 import {
-  Player, Goomba, Koopa, Mushroom, FireFlower, CoinPop, Fireball, Shard, Popup,
+  Player, Goomba, Koopa, Mushroom, FireFlower, CoinPop, Fireball, Shard, Popup, Star,
   Enemy, overlaps,
 } from './entities.js';
 
@@ -28,8 +28,9 @@ const input = new Input();
 // ------------------------------------------------------------------ game ----
 
 const game = {
-  state: 'title', // title | play | pause | clear | gameover
+  state: 'title', // title | play | pause | clear | won | gameover
   level: null,
+  levelIdx: 0,
   player: null,
   entities: [],
   popups: [],
@@ -44,6 +45,14 @@ const game = {
   timeWarned: false,
   clearTimer: 0,
   deathHandled: false,
+  highScore: +(localStorage.getItem('smb-highscore') || 0),
+
+  saveHighScore() {
+    if (this.score > this.highScore) {
+      this.highScore = this.score;
+      localStorage.setItem('smb-highscore', String(this.highScore));
+    }
+  },
 
   addScore(n, x, y) {
     this.score += n;
@@ -79,6 +88,12 @@ const game = {
         sound.tone('square', 200, 800, 0.25, 0.4);
       }
       this.bumpKillEnemies(tx, ty);
+    } else if (t === T.QS) {
+      setTile(this.level, tx, ty, T.USED);
+      this.bumps.push({ tx, ty, t: 0 });
+      this.entities.push(new Star(tx, ty - 1));
+      sound.tone('square', 200, 800, 0.25, 0.4);
+      this.bumpKillEnemies(tx, ty);
     } else if (t === T.BRICK) {
       if (player.size > 0) {
         setTile(this.level, tx, ty, T.EMPTY);
@@ -111,11 +126,13 @@ const game = {
   },
 };
 
-function resetLevel(fullReset) {
-  game.level = buildLevel();
-  game.player = new Player(game.level.playerStart.x, game.level.playerStart.y - 14 + TILE);
-  game.player.y = game.level.playerStart.y + TILE - game.player.h - TILE; // stand on ground row 13
-  game.player.y = 13 * TILE - game.player.h;
+function resetLevel(fullReset, carrySize = 0) {
+  game.level = LEVELS[game.levelIdx]();
+  game.player = new Player(game.level.playerStart.x, 13 * TILE - 14);
+  if (carrySize > 0) {
+    game.player.setSize(1);
+    game.player.size = carrySize;
+  }
   game.entities = [];
   game.popups = [];
   game.bumps = [];
@@ -132,7 +149,15 @@ function resetLevel(fullReset) {
 }
 
 function startGame() {
+  game.levelIdx = 0;
   resetLevel(true);
+  game.state = 'play';
+  sound.startMusic();
+}
+
+function nextLevel() {
+  game.levelIdx++;
+  resetLevel(false, game.player.size);
   game.state = 'play';
   sound.startMusic();
 }
@@ -176,12 +201,17 @@ function updatePlay() {
     // items & enemies
     for (const e of game.entities) {
       if (e.dead) continue;
-      if ((e instanceof Mushroom || e instanceof FireFlower) && overlaps(p, e)) {
+      if ((e instanceof Mushroom || e instanceof FireFlower || e instanceof Star) && overlaps(p, e)) {
         e.collect(game);
         continue;
       }
       if (e instanceof Enemy && overlaps(p, e)) {
         if (!e.harmful && !(e instanceof Koopa && e.mode === 'shell')) continue;
+        if (p.starTimer > 0) { // invincible: plow through everything
+          e.flip(game, p.facing, 200);
+          sound.kick();
+          continue;
+        }
         if (e instanceof Koopa && e.mode === 'shell' && e.flipTimer === 0) {
           // kick the resting shell
           const dir = p.x + p.w / 2 < e.x + e.w / 2 ? 1 : -1;
@@ -225,7 +255,10 @@ function updatePlay() {
       game.score += chunk * 50;
       if (game.frame % 4 === 0) sound.coin();
     }
-    if (game.clearTimer > 240 && game.time <= 0) game.state = 'clear';
+    if (game.clearTimer > 240 && game.time <= 0) {
+      game.state = game.levelIdx < LEVELS.length - 1 ? 'clear' : 'won';
+      game.saveHighScore();
+    }
   }
 
   // death sequence finished?
@@ -234,6 +267,7 @@ function updatePlay() {
     game.lives--;
     if (game.lives <= 0) {
       game.state = 'gameover';
+      game.saveHighScore();
     } else {
       resetLevel(false);
       sound.startMusic();
@@ -257,7 +291,7 @@ function updatePlay() {
 // ------------------------------------------------------------------ draw ----
 
 function drawBackground() {
-  g.fillStyle = '#6b8cff';
+  g.fillStyle = game.level.theme === 'underground' ? '#080810' : '#6b8cff';
   g.fillRect(0, 0, W, H);
 
   const camT = game.cam / TILE;
@@ -336,12 +370,15 @@ function drawCastle(x) {
   g.fillRect(x + 12, y - 60, 10, 12); g.fillRect(x + 58, y - 60, 10, 12);
 }
 
-const TILE_IMG = () => ({
-  [T.GROUND]: TILES.ground, [T.BRICK]: TILES.brick, [T.Q]: TILES.q, [T.QM]: TILES.q,
-  [T.USED]: TILES.used, [T.HARD]: TILES.hard,
-  [T.PIPE_TL]: TILES.pipeTL, [T.PIPE_TR]: TILES.pipeTR,
-  [T.PIPE_L]: TILES.pipeL, [T.PIPE_R]: TILES.pipeR,
-});
+const TILE_IMG = () => {
+  const s = TILES[game.level.theme] || TILES.overworld;
+  return {
+    [T.GROUND]: s.ground, [T.BRICK]: s.brick, [T.Q]: s.q, [T.QM]: s.q, [T.QS]: s.brick,
+    [T.USED]: s.used, [T.HARD]: s.hard,
+    [T.PIPE_TL]: s.pipeTL, [T.PIPE_TR]: s.pipeTR,
+    [T.PIPE_L]: s.pipeL, [T.PIPE_R]: s.pipeR,
+  };
+};
 
 function drawTiles() {
   const imgs = TILE_IMG();
@@ -393,7 +430,7 @@ function drawHUD() {
   g.drawImage(SPR.coin[0], 88, 10, 8, 7);
   drawText(g, 'x' + String(game.coins).padStart(2, '0'), 98, 11);
   drawText(g, 'WORLD', 136, 8);
-  drawText(g, '1-1', 140, 16);
+  drawText(g, game.level.name, 140, 16);
   drawText(g, 'TIME', 176, 8);
   drawText(g, String(Math.max(0, game.time)).padStart(3, '0'), 178, 16,
     game.time <= 100 ? '#f85030' : '#ffffff');
@@ -425,6 +462,7 @@ function draw() {
     drawCenter('SUPER', 68, '#ffffff');
     drawCenter('MOORE BROS!', 82, '#f8d048');
     if (game.frame % 60 < 40) drawCenter('PRESS ENTER TO START', 140, '#ffffff');
+    if (game.highScore > 0) drawCenter('TOP ' + game.highScore, 118, '#f8d048');
     drawCenter('Z JUMP  X RUN AND FIRE', 168, '#b8c8ff');
     drawCenter('ARROWS MOVE  M MUTE', 178, '#b8c8ff');
   } else if (game.state === 'pause') {
@@ -436,7 +474,16 @@ function draw() {
     g.fillRect(0, 0, W, H);
     drawCenter('COURSE CLEAR!', 96, '#f8d048');
     drawCenter('SCORE ' + game.score, 116, '#ffffff');
-    if (game.frame % 60 < 40) drawCenter('PRESS ENTER', 140, '#ffffff');
+    if (game.frame % 60 < 40) {
+      drawCenter('PRESS ENTER FOR WORLD ' + LEVEL_NAMES[game.levelIdx + 1], 140, '#ffffff');
+    }
+  } else if (game.state === 'won') {
+    g.fillStyle = 'rgba(0,0,0,0.5)';
+    g.fillRect(0, 0, W, H);
+    drawCenter('YOU SAVED THE KINGDOM!', 88, '#f8d048');
+    drawCenter('SCORE ' + game.score, 112, '#ffffff');
+    drawCenter('TOP ' + game.highScore, 124, '#b8c8ff');
+    if (game.frame % 60 < 40) drawCenter('PRESS ENTER', 148, '#ffffff');
   } else if (game.state === 'gameover') {
     g.fillStyle = 'rgba(0,0,0,0.6)';
     g.fillRect(0, 0, W, H);
@@ -470,9 +517,14 @@ function step() {
       if (input.pressed('start')) game.state = 'play';
       break;
     case 'clear':
+      if (input.pressed('start')) nextLevel();
+      break;
+    case 'won':
     case 'gameover':
       if (input.pressed('start')) {
+        game.saveHighScore();
         game.state = 'title';
+        game.levelIdx = 0;
         resetLevel(true);
         game.cam = 0;
         sound.stopMusic();
