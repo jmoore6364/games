@@ -480,6 +480,48 @@ const FIREBALL = [
 ];
 const FIREBALL_PAL = { W: '#fff8c0', Y: '#f8b800', R: '#e03828' };
 
+const BOSS_PAL = { C: '#a04808', F: '#e8c890', W: '#f8f8f8', K: '#181008', Y: '#ffd800', R: '#e03828' };
+const BOSS = [
+  '.....Y..Y..Y............',
+  '.....YYYYYY.............',
+  '.....YYYYYY.............',
+  '....CCCCCCCCCC..........',
+  '..CCCCCCCCCCCCCC........',
+  '.CCCCCCCCCCCCCCCC.......',
+  '.CCWWKCCCCCCKWWCC.......',
+  'CCWWWKCCCCCCKWWWCC......',
+  'CCWWKKCCCCCCKKWWCC......',
+  'CCCCCCCCCCCCCCCCCC......',
+  'CCCCCCCCCCCCCCCCCC......',
+  'CCKWWWWKKKKWWWWKCC......',
+  'CCKWKWKWWWWKWKWKCC......',
+  '.CCKKKKKKKKKKKKCC.......',
+  '.CCCCCCCCCCCCCCCC.......',
+  '..CCCFFFFFFFFCCC........',
+  '...CFFFFFFFFFFC.........',
+  '...FFFFFFFFFFFF.........',
+  '..KKKKKK..KKKKKK........',
+  '.KKKKKKK..KKKKKKK.......',
+];
+
+const AXE_PAL = { Y: '#ffd800', O: '#e07800', B: '#6b3f16' };
+const AXE = [
+  '....YYYY........',
+  '..YYYYYYY.......',
+  '.YYYYYYYY.......',
+  '.YYYYOOYY.......',
+  '.YYYOOBBY.......',
+  '..YYOBBB........',
+  '....OBBB........',
+  '.....BBBB.......',
+  '......BBBB......',
+  '.......BBBB.....',
+  '........BBBB....',
+  '.........BBBB...',
+  '..........BBB...',
+  '................',
+];
+
 const PIRANHA_PAL = { R: '#e03828', W: '#f8f8f8', G: '#10a848', L: '#88e070', K: '#181008' };
 const PIRANHA = [
   '.....RRRRRR.....',
@@ -640,8 +682,29 @@ export function initSprites() {
   SPR.star = makeSprite(STAR, STAR_PAL);
   SPR.piranha = makeSprite(PIRANHA, PIRANHA_PAL);
 
+  const boss = makeSprite(BOSS, BOSS_PAL);
+  SPR.boss = { l: boss, r: flipped(boss) }; // authored facing left
+  SPR.axe = makeSprite(AXE, AXE_PAL);
+
   TILES.overworld = buildTileSet('#c85820', '#78290c', '#f0a060');
   TILES.underground = buildTileSet('#3a68c8', '#122a70', '#8caef8');
+  TILES.castle = buildTileSet('#8a8a96', '#38383f', '#d0d0da');
+
+  // lava: two-frame animated surface
+  SPR.lava = [0, 1].map(f => makeTile(g => {
+    g.fillStyle = '#e03000'; g.fillRect(0, 0, 16, 16);
+    g.fillStyle = '#f88030';
+    for (let x = 0; x < 16; x += 4) g.fillRect(x + (f ? 2 : 0), 0, 2, 2);
+    g.fillStyle = '#ffc040';
+    for (let x = 2; x < 16; x += 8) g.fillRect(x + (f ? 4 : 0), 2, 1, 1);
+  }));
+
+  // bridge: slim chain-and-plank slab
+  SPR.bridge = makeTile(g => {
+    g.fillStyle = '#c85820'; g.fillRect(0, 2, 16, 6);
+    g.fillStyle = '#78290c'; g.fillRect(0, 7, 16, 1); g.fillRect(4, 2, 1, 5); g.fillRect(9, 2, 1, 5); g.fillRect(14, 2, 1, 5);
+    g.fillStyle = '#f0a060'; g.fillRect(0, 2, 16, 1);
+  });
 }
 
 // Draw sprite bottom-center aligned on an entity's hitbox.

@@ -143,6 +143,12 @@ export class Player {
       return;
     }
 
+    if (this.state === 'axe') { // frozen while the bridge falls
+      this.vy = Math.min(this.vy + GRAV, MAX_FALL);
+      moveAndCollide(this, level);
+      return;
+    }
+
     if (this.state === 'flag') {
       // slide down the pole
       this.y += 2;
@@ -473,6 +479,80 @@ export class Piranha extends Enemy {
   }
 }
 
+export class FireBar {
+  // Rotating chain of flames around a pivot block. Indestructible hazard.
+  constructor(cx, cy) {
+    this.cx = cx; this.cy = cy;
+    this.angle = Math.PI * 0.75;
+    this.balls = 5;
+    this.dead = false;
+    this.x = cx; this.y = cy; this.w = 0; this.h = 0; // never culled by position
+  }
+  update() { this.angle += 0.035; }
+  // returns true if any flame ball overlaps the rect
+  hits(r) {
+    for (let i = 1; i < this.balls; i++) {
+      const bx = this.cx + Math.cos(this.angle) * i * 7;
+      const by = this.cy + Math.sin(this.angle) * i * 7;
+      if (bx + 3 > r.x && bx - 3 < r.x + r.w && by + 3 > r.y && by - 3 < r.y + r.h) return true;
+    }
+    return false;
+  }
+  draw(g, camX) {
+    for (let i = 0; i < this.balls; i++) {
+      const bx = this.cx + Math.cos(this.angle) * i * 7;
+      const by = this.cy + Math.sin(this.angle) * i * 7;
+      g.drawImage(SPR.fireball, Math.round(bx - 3 - camX), Math.round(by - 3));
+    }
+  }
+}
+
+export class Boss extends Enemy {
+  // King Snapjaw: paces his bridge, hops now and then. 8 fireballs or the axe.
+  constructor(x, y, bridge) {
+    super(x, y, 20, 19);
+    this.vx = -0.4;
+    this.bridge = bridge; // {fromPx, toPx}
+    this.hp = 8;
+    this.animT = 0;
+    this.hopT = 90;
+    this.falling = false;
+  }
+  get harmful() { return super.harmful && !this.falling; }
+  update(game) {
+    if (this.falling) { // bridge is out: down he goes
+      this.vy = Math.min(this.vy + 0.3, 5);
+      this.y += this.vy;
+      if (this.y > (ROWS + 2) * TILE) this.dead = true;
+      return;
+    }
+    if (!this.baseUpdate(game)) return;
+    this.vy = Math.min(this.vy + 0.35, 6);
+    if (--this.hopT <= 0 && this.onGround) { this.vy = -3.6; this.hopT = 70 + (this.animT % 60); }
+    moveAndCollide(this, game.level);
+    if (this.hitWall) this.vx = -this.vx;
+    if (this.x < this.bridge.fromPx) { this.x = this.bridge.fromPx; this.vx = Math.abs(this.vx); }
+    if (this.x + this.w > this.bridge.toPx) { this.x = this.bridge.toPx - this.w; this.vx = -Math.abs(this.vx); }
+    // face the hero
+    this.vx = Math.abs(this.vx) * (game.player.x > this.x ? 1 : -1);
+    this.animT++;
+  }
+  hit(game) { // fireball damage
+    if (--this.hp <= 0) this.flip(game, 1, 5000);
+    else game.addScore(100, this.x, this.y);
+  }
+  stomp() { /* can't be squashed */ }
+  draw(g, camX) {
+    if (this.flipTimer > 0 || this.falling) {
+      const img = SPR.boss.l;
+      const x = Math.round(this.x + this.w / 2 - 12 - camX), y = Math.round(this.y + this.h - 18);
+      g.save(); g.translate(x + 12, y + 10); g.scale(1, -1); g.drawImage(img, -12, -10); g.restore();
+      return;
+    }
+    drawEntity(g, this.vx > 0 ? SPR.boss.r : SPR.boss.l, this, camX);
+  }
+}
+
 // ----------------------------------------------------------------- items ----
 
 export class Mushroom {
@@ -581,7 +661,8 @@ export class Fireball {
     this.t++;
     for (const e of game.entities) {
       if (e instanceof Enemy && e.harmful && overlaps(this, e)) {
-        e.flip(game, Math.sign(this.vx) || 1, 200);
+        if (e instanceof Boss) e.hit(game);
+        else { e.flip(game, Math.sign(this.vx) || 1, 200); }
         sound.kick();
         this.dead = true;
         return;

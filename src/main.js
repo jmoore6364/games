@@ -5,7 +5,7 @@ import { initSprites, SPR, TILES, drawText } from './sprites.js';
 import { LEVELS, LEVEL_NAMES, TILE, ROWS, T, tileAt, setTile } from './level.js';
 import {
   Player, Goomba, Koopa, Mushroom, FireFlower, CoinPop, Fireball, Shard, Popup, Star,
-  Piranha, Puff, Enemy, overlaps,
+  Piranha, Puff, FireBar, Boss, Enemy, overlaps,
 } from './entities.js';
 
 const W = 256, H = 240;
@@ -143,6 +143,7 @@ function resetLevel(fullReset, carrySize = 0) {
   game.time = game.level.timeLimit;
   game.timeWarned = false;
   game.clearTimer = 0;
+  game.axeSeq = null;
   if (fullReset) {
     game.score = 0;
     game.coins = 0;
@@ -154,14 +155,14 @@ function startGame() {
   game.levelIdx = 0;
   resetLevel(true);
   game.state = 'play';
-  sound.startMusic(game.level.theme === 'underground' ? 1 : 0);
+  sound.startMusic(game.level.theme === 'overworld' ? 0 : 1);
 }
 
 function nextLevel() {
   game.levelIdx++;
   resetLevel(false, game.player.size);
   game.state = 'play';
-  sound.startMusic(game.level.theme === 'underground' ? 1 : 0);
+  sound.startMusic(game.level.theme === 'overworld' ? 0 : 1);
 }
 
 // ---------------------------------------------------------------- update ----
@@ -186,8 +187,11 @@ function updatePlay() {
   const spawns = game.level.spawns;
   while (game.spawnIdx < spawns.length && spawns[game.spawnIdx].x < game.cam + W + 32) {
     const s = spawns[game.spawnIdx++];
+    const br = game.level.bridge;
     game.entities.push(
       s.type === 'piranha' ? new Piranha(s.cx, s.top)
+      : s.type === 'firebar' ? new FireBar(s.cx, s.cy)
+      : s.type === 'boss' ? new Boss(s.x, br.y * TILE - 19, { fromPx: br.from * TILE, toPx: (br.to + 1) * TILE })
       : s.type === 'koopa' ? new Koopa(s.x, 13 * TILE - 14)
       : s.type === 'koopared' ? spawnOnPlatform(new Koopa(s.x, 0, true))
       : new Goomba(s.x, 13 * TILE - 13));
@@ -196,7 +200,8 @@ function updatePlay() {
   p.update(input, game);
 
   for (const e of game.entities) e.update(game);
-  game.entities = game.entities.filter(e => !e.dead && !(e.x < game.cam - 48 && e instanceof Enemy));
+  game.entities = game.entities.filter(e =>
+    !e.dead && !(e.x < game.cam - 48 && e instanceof Enemy && !(e instanceof Boss)));
 
   for (const pop of game.popups) pop.update();
   game.popups = game.popups.filter(p2 => !p2.dead);
@@ -204,14 +209,61 @@ function updatePlay() {
   for (const b of game.bumps) b.t++;
   game.bumps = game.bumps.filter(b => b.t < 10);
 
+  // enemies that wander into lava are done for
+  for (const e of game.entities) {
+    if (e instanceof Enemy && !e.dead && !(e instanceof Boss) && !(e instanceof Piranha)) {
+      if (tileAt(game.level, Math.floor((e.x + e.w / 2) / TILE), Math.floor((e.y + e.h - 1) / TILE)) === T.LAVA) {
+        e.dead = true;
+      }
+    }
+  }
+
+  // bridge collapse sequence after grabbing the axe
+  if (game.axeSeq) {
+    const seq = game.axeSeq;
+    if (++seq.t % 3 === 0 && seq.x >= game.level.bridge.from) {
+      setTile(game.level, seq.x--, game.level.bridge.y, T.EMPTY);
+      sound.bump();
+    }
+    if (seq.x < game.level.bridge.from && !seq.bossFell) {
+      seq.bossFell = true;
+      const boss = game.entities.find(e => e instanceof Boss);
+      if (boss && !boss.dead) { boss.falling = true; boss.vy = 0; game.addScore(5000, boss.x, boss.y); }
+      sound.stomp();
+    }
+    if (seq.bossFell && seq.t > 160 && p.state === 'axe') {
+      p.state = 'walkoff';
+      sound.clearFanfare();
+    }
+  }
+
   if (p.state === 'normal') {
-    // coin tiles
+    // coin tiles, lava, and the axe
     const x0 = Math.floor(p.x / TILE), x1 = Math.floor((p.x + p.w - 0.01) / TILE);
     const y0 = Math.floor(p.y / TILE), y1 = Math.floor((p.y + p.h - 0.01) / TILE);
     for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) {
-      if (tileAt(game.level, tx, ty) === T.COIN) {
+      const t = tileAt(game.level, tx, ty);
+      if (t === T.COIN) {
         setTile(game.level, tx, ty, T.EMPTY);
         game.addCoin(tx * TILE, ty * TILE);
+      } else if (t === T.LAVA) {
+        p.die(game);
+      } else if (t === T.AXE) {
+        setTile(game.level, tx, ty, T.EMPTY);
+        p.state = 'axe';
+        p.vx = 0;
+        game.axeSeq = { t: 0, x: game.level.bridge.to, bossFell: false };
+        game.addScore(1000, tx * TILE, ty * TILE);
+        sound.stopMusic();
+        sound.flagpole();
+      }
+    }
+    if (p.state !== 'normal') { /* axe or lava changed our plans */ }
+
+    // rotating fire bars
+    for (const e of game.entities) {
+      if (e instanceof FireBar && p.starTimer <= 0 && p.state === 'normal' && e.hits(p)) {
+        p.hurt(game);
       }
     }
 
@@ -250,7 +302,7 @@ function updatePlay() {
     }
 
     // flagpole (the solid base block clamps x+w to the pole column, so trigger at its edge)
-    if (p.x + p.w >= game.level.flagX * TILE) {
+    if (game.level.flagX > 0 && p.x + p.w >= game.level.flagX * TILE) {
       p.x = game.level.flagX * TILE - p.w + 6;
       p.state = 'flag';
       p.vx = 0; p.vy = 0;
@@ -290,7 +342,7 @@ function updatePlay() {
       game.saveHighScore();
     } else {
       resetLevel(false);
-      sound.startMusic(game.level.theme === 'underground' ? 1 : 0);
+      sound.startMusic(game.level.theme === 'overworld' ? 0 : 1);
     }
   }
 
@@ -311,7 +363,8 @@ function updatePlay() {
 // ------------------------------------------------------------------ draw ----
 
 function drawBackground() {
-  g.fillStyle = game.level.theme === 'underground' ? '#080810' : '#6b8cff';
+  g.fillStyle = game.level.theme === 'underground' ? '#080810'
+    : game.level.theme === 'castle' ? '#1a0a10' : '#6b8cff';
   g.fillRect(0, 0, W, H);
 
   const camT = game.cam / TILE;
@@ -415,6 +468,15 @@ function drawTiles() {
       }
       if (t === T.COIN) {
         g.drawImage(SPR.coin[(game.frame / 8 | 0) % 3], x, ty * TILE + 1);
+      } else if (t === T.LAVA) {
+        // only the surface row shimmers
+        const surface = tileAt(game.level, tx, ty - 1) !== T.LAVA;
+        g.drawImage(surface ? SPR.lava[(game.frame / 16 | 0) % 2] : SPR.lava[0], x, ty * TILE);
+        if (!surface) { g.fillStyle = '#c02800'; g.fillRect(x, ty * TILE, TILE, TILE); }
+      } else if (t === T.BRIDGE) {
+        g.drawImage(SPR.bridge, x, ty * TILE + dy);
+      } else if (t === T.AXE) {
+        g.drawImage(SPR.axe, x, ty * TILE + Math.round(Math.sin(game.frame / 20) * 2));
       } else if (t === T.POLE) {
         g.fillStyle = '#30c040'; g.fillRect(x + 7, ty * TILE, 2, TILE);
       } else if (t === T.POLE_TOP) {
@@ -429,7 +491,7 @@ function drawTiles() {
   // flag on the pole (slides down with player)
   const p = game.player;
   const flagPx = game.level.flagX * TILE - game.cam;
-  if (flagPx > -32 && flagPx < W + 32) {
+  if (game.level.flagX > 0 && flagPx > -32 && flagPx < W + 32) {
     let fy = 3 * TILE;
     if (p.state === 'flag' || p.state === 'walkoff' || p.hidden) {
       fy = Math.min(Math.max(p.y - 8, 3 * TILE), 10 * TILE);
@@ -442,7 +504,9 @@ function drawTiles() {
     g.lineTo(flagPx + 7, fy + 10);
     g.fill();
   }
-  drawCastle(game.level.castleX * TILE - game.cam);
+  if (game.level.theme !== 'castle' && game.level.castleX > 0) {
+    drawCastle(game.level.castleX * TILE - game.cam);
+  }
 }
 
 function drawHUD() {

@@ -6,11 +6,12 @@ export const T = {
   PIPE_TL: 7, PIPE_TR: 8, PIPE_L: 9, PIPE_R: 10, POLE: 11, POLE_TOP: 12, COIN: 13,
   QS: 14, // looks like a brick, hides a star
   Q1: 15, // looks like a brick, hides a 1UP mushroom
+  LAVA: 16, BRIDGE: 17, AXE: 18,
 };
 
 export const SOLID = new Set([
   T.GROUND, T.BRICK, T.Q, T.QM, T.USED, T.HARD,
-  T.PIPE_TL, T.PIPE_TR, T.PIPE_L, T.PIPE_R, T.QS, T.Q1,
+  T.PIPE_TL, T.PIPE_TR, T.PIPE_L, T.PIPE_R, T.QS, T.Q1, T.BRIDGE,
 ]);
 
 export function tileAt(level, tx, ty) {
@@ -276,5 +277,68 @@ export function buildLevel3() {
   return level;
 }
 
-export const LEVELS = [buildLevel1, buildLevel2, buildLevel3];
-export const LEVEL_NAMES = ['1-1', '1-2', '1-3'];
+export function buildLevel4() {
+  const { level, set, stair, spawn } = newLevel(168, '1-4', 'castle');
+  level.timeLimit = 300;
+  level.flagX = -1;      // no flagpole: the axe ends this one
+  level.castleX = 164;   // walk-off target after the bridge falls
+
+  const floor = (a, b) => { for (let x = a; x <= b; x++) { set(x, 13, T.GROUND); set(x, 14, T.GROUND); } };
+  const lava = (a, b) => { for (let x = a; x <= b; x++) { set(x, 13, T.LAVA); set(x, 14, T.LAVA); } };
+  const firebar = (tx, ty) => { set(tx, ty, T.HARD); level.spawns.push({ type: 'firebar', x: tx * TILE - 96, cx: tx * TILE + 8, cy: ty * TILE + 8 }); };
+
+  // ceiling throughout
+  for (let x = 0; x < 150; x++) set(x, 0, T.GROUND);
+
+  // ---- entry hall ----
+  floor(0, 30);
+  firebar(18, 9);
+  set(12, 9, T.Q); set(24, 9, T.QM);
+
+  // ---- first lava crossing: stepping blocks ----
+  lava(31, 38);
+  set(33, 12, T.HARD); set(34, 12, T.HARD);
+  set(36, 12, T.HARD); set(37, 12, T.HARD);
+  floor(39, 58);
+  firebar(46, 10);
+  firebar(54, 8);
+  set(50, 9, T.Q1); // secret 1UP before the midpoint
+
+  // ---- low corridor over lava slots ----
+  lava(59, 62);
+  floor(63, 84);
+  for (let x = 66; x <= 80; x++) set(x, 5, T.GROUND); // lowered ceiling shelf
+  firebar(72, 9);
+  set(76, 9, T.Q);
+
+  // ---- lava lake with islands ----
+  lava(85, 95);
+  set(88, 11, T.HARD); set(89, 11, T.HARD);
+  set(92, 11, T.HARD); set(93, 11, T.HARD);
+  floor(96, 118);
+  firebar(104, 9);
+  firebar(112, 10);
+  set(108, 9, T.QS); // star for the final gauntlet
+
+  // ---- approach and boss bridge ----
+  lava(119, 124);
+  set(121, 11, T.HARD); set(122, 11, T.HARD);
+  floor(125, 129);
+  lava(130, 145);
+  for (let x = 130; x <= 143; x++) set(x, 13, T.BRIDGE); // flush with the floor, lava below
+  set(144, 12, T.AXE); set(144, 11, T.AXE);
+  // wall behind the axe so nobody can leap past the trigger (open at axe height)
+  for (let y = 1; y <= 10; y++) set(145, y, T.GROUND);
+  level.bridge = { from: 130, to: 143, y: 13 };
+  floor(146, 167);
+
+  spawn('goomba', 42); spawn('goomba', 44);
+  spawn('goomba', 101);
+  spawn('boss', 138);
+  level.spawns.sort((a, b) => a.x - b.x);
+
+  return level;
+}
+
+export const LEVELS = [buildLevel1, buildLevel2, buildLevel3, buildLevel4];
+export const LEVEL_NAMES = ['1-1', '1-2', '1-3', '1-4'];
