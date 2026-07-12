@@ -30,7 +30,9 @@ npm start          # serves at http://localhost:8123
   secret star bricks
 - Mushroom → big, fire flower → fireballs, invincibility star (rainbow flicker,
   plows through enemies)
-- Goombas, koopas with kickable spinning shells and combo scoring
+- Goombas, koopas with kickable spinning shells and combo scoring, piranha
+  plants in pipes (retract when you approach; can't be stomped)
+- Gamepad support (standard mapping) and on-screen touch controls on mobile
 - Flagpole finish with height bonus, castle walk-off, time-to-score countdown
 - Coins (100 = 1UP), timer, lives, HUD with a hand-made 3x5 pixel font
 - High score persisted in localStorage

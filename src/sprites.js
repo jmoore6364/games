@@ -480,6 +480,29 @@ const FIREBALL = [
 ];
 const FIREBALL_PAL = { W: '#fff8c0', Y: '#f8b800', R: '#e03828' };
 
+const PIRANHA_PAL = { R: '#e03828', W: '#f8f8f8', G: '#10a848', L: '#88e070', K: '#181008' };
+const PIRANHA = [
+  '.....RRRRRR.....',
+  '...RRWRRRRWRR...',
+  '..RRRRWRRWRRRR..',
+  '..RWRRRRRRRRWR..',
+  '.RRRRWRRRRWRRRR.',
+  '.RWWWWWWWWWWWWR.',
+  '.RKKKKKKKKKKKKR.',
+  '..RWWRRWWRRWWR..',
+  '...RRRRRRRRRR...',
+  '....RRRRRRRR....',
+  '.LL....GG....LL.',
+  '.LLLL..GG..LLLL.',
+  '..LLLLLGGLLLLL..',
+  '.....LLGGLL.....',
+  '.......GG.......',
+  '.......GG.......',
+  '.......GG.......',
+  '.......GG.......',
+  '.......GG.......',
+  '.......GG.......',
+];
 const STAR_PAL = { Y: '#f8b800', W: '#fff8c0', K: '#181008' };
 const STAR = [
   '.......YY.......',
@@ -610,6 +633,7 @@ export function initSprites() {
   SPR.coin = COIN_FRAMES.map(f => makeSprite(f, COIN_PAL));
   SPR.fireball = makeSprite(FIREBALL, FIREBALL_PAL);
   SPR.star = makeSprite(STAR, STAR_PAL);
+  SPR.piranha = makeSprite(PIRANHA, PIRANHA_PAL);
 
   TILES.overworld = buildTileSet('#c85820', '#78290c', '#f0a060');
   TILES.underground = buildTileSet('#3a68c8', '#122a70', '#8caef8');

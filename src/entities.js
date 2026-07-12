@@ -407,6 +407,60 @@ export class Koopa extends Enemy {
   }
 }
 
+export class Piranha extends Enemy {
+  // Lives in a pipe: pipeTopY is the pixel y of the pipe's top edge.
+  constructor(pipeCenterX, pipeTopY) {
+    super(pipeCenterX - 6, pipeTopY, 12, 0);
+    this.centerX = pipeCenterX;
+    this.pipeTopY = pipeTopY;
+    this.extent = 0;        // how far out (0..MAX)
+    this.phase = 'hidden';  // hidden | rising | out | sinking
+    this.phaseT = 30;
+    this.drawUnder = true;  // rendered behind the pipe tiles
+  }
+  get MAX() { return 22; }
+  get harmful() { return super.harmful && this.extent > 4; }
+  get stompable() { return false; }
+  update(game) {
+    if (!this.baseUpdate(game)) return;
+    this.phaseT--;
+    if (this.phase === 'hidden' && this.phaseT <= 0) {
+      // stay down while the player is near (or approaching) the pipe mouth
+      const p = game.player;
+      const near = Math.abs(p.x + p.w / 2 - this.centerX) < 64;
+      if (!near) { this.phase = 'rising'; this.phaseT = 44; }
+      else this.phaseT = 20;
+    } else if (this.phase === 'rising') {
+      this.extent = Math.min(this.MAX, this.extent + 0.5);
+      if (this.phaseT <= 0) { this.phase = 'out'; this.phaseT = 65; }
+    } else if (this.phase === 'out' && this.phaseT <= 0) {
+      this.phase = 'sinking'; this.phaseT = 44;
+    } else if (this.phase === 'sinking') {
+      this.extent = Math.max(0, this.extent - 0.5);
+      if (this.phaseT <= 0) { this.phase = 'hidden'; this.phaseT = 100; }
+    }
+    // hitbox tracks the exposed part
+    this.y = this.pipeTopY - this.extent;
+    this.h = this.extent;
+  }
+  flip(game, dir = 1, score = 200) {
+    super.flip(game, dir, score);
+    this.h = 20; // give the corpse a body so the fling is visible
+  }
+  draw(g, camX) {
+    if (this.flipTimer > 0) {
+      const img = SPR.piranha;
+      const x = Math.round(this.centerX - 8 - camX), y = Math.round(this.y);
+      g.save(); g.translate(x + 8, y + 10); g.scale(1, -1); g.drawImage(img, -8, -10); g.restore();
+      return;
+    }
+    if (this.extent <= 0) return;
+    const img = SPR.piranha;
+    const src = Math.round(this.extent);
+    g.drawImage(img, 0, 0, 16, src, Math.round(this.centerX - 8 - camX), Math.round(this.pipeTopY - src), 16, src);
+  }
+}
+
 // ----------------------------------------------------------------- items ----
 
 export class Mushroom {

@@ -21,6 +21,22 @@
     text-align: center; color: #556; font: 12px monospace;
     user-select: none;
   }
+  #touch-ui { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
+  .tbtn {
+    position: absolute; pointer-events: auto;
+    width: 56px; height: 56px; border-radius: 50%;
+    background: rgba(255,255,255,0.12); border: 2px solid rgba(255,255,255,0.35);
+    color: #fff; font: bold 22px monospace;
+    display: flex; align-items: center; justify-content: center;
+    user-select: none; -webkit-user-select: none; touch-action: none;
+  }
+  .tbtn.on { background: rgba(255,255,255,0.35); }
+  .b-left  { left: 16px;  bottom: 40px; }
+  .b-right { left: 88px;  bottom: 40px; }
+  .b-down  { left: 52px;  bottom: 104px; }
+  .b-run   { right: 88px; bottom: 40px; }
+  .b-jump  { right: 16px; bottom: 64px; }
+  .b-start { right: 16px; top: 16px; width: 44px; height: 30px; border-radius: 8px; font-size: 14px; }
 </style>
 </head>
 <body>

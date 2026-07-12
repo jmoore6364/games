@@ -47,11 +47,14 @@ function newLevel(width, name, theme) {
     },
     stair: (x, h) => { for (let i = 0; i < h; i++) set(x, 12 - i, T.HARD); },
     spawn: (type, tx) => level.spawns.push({ type, x: tx * TILE, y: 0 }),
+    piranha: (tx, h) => level.spawns.push({
+      type: 'piranha', x: tx * TILE, y: 0, cx: tx * TILE + TILE, top: (13 - h) * TILE,
+    }),
   };
 }
 
 export function buildLevel1() {
-  const { level, set, ground, pipe, stair, spawn } = newLevel(224, '1-1', 'overworld');
+  const { level, set, ground, pipe, stair, spawn, piranha } = newLevel(224, '1-1', 'overworld');
   level.flagX = 198;
   level.castleX = 204;
 
@@ -70,6 +73,8 @@ export function buildLevel1() {
   pipe(38, 3);
   pipe(46, 4);
   pipe(57, 4);
+  piranha(46, 4);
+  piranha(57, 4);
 
   // coins over the tall pipes stretch
   set(50, 8, T.COIN); set(51, 8, T.COIN); set(52, 8, T.COIN);
@@ -103,6 +108,7 @@ export function buildLevel1() {
   pipe(163, 2);
   set(168, 9, T.COIN); set(170, 9, T.COIN); set(172, 9, T.COIN);
   pipe(176, 2);
+  piranha(176, 2);
 
   // ---- final staircase & flag ----
   for (let i = 0; i < 8; i++) stair(181 + i, i + 1);
@@ -114,9 +120,9 @@ export function buildLevel1() {
 
   // ---- enemies ----
   spawn('goomba', 22);
-  spawn('goomba', 41);
+  spawn('goomba', 34);
   spawn('goomba', 52); spawn('goomba', 54);
-  spawn('goomba', 81); spawn('goomba', 83);
+  spawn('goomba', 83); spawn('goomba', 85);
   spawn('koopa', 99);
   spawn('goomba', 107); spawn('goomba', 109);
   spawn('goomba', 115); spawn('goomba', 116.5);

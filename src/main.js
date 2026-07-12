@@ -1,10 +1,11 @@
 import { Input } from './input.js';
+import { initTouch } from './touch.js';
 import { sound } from './audio.js';
 import { initSprites, SPR, TILES, drawText } from './sprites.js';
 import { LEVELS, LEVEL_NAMES, TILE, ROWS, T, tileAt, setTile } from './level.js';
 import {
   Player, Goomba, Koopa, Mushroom, FireFlower, CoinPop, Fireball, Shard, Popup, Star,
-  Enemy, overlaps,
+  Piranha, Enemy, overlaps,
 } from './entities.js';
 
 const W = 256, H = 240;
@@ -24,6 +25,7 @@ fitCanvas();
 
 initSprites();
 const input = new Input();
+initTouch(input);
 
 // ------------------------------------------------------------------ game ----
 
@@ -171,8 +173,9 @@ function updatePlay() {
   const spawns = game.level.spawns;
   while (game.spawnIdx < spawns.length && spawns[game.spawnIdx].x < game.cam + W + 32) {
     const s = spawns[game.spawnIdx++];
-    game.entities.push(s.type === 'koopa'
-      ? new Koopa(s.x, 13 * TILE - 14)
+    game.entities.push(
+      s.type === 'piranha' ? new Piranha(s.cx, s.top)
+      : s.type === 'koopa' ? new Koopa(s.x, 13 * TILE - 14)
       : new Goomba(s.x, 13 * TILE - 13));
   }
 
@@ -218,6 +221,7 @@ function updatePlay() {
           e.kick(game, dir);
           continue;
         }
+        if (e instanceof Piranha) { p.hurt(game); continue; } // can't be stomped
         const stomping = p.vy > 0 && (p.y + p.h) - e.y < 9;
         if (stomping) {
           e.stomp(game);
@@ -444,8 +448,9 @@ function drawCenter(text, y, color) {
 
 function draw() {
   drawBackground();
+  for (const e of game.entities) if (e.drawUnder) e.draw(g, game.cam); // piranhas behind pipes
   drawTiles();
-  for (const e of game.entities) e.draw(g, game.cam);
+  for (const e of game.entities) if (!e.drawUnder) e.draw(g, game.cam);
   game.player.draw(g, game.cam);
   for (const p of game.popups) drawText(g, p.text, Math.round(p.x - game.cam), Math.round(p.y), '#ffffff');
   drawHUD();
@@ -497,6 +502,7 @@ function draw() {
 
 function step() {
   game.frame++;
+  input.pollGamepad();
 
   if (input.pressed('mute')) sound.toggleMute();
 
