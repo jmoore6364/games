@@ -21,25 +21,36 @@ npm start          # serves at http://localhost:8123
 | Enter | Start / pause |
 | M | Mute |
 
+## Game modes
+
+- **Original Game** — four classic worlds: 1-1 overworld, 1-2 underground,
+  1-3 athletic platforms, 1-4 castle with King Snapjaw on his bridge (grab the
+  axe or land eight fireballs)
+- **Moore Worlds** — the remix campaign: 2-1 moonlit run (fast goombas,
+  hoppers, wings), 2-2 frostbite fields (slippery ice physics, spinies, ice
+  flower), 2-3 the haunted hall (shy ghosts that only drift toward you while
+  you look away), 2-4 Snapjaw's Keep (more fire bars, a meaner boss)
+- **Level Builder** — paint tiles, blocks, pipes, hazards, and every enemy
+  onto a canvas; pick a theme (incl. night/snow/ghost); playtest instantly;
+  save to the browser; share levels as copy/paste JSON. Saved levels appear
+  under **My Levels** on the title screen.
+
 ## Features
 
-- Classic feel: acceleration, skidding, run boost, variable-height jumps, coyote time
-- Four worlds: 1-1 overworld, 1-2 underground (dark cave, blue-brick tileset,
-  its own music), 1-3 athletic (floating platforms over the void, red koopas
-  that hold their ground), 1-4 castle (lava, rotating fire bars, and King
-  Snapjaw on a bridge — grab the axe to drop him in the lava, or wear him
-  down with eight fireballs) — powerup size carried between levels
-- Question blocks (coins + powerups), breakable bricks with shard particles,
-  secret star bricks and hidden 1UP mushrooms
-- Mushroom → big, fire flower → fireballs, invincibility star (rainbow flicker,
-  plows through enemies)
-- Goombas, koopas with kickable spinning shells and combo scoring, piranha
-  plants in pipes (retract when you approach; can't be stomped)
+- Classic feel: acceleration, skidding, run boost, variable-height jumps,
+  coyote time — plus slippery friction on snow levels
+- Powerups: mushroom → big, fire flower → fireballs, **ice flower → iceballs**
+  (freeze enemies solid, stomp to shatter), **wings** (double jump + absorbs
+  one hit), invincibility star, hidden 1UP mushrooms
+- Enemies: goombas (and fast red ones), koopas with kickable shells and combo
+  scoring, red koopas that hold platforms, **spinies** (never stomp), **hoppers**,
+  **ghosts**, piranha plants, fire bars, and two bosses
+- Question blocks, breakable bricks, secret star bricks
 - Gamepad support (standard mapping) and on-screen touch controls on mobile
 - Flagpole finish with height bonus, castle walk-off, time-to-score countdown
 - Coins (100 = 1UP), timer, lives, HUD with a hand-made 3x5 pixel font
 - High score persisted in localStorage
-- Original 8-bar chiptune loop + synthesized sound effects
+- Two original chiptune loops + synthesized sound effects
 
 ## Dev/test hooks (browser console)
 

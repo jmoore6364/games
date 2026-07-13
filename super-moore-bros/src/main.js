@@ -2,11 +2,18 @@
 import { initTouch } from './touch.js';
 import { sound } from './audio.js';
 import { initSprites, SPR, TILES, drawText } from './sprites.js';
-import { LEVELS, LEVEL_NAMES, TILE, ROWS, T, tileAt, setTile } from './level.js';
+import { CAMPAIGNS, buildFromData, TILE, ROWS, T, tileAt, setTile } from './level.js';
 import {
   Player, Goomba, Koopa, Mushroom, FireFlower, CoinPop, Fireball, Shard, Popup, Star,
-  Piranha, Puff, FireBar, Boss, Enemy, overlaps,
+  Piranha, Puff, FireBar, Boss, Enemy, Spiny, Hopper, Ghost, WingsItem, overlaps,
 } from './entities.js';
+import { initEditor, editor } from './editor.js';
+
+const THEME_BG = {
+  overworld: '#6b8cff', underground: '#080810', castle: '#1a0a10',
+  night: '#0e1434', snow: '#a8c8e8', ghost: '#1a0f26',
+};
+const THEME_MUSIC = { overworld: 0, night: 0, snow: 0, underground: 1, ghost: 1, castle: 1 };
 
 const W = 256, H = 240;
 const canvas = document.getElementById('game');
@@ -33,17 +40,35 @@ for (const ev of ['pointerdown', 'touchstart', 'keydown']) {
   window.addEventListener(ev, () => sound.unlock(), { passive: true });
 }
 
-// on menu screens a tap/click anywhere on the game acts as Start
-canvas.addEventListener('pointerdown', () => {
-  if (game.state !== 'play' && game.state !== 'pause') input.press('start');
+// on menu screens taps select and activate; elsewhere they act as Start
+canvas.addEventListener('pointerdown', (ev) => {
+  const st = game.state;
+  if (st === 'play' || st === 'pause' || st === 'editor') return;
+  if (st === 'title' || st === 'levels') {
+    const rect = canvas.getBoundingClientRect();
+    const cy = (ev.clientY - rect.top) * (H / rect.height);
+    const count = st === 'title' ? titleMenuItems().length : customLevels().length + 1;
+    const row = Math.floor((cy - MENU_Y0 + 3) / MENU_ROW);
+    if (row >= 0 && row < count) {
+      if (st === 'title') game.menuIdx = row; else game.levelsIdx = row;
+      input.press('start');
+    }
+    return;
+  }
+  input.press('start');
 });
 
 // ------------------------------------------------------------------ game ----
 
 const game = {
-  state: 'title', // title | play | pause | clear | won | gameover
+  state: 'title', // title | levels | editor | play | pause | clear | won | gameover
   level: null,
   levelIdx: 0,
+  levelList: CAMPAIGNS.original.levels,
+  levelNames: CAMPAIGNS.original.names,
+  menuIdx: 0,
+  levelsIdx: 0, // selection inside MY LEVELS
+  testing: false, // playtesting from the editor
   player: null,
   entities: [],
   popups: [],
@@ -101,10 +126,14 @@ const game = {
         sound.tone('square', 200, 800, 0.25, 0.4);
       }
       this.bumpKillEnemies(tx, ty);
-    } else if (t === T.QS || t === T.Q1) {
+    } else if (t === T.QS || t === T.Q1 || t === T.QW || t === T.QI) {
       setTile(this.level, tx, ty, T.USED);
       this.bumps.push({ tx, ty, t: 0 });
-      this.entities.push(t === T.QS ? new Star(tx, ty - 1) : new Mushroom(tx, ty - 1, true));
+      this.entities.push(
+        t === T.QS ? new Star(tx, ty - 1)
+        : t === T.Q1 ? new Mushroom(tx, ty - 1, true)
+        : t === T.QW ? new WingsItem(tx, ty - 1)
+        : new FireFlower(tx, ty - 1, true));
       sound.tone('square', 200, 800, 0.25, 0.4);
       this.bumpKillEnemies(tx, ty);
     } else if (t === T.BRICK) {
@@ -140,7 +169,7 @@ const game = {
 };
 
 function resetLevel(fullReset, carrySize = 0) {
-  game.level = LEVELS[game.levelIdx]();
+  game.level = game.levelList[game.levelIdx]();
   game.player = new Player(game.level.playerStart.x, 13 * TILE - 14);
   if (carrySize > 0) {
     game.player.setSize(1);
@@ -162,18 +191,40 @@ function resetLevel(fullReset, carrySize = 0) {
   }
 }
 
-function startGame() {
+function levelMusic() { sound.startMusic(THEME_MUSIC[game.level.theme] ?? 0); }
+
+function startGame(campaignKey) {
+  const c = CAMPAIGNS[campaignKey];
+  game.levelList = c.levels;
+  game.levelNames = c.names;
+  game.testing = false;
   game.levelIdx = 0;
   resetLevel(true);
   game.state = 'play';
-  sound.startMusic(game.level.theme === 'overworld' ? 0 : 1);
+  levelMusic();
+}
+
+// Play one custom/editor level as a mini-campaign.
+function startCustomLevel(data, testing = false) {
+  game.levelList = [() => buildFromData(data)];
+  game.levelNames = [data.name || 'CUSTOM'];
+  game.testing = testing;
+  game.levelIdx = 0;
+  resetLevel(true);
+  game.state = 'play';
+  levelMusic();
 }
 
 function nextLevel() {
   game.levelIdx++;
   resetLevel(false, game.player.size);
   game.state = 'play';
-  sound.startMusic(game.level.theme === 'overworld' ? 0 : 1);
+  levelMusic();
+}
+
+function customLevels() {
+  try { return JSON.parse(localStorage.getItem('smb-custom-levels') || '[]'); }
+  catch { return []; }
 }
 
 // ---------------------------------------------------------------- update ----
@@ -191,6 +242,24 @@ function spawnOnPlatform(e) {
   return e;
 }
 
+function makeSpawn(s) {
+  const br = game.level.bridge;
+  const bossBridge = br ? { fromPx: br.from * TILE, toPx: (br.to + 1) * TILE } : { fromPx: 0, toPx: 1e9 };
+  switch (s.type) {
+    case 'piranha': return new Piranha(s.cx, s.top);
+    case 'firebar': return new FireBar(s.cx, s.cy);
+    case 'boss': return new Boss(s.x, (br ? br.y : 13) * TILE - 19, bossBridge);
+    case 'boss2': return new Boss(s.x, (br ? br.y : 13) * TILE - 19, bossBridge, { hp: 12, speed: 0.55, hopEvery: 45 });
+    case 'koopa': return new Koopa(s.x, 13 * TILE - 14);
+    case 'koopared': return spawnOnPlatform(new Koopa(s.x, 0, true));
+    case 'hopper': return spawnOnPlatform(new Hopper(s.x, 0));
+    case 'ghost': return new Ghost(s.x, 8 * TILE);
+    case 'spiny': return spawnOnPlatform(new Spiny(s.x, 0));
+    case 'fastgoomba': return spawnOnPlatform(new Goomba(s.x, 0, true));
+    default: return spawnOnPlatform(new Goomba(s.x, 0));
+  }
+}
+
 function updatePlay() {
   const p = game.player;
 
@@ -198,14 +267,7 @@ function updatePlay() {
   const spawns = game.level.spawns;
   while (game.spawnIdx < spawns.length && spawns[game.spawnIdx].x < game.cam + W + 32) {
     const s = spawns[game.spawnIdx++];
-    const br = game.level.bridge;
-    game.entities.push(
-      s.type === 'piranha' ? new Piranha(s.cx, s.top)
-      : s.type === 'firebar' ? new FireBar(s.cx, s.cy)
-      : s.type === 'boss' ? new Boss(s.x, br.y * TILE - 19, { fromPx: br.from * TILE, toPx: (br.to + 1) * TILE })
-      : s.type === 'koopa' ? new Koopa(s.x, 13 * TILE - 14)
-      : s.type === 'koopared' ? spawnOnPlatform(new Koopa(s.x, 0, true))
-      : new Goomba(s.x, 13 * TILE - 13));
+    game.entities.push(makeSpawn(s));
   }
 
   p.update(input, game);
@@ -286,6 +348,14 @@ function updatePlay() {
         continue;
       }
       if (e instanceof Enemy && overlaps(p, e)) {
+        if (e.frozen) { // frozen statue: stomp it to shatter it
+          if (p.vy > 0 && (p.y + p.h) - e.y < 9) {
+            e.flip(game, p.facing, 200);
+            p.vy = input.down('jump') ? -6.5 : -4;
+            sound.kick();
+          }
+          continue;
+        }
         if (!e.harmful && !(e instanceof Koopa && e.mode === 'shell')) continue;
         if (p.starTimer > 0) { // invincible: plow through everything
           e.flip(game, p.facing, 200);
@@ -298,7 +368,7 @@ function updatePlay() {
           e.kick(game, dir);
           continue;
         }
-        if (e instanceof Piranha) { p.hurt(game); continue; } // can't be stomped
+        if (e instanceof Piranha || e.spiky) { p.hurt(game); continue; } // never stompable
         const stomping = p.vy > 0 && (p.y + p.h) - e.y < 9;
         if (stomping) {
           e.stomp(game);
@@ -339,7 +409,7 @@ function updatePlay() {
       if (game.frame % 4 === 0) sound.coin();
     }
     if (game.clearTimer > 240 && game.time <= 0) {
-      game.state = game.levelIdx < LEVELS.length - 1 ? 'clear' : 'won';
+      game.state = game.levelIdx < game.levelList.length - 1 ? 'clear' : 'won';
       game.saveHighScore();
     }
   }
@@ -353,7 +423,7 @@ function updatePlay() {
       game.saveHighScore();
     } else {
       resetLevel(false);
-      sound.startMusic(game.level.theme === 'overworld' ? 0 : 1);
+      levelMusic();
     }
   }
 
@@ -374,9 +444,25 @@ function updatePlay() {
 // ------------------------------------------------------------------ draw ----
 
 function drawBackground() {
-  g.fillStyle = game.level.theme === 'underground' ? '#080810'
-    : game.level.theme === 'castle' ? '#1a0a10' : '#6b8cff';
+  const theme = game.level.theme;
+  g.fillStyle = THEME_BG[theme] || '#6b8cff';
   g.fillRect(0, 0, W, H);
+
+  if (theme === 'night' || theme === 'ghost') {
+    // parallax starfield
+    g.fillStyle = theme === 'ghost' ? '#584878' : '#c8d8ff';
+    for (let i = 0; i < 40; i++) {
+      const sx = ((i * 53 + 7) - game.cam * 0.3) % W;
+      const sy = (i * 37 + 11) % 130;
+      g.fillRect(sx < 0 ? sx + W : sx, sy, i % 7 === 0 ? 2 : 1, i % 7 === 0 ? 2 : 1);
+    }
+    if (theme === 'night') { // moon
+      g.fillStyle = '#f0f0d8';
+      g.beginPath(); g.arc(210, 34, 12, 0, 7); g.fill();
+      g.fillStyle = THEME_BG.night;
+      g.beginPath(); g.arc(216, 30, 10, 0, 7); g.fill();
+    }
+  }
 
   const camT = game.cam / TILE;
 
@@ -458,7 +544,7 @@ const TILE_IMG = () => {
   const s = TILES[game.level.theme] || TILES.overworld;
   return {
     [T.GROUND]: s.ground, [T.BRICK]: s.brick, [T.Q]: s.q, [T.QM]: s.q,
-    [T.QS]: s.brick, [T.Q1]: s.brick,
+    [T.QS]: s.brick, [T.Q1]: s.brick, [T.QW]: s.q, [T.QI]: s.q,
     [T.USED]: s.used, [T.HARD]: s.hard,
     [T.PIPE_TL]: s.pipeTL, [T.PIPE_TR]: s.pipeTR,
     [T.PIPE_L]: s.pipeL, [T.PIPE_R]: s.pipeR,
@@ -538,11 +624,35 @@ function drawCenter(text, y, color) {
   drawText(g, text, Math.round(W / 2 - wpx / 2), y, color);
 }
 
+const MENU_Y0 = 124, MENU_ROW = 12;
+
+function titleMenuItems() {
+  const items = ['ORIGINAL GAME', 'MOORE WORLDS', 'LEVEL BUILDER'];
+  if (customLevels().length) items.push('MY LEVELS');
+  return items;
+}
+
+function drawEntities() {
+  for (const e of game.entities) {
+    if (e.drawUnder) continue;
+    if (e.freezeTimer > 0) { // encased in ice
+      g.filter = 'saturate(0.4) brightness(1.5) sepia(1) hue-rotate(155deg)';
+      e.draw(g, game.cam);
+      g.filter = 'none';
+      g.fillStyle = 'rgba(150,220,255,0.35)';
+      g.fillRect(Math.round(e.x - 1 - game.cam), Math.round(e.y - 1), e.w + 2, e.h + 2);
+    } else {
+      e.draw(g, game.cam);
+    }
+  }
+}
+
 function draw() {
+  if (game.state === 'editor') { editor.draw(); return; }
   drawBackground();
   for (const e of game.entities) if (e.drawUnder) e.draw(g, game.cam); // piranhas behind pipes
   drawTiles();
-  for (const e of game.entities) if (!e.drawUnder) e.draw(g, game.cam);
+  drawEntities();
   game.player.draw(g, game.cam);
   for (const p of game.popups) drawText(g, p.text, Math.round(p.x - game.cam), Math.round(p.y), '#ffffff');
   drawHUD();
@@ -558,10 +668,23 @@ function draw() {
     g.fillRect(46, 60, 164, 38);
     drawCenter('SUPER', 68, '#ffffff');
     drawCenter('MOORE BROS!', 82, '#f8d048');
-    if (game.frame % 60 < 40) drawCenter(PROMPT + ' TO START', 140, '#ffffff');
-    if (game.highScore > 0) drawCenter('TOP ' + game.highScore, 118, '#f8d048');
-    drawCenter('Z JUMP  X RUN AND FIRE', 168, '#b8c8ff');
-    drawCenter('ARROWS MOVE  M MUTE', 178, '#b8c8ff');
+    if (game.highScore > 0) drawCenter('TOP ' + game.highScore, 110, '#f8d048');
+    const items = titleMenuItems();
+    items.forEach((it, i) => {
+      const sel = i === game.menuIdx;
+      drawCenter(sel ? '* ' + it + ' *' : it, MENU_Y0 + i * MENU_ROW, sel ? '#f8d048' : '#ffffff');
+    });
+    drawCenter(touchMode ? 'TAP AN OPTION' : 'ARROWS THEN ENTER', 186, '#b8c8ff');
+    if (!touchMode) drawCenter('Z JUMP  X RUN AND FIRE  M MUTE', 196, '#b8c8ff');
+  } else if (game.state === 'levels') {
+    g.fillStyle = 'rgba(16,16,40,0.7)';
+    g.fillRect(0, 0, W, H);
+    drawCenter('MY LEVELS', 72, '#f8d048');
+    const names = [...customLevels().map(l => l.name), 'BACK'];
+    names.forEach((n, i) => {
+      const sel = i === game.levelsIdx;
+      drawCenter(sel ? '* ' + n + ' *' : n, MENU_Y0 + i * MENU_ROW, sel ? '#f8d048' : '#ffffff');
+    });
   } else if (game.state === 'pause') {
     g.fillStyle = 'rgba(0,0,0,0.4)';
     g.fillRect(0, 0, W, H);
@@ -572,7 +695,7 @@ function draw() {
     drawCenter('COURSE CLEAR!', 96, '#f8d048');
     drawCenter('SCORE ' + game.score, 116, '#ffffff');
     if (game.frame % 60 < 40) {
-      drawCenter(PROMPT + ' FOR WORLD ' + LEVEL_NAMES[game.levelIdx + 1], 140, '#ffffff');
+      drawCenter(PROMPT + ' FOR WORLD ' + game.levelNames[game.levelIdx + 1], 140, '#ffffff');
     }
   } else if (game.state === 'won') {
     g.fillStyle = 'rgba(0,0,0,0.5)';
@@ -599,13 +722,34 @@ function step() {
   if (input.pressed('mute')) sound.toggleMute();
 
   switch (game.state) {
-    case 'title':
+    case 'title': {
+      const items = titleMenuItems();
+      if (input.pressed('up')) game.menuIdx = (game.menuIdx + items.length - 1) % items.length;
+      if (input.pressed('down')) game.menuIdx = (game.menuIdx + 1) % items.length;
       if (input.pressed('start') || input.pressed('jump')) {
         sound.unlock();
-        startGame();
+        const pick = items[game.menuIdx];
+        if (pick === 'ORIGINAL GAME') startGame('original');
+        else if (pick === 'MOORE WORLDS') startGame('remix');
+        else if (pick === 'LEVEL BUILDER') { game.state = 'editor'; editor.show(); }
+        else if (pick === 'MY LEVELS') { game.state = 'levels'; game.levelsIdx = 0; }
       }
       // idle camera drift on title
       game.cam = (game.cam + 0.25) % ((game.level.width - 16) * TILE);
+      break;
+    }
+    case 'levels': {
+      const names = [...customLevels().map(l => l.name), 'BACK'];
+      if (input.pressed('up')) game.levelsIdx = (game.levelsIdx + names.length - 1) % names.length;
+      if (input.pressed('down')) game.levelsIdx = (game.levelsIdx + 1) % names.length;
+      if (input.pressed('start') || input.pressed('jump')) {
+        if (game.levelsIdx === names.length - 1) game.state = 'title';
+        else startCustomLevel(customLevels()[game.levelsIdx]);
+      }
+      break;
+    }
+    case 'editor':
+      editor.update();
       break;
     case 'play':
       if (input.pressed('start')) { game.state = 'pause'; break; }
@@ -621,11 +765,19 @@ function step() {
     case 'gameover':
       if (input.pressed('start')) {
         game.saveHighScore();
+        sound.stopMusic();
+        if (game.testing) { // back to the builder
+          game.state = 'editor';
+          editor.show();
+          break;
+        }
         game.state = 'title';
+        game.menuIdx = 0;
+        game.levelList = CAMPAIGNS.original.levels;
+        game.levelNames = CAMPAIGNS.original.names;
         game.levelIdx = 0;
         resetLevel(true);
         game.cam = 0;
-        sound.stopMusic();
       }
       break;
   }
@@ -636,6 +788,13 @@ function step() {
 
 // boot with a level behind the title screen
 resetLevel(true);
+initEditor({
+  canvas, g, game, input, W, H,
+  startCustomLevel,
+  drawBackground, drawTiles, drawText,
+  makeSpawn,
+  exit: () => { game.state = 'title'; game.menuIdx = 0; resetLevel(true); game.cam = 0; },
+});
 // debug/testing hooks: step N frames synchronously (works in hidden tabs where rAF is paused)
 window.__game = game;
 window.__input = input;

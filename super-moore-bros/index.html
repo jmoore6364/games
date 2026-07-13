@@ -40,6 +40,38 @@
   .b-run   { right: calc(92px + env(safe-area-inset-right, 0px)); bottom: calc(36px + env(safe-area-inset-bottom, 0px)); }
   .b-jump  { right: calc(16px + env(safe-area-inset-right, 0px)); bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
   .b-start { right: calc(16px + env(safe-area-inset-right, 0px)); top: 12px; width: 48px; height: 32px; border-radius: 8px; font-size: 14px; }
+  #editor-ui {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+    display: flex; flex-direction: column; gap: 4px; padding: 6px;
+    background: rgba(10,10,20,0.92); border-top: 2px solid #f8a800;
+    max-height: 38vh; overflow-y: auto;
+  }
+  .ed-row { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+  .ed-btn {
+    font: bold 11px monospace; padding: 5px 7px; cursor: pointer;
+    background: #1a1a28; color: #eee; border: 1px solid #556;
+    border-radius: 4px; text-transform: uppercase;
+  }
+  .ed-btn:hover { background: #2a2a40; }
+  .ed-btn.sel { background: #f8a800; color: #101018; border-color: #f8a800; }
+  .ed-btn.go { background: #10a848; border-color: #10a848; color: #fff; }
+  .ed-btn.warn { background: #802020; border-color: #a04040; color: #fff; }
+  #ed-name, #ed-load {
+    font: bold 11px monospace; padding: 4px 6px;
+    background: #101018; color: #f8d048; border: 1px solid #556; border-radius: 4px;
+    width: 130px;
+  }
+  #ed-import {
+    position: fixed; inset: 0; z-index: 30; display: none;
+    align-items: center; justify-content: center; background: rgba(0,0,0,0.7);
+  }
+  #ed-import .ed-modal {
+    background: #1a1a28; border: 2px solid #f8a800; border-radius: 6px;
+    padding: 16px; display: flex; flex-direction: column; gap: 8px;
+    color: #eee; font: 12px monospace; width: min(480px, 90vw);
+  }
+  #ed-import textarea { height: 120px; background: #101018; color: #eee; font: 11px monospace; }
+  #ed-import .ed-modal > div { display: flex; gap: 8px; justify-content: flex-end; }
   @media (max-height: 500px) { /* phone landscape: slightly bigger targets */
     .tbtn { width: 62px; height: 62px; }
     .b-right { left: calc(100px + env(safe-area-inset-left, 0px)); }

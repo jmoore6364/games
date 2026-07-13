@@ -45,6 +45,9 @@ const HERO_PAL = {
 const HERO_FIRE_PAL = {
   H: '#f4f4f4', O: '#e04830', S: '#ffcf9e', D: '#50321a', B: '#a02818', Y: '#ffd800',
 };
+const HERO_ICE_PAL = {
+  H: '#48c8f0', O: '#f0f8ff', S: '#ffcf9e', D: '#2a4a66', B: '#3888c0', Y: '#48c8f0',
+};
 
 const HERO_SMALL = {
   idle: [
@@ -328,6 +331,75 @@ const GOOMBA_FLAT = [
   '.KKKKKKKKKKKKKK.',
   '.KKKK......KKKK.',
   '................',
+];
+
+const SPINY = [
+  '..K...K..K...K..',
+  '..KK.KKK.KK.KK..',
+  '...KKCCCCCKKK...',
+  '..KCCCCCCCCCK...',
+  '.KCCCCCCCCCCCK..',
+  '..CWWKCCCCKWWC..',
+  '.CCWWKCCCCKWWCC.',
+  '.CCCCCCCCCCCCCC.',
+  '.CCCCCCCCCCCCCC.',
+  '.CCCFFFFFFFFCCC.',
+  '..CCFFFFFFFFCC..',
+  '...CFFFFFFFFC...',
+  '....FFFFFFFF....',
+  '..KKKKK..KKKKK..',
+  '.KKKKKK..KKKKKK.',
+  '................',
+];
+
+const GHOST_PAL = { W: '#f4f4ff', K: '#181028', B: '#c8c8e8' };
+const GHOST = [
+  '.....WWWWWW.....',
+  '...WWWWWWWWWW...',
+  '..WWWWWWWWWWWW..',
+  '..WKKWWWWWKKWW..',
+  '.WWKKWWWWWKKWWW.',
+  '.WWWWWWWWWWWWWW.',
+  '.WWWWWWWWWWWWWW.',
+  '.WWWWWKKKWWWWWW.',
+  '.WWWWWKKKWWWWWW.',
+  '.WWWWWWWWWWWWWW.',
+  '..WWWWWWWWWWWW..',
+  '..WWWWWWWWWWWB..',
+  '.WWWBWWWBWWWBB..',
+  '.WWB.WWB..WWB...',
+  '..W...W....W....',
+  '................',
+];
+
+const WINGS_PAL = { W: '#f8f8f8', B: '#88b8f0', Y: '#f8d048' };
+const WINGS_ITEM = [
+  '................',
+  '..W.........W...',
+  '.WWW.......WWW..',
+  '.WWWW.....WWWW..',
+  '.WBWWW...WWWBW..',
+  '.WBBWWW.WWWBBW..',
+  '..WBBWWWWWBBW...',
+  '..WWBBWWWBBWW...',
+  '...WWBWWWBWW....',
+  '....WWYYYWW.....',
+  '.....WYYYW......',
+  '.....YYYYY......',
+  '......YYY.......',
+  '................',
+  '................',
+  '................',
+];
+
+const WING = [
+  '..WW....',
+  '.WWWW...',
+  'WWWWWW..',
+  'WWWWWWW.',
+  '.BWWWWW.',
+  '..BWWW..',
+  '...BW...',
 ];
 
 const KOOPA_PAL = { G: '#10a848', L: '#88e070', Y: '#f8d048', W: '#f8f8f8', K: '#181008', S: '#f8a848' };
@@ -661,10 +733,22 @@ export function initSprites() {
   SPR.heroBig = frames(HERO_BIG, HERO_PAL);
   SPR.heroSmallFire = frames(HERO_SMALL, HERO_FIRE_PAL);
   SPR.heroBigFire = frames(HERO_BIG, HERO_FIRE_PAL);
+  SPR.heroSmallIce = frames(HERO_SMALL, HERO_ICE_PAL);
+  SPR.heroBigIce = frames(HERO_BIG, HERO_ICE_PAL);
 
   const goomba = makeSprite(GOOMBA, GOOMBA_PAL);
   SPR.goomba = [{ r: goomba, l: flipped(goomba) }];
   SPR.goombaFlat = makeSprite(GOOMBA_FLAT, GOOMBA_PAL);
+  const FAST_PAL = { ...GOOMBA_PAL, C: '#c83048', F: '#f8d0d0' };
+  const fastg = makeSprite(GOOMBA, FAST_PAL);
+  SPR.goombaFast = [{ r: fastg, l: flipped(fastg) }];
+  SPR.goombaFastFlat = makeSprite(GOOMBA_FLAT, FAST_PAL);
+  SPR.spiny = makeSprite(SPINY, { ...GOOMBA_PAL, C: '#6048a8' });
+  SPR.ghost = makeSprite(GHOST, GHOST_PAL);
+  SPR.ghostFlip = flipped(makeSprite(GHOST, GHOST_PAL));
+  SPR.wingsItem = makeSprite(WINGS_ITEM, WINGS_PAL);
+  const wing = makeSprite(WING, WINGS_PAL);
+  SPR.wing = { r: wing, l: flipped(wing) };
 
   const k1 = makeSprite(KOOPA1, KOOPA_PAL), k2 = makeSprite(KOOPA2, KOOPA_PAL);
   SPR.koopa = [{ r: flipped(k1), l: k1 }, { r: flipped(k2), l: k2 }]; // authored facing left
@@ -673,12 +757,17 @@ export function initSprites() {
   const r1 = makeSprite(KOOPA1, RED_PAL), r2 = makeSprite(KOOPA2, RED_PAL);
   SPR.koopaRed = [{ r: flipped(r1), l: r1 }, { r: flipped(r2), l: r2 }];
   SPR.shellRed = makeSprite(SHELL, RED_PAL);
+  const HOP_PAL = { ...KOOPA_PAL, G: '#e8b820', L: '#f8f0a0' };
+  const h1 = makeSprite(KOOPA1, HOP_PAL), h2 = makeSprite(KOOPA2, HOP_PAL);
+  SPR.hopper = [{ r: flipped(h1), l: h1 }, { r: flipped(h2), l: h2 }];
 
   SPR.mushroom = makeSprite(MUSHROOM, MUSH_PAL);
   SPR.mushroom1up = makeSprite(MUSHROOM, { ...MUSH_PAL, R: '#10a848' });
   SPR.flower = makeSprite(FLOWER, FLOWER_PAL);
+  SPR.iceFlower = makeSprite(FLOWER, { ...FLOWER_PAL, F: '#48c8f0', Y: '#f0f8ff' });
   SPR.coin = COIN_FRAMES.map(f => makeSprite(f, COIN_PAL));
   SPR.fireball = makeSprite(FIREBALL, FIREBALL_PAL);
+  SPR.iceball = makeSprite(FIREBALL, { W: '#f0f8ff', Y: '#a0e0f8', R: '#3898e0' });
   SPR.star = makeSprite(STAR, STAR_PAL);
   SPR.piranha = makeSprite(PIRANHA, PIRANHA_PAL);
 
@@ -689,6 +778,9 @@ export function initSprites() {
   TILES.overworld = buildTileSet('#c85820', '#78290c', '#f0a060');
   TILES.underground = buildTileSet('#3a68c8', '#122a70', '#8caef8');
   TILES.castle = buildTileSet('#8a8a96', '#38383f', '#d0d0da');
+  TILES.snow = buildTileSet('#dce8f4', '#7890b0', '#ffffff');
+  TILES.night = TILES.overworld;
+  TILES.ghost = buildTileSet('#7858a8', '#382058', '#c8a8e8');
 
   // lava: two-frame animated surface
   SPR.lava = [0, 1].map(f => makeTile(g => {

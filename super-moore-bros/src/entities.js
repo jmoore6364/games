@@ -86,6 +86,8 @@ export class Player {
     this.coyote = 0;
     this.jumpBuf = 0;
     this.starTimer = 0;
+    this.wings = false; // grants one mid-air jump; lost on damage
+    this.airJumps = 0;
   }
 
   setSize(size) {
@@ -98,7 +100,11 @@ export class Player {
 
   hurt(game) {
     if (this.invuln > 0 || this.state !== 'normal') return;
-    if (this.size > 0) {
+    if (this.wings) { // wings absorb one hit
+      this.wings = false;
+      this.invuln = 130;
+      sound.tone('square', 500, 150, 0.3, 0.5);
+    } else if (this.size > 0) {
       this.setSize(0);
       this.invuln = 130;
       this.growTimer = 40;
@@ -119,12 +125,18 @@ export class Player {
     game.onPlayerDeath();
   }
 
-  powerUp(game) {
-    if (this.size === 0) {
+  // kind: 'mushroom' | 'fire' | 'ice' | 'wings'
+  powerUp(game, kind = 'mushroom') {
+    if (kind === 'wings') {
+      this.wings = true;
+    } else if (this.size === 0) {
       this.setSize(1);
       this.growTimer = 40;
-    } else if (this.size === 1) {
+    } else if (kind === 'fire') {
       this.size = 2;
+      this.growTimer = 40;
+    } else if (kind === 'ice') {
+      this.size = 3;
       this.growTimer = 40;
     }
     game.addScore(1000, this.x, this.y);
@@ -196,23 +208,28 @@ export class Player {
     }
     if (this.crouching) dir = 0;
 
+    // slippery themes (ice) shrink ground friction
+    const fric = level.friction ?? 1;
+    const decel = DECEL * fric, skid = Math.max(0.08, SKID * fric);
+
     this.skidding = false;
     if (dir !== 0) {
       this.facing = dir;
       if (this.vx * dir < 0 && this.onGround) {
-        this.vx += dir * SKID;
+        this.vx += dir * skid;
         this.skidding = true;
       } else if (Math.abs(this.vx) < max) {
         this.vx = Math.abs(this.vx + dir * acc) > max ? dir * max : this.vx + dir * acc;
       } else if (this.onGround) {
-        this.vx -= Math.sign(this.vx) * DECEL; // ran out of run boost
+        this.vx -= Math.sign(this.vx) * decel; // ran out of run boost
       }
     } else if (this.onGround) {
-      if (Math.abs(this.vx) <= DECEL) this.vx = 0;
-      else this.vx -= Math.sign(this.vx) * DECEL;
+      if (Math.abs(this.vx) <= decel) this.vx = 0;
+      else this.vx -= Math.sign(this.vx) * decel;
     }
 
-    // ---- jump (with small buffer + coyote time) ----
+    // ---- jump (with small buffer + coyote time; wings add one air jump) ----
+    if (this.onGround) this.airJumps = this.wings ? 1 : 0;
     this.coyote = this.onGround ? 5 : Math.max(0, this.coyote - 1);
     this.jumpBuf = input.pressed('jump') ? 5 : Math.max(0, this.jumpBuf - 1);
     if (this.jumpBuf > 0 && this.coyote > 0) {
@@ -220,6 +237,14 @@ export class Player {
       this.coyote = 0;
       this.jumpBuf = 0;
       this.size > 0 ? sound.bigJump() : sound.jump();
+    } else if (this.jumpBuf > 0 && this.airJumps > 0 && this.vy > -3) {
+      this.vy = -6;
+      this.airJumps--;
+      this.jumpBuf = 0;
+      sound.jump();
+      game.entities.push(
+        new Puff(this.x - 2, this.y + this.h - 2, -0.8),
+        new Puff(this.x + this.w, this.y + this.h - 2, 0.8));
     }
 
     // ---- gravity: hold jump to float higher ----
@@ -232,12 +257,12 @@ export class Player {
     // don't walk behind the camera
     if (this.x < game.cam) { this.x = game.cam; this.vx = Math.max(0, this.vx); }
 
-    // ---- fireballs ----
-    if (this.size === 2 && input.pressed('run')) {
+    // ---- fireballs / iceballs ----
+    if (this.size >= 2 && input.pressed('run')) {
       const active = game.entities.filter(e => e instanceof Fireball && !e.dead).length;
       if (active < 2) {
         game.entities.push(new Fireball(
-          this.x + this.w / 2 + this.facing * 6, this.y + 4, this.facing));
+          this.x + this.w / 2 + this.facing * 6, this.y + 4, this.facing, this.size === 3));
         sound.fireball();
       }
     }
@@ -254,6 +279,7 @@ export class Player {
     const set = this.size === 0
       ? (this.growTimer > 0 && (this.growTimer & 4) ? SPR.heroBig : SPR.heroSmall)
       : this.size === 2 ? SPR.heroBigFire
+      : this.size === 3 ? SPR.heroBigIce
       : (this.growTimer > 0 && (this.growTimer & 4) ? SPR.heroSmall : SPR.heroBig);
     let frame;
     if (this.state === 'die') frame = set.jump;
@@ -269,6 +295,14 @@ export class Player {
   draw(g, camX) {
     if (this.hidden) return;
     if (this.invuln > 0 && (this.invuln & 4)) return; // blink
+    if (this.wings) {
+      // flapping wing behind the hero
+      const w = SPR.wing[this.facing < 0 ? 'r' : 'l'];
+      const flap = this.onGround ? 0 : Math.round(Math.sin(this.animT) * 2);
+      g.drawImage(w,
+        Math.round(this.x + (this.facing < 0 ? this.w - 2 : -6) - camX),
+        Math.round(this.y + 2 + flap));
+    }
     if (this.starTimer > 0) {
       // rainbow flicker; slows to a blink as it wears off
       const fast = this.starTimer > 120 || (this.starTimer & 8);
@@ -290,8 +324,12 @@ class Enemy {
     this.dead = false;
     this.flipTimer = 0;   // >0: flipped/dying, no collision
     this.squashTimer = 0;
+    this.freezeTimer = 0; // >0: frozen solid by an ice ball
   }
-  get harmful() { return !this.dead && this.flipTimer === 0 && this.squashTimer === 0; }
+  get harmful() {
+    return !this.dead && this.flipTimer === 0 && this.squashTimer === 0 && this.freezeTimer === 0;
+  }
+  get frozen() { return this.freezeTimer > 0; }
 
   baseUpdate(game) {
     if (this.flipTimer > 0) { // knocked out: fly off, no tile collision
@@ -299,6 +337,10 @@ class Enemy {
       this.vy = Math.min(this.vy + 0.35, 7);
       this.x += this.vx; this.y += this.vy;
       if (this.y > (ROWS + 2) * TILE) this.dead = true;
+      return false;
+    }
+    if (this.freezeTimer > 0) { // statue until it thaws
+      this.freezeTimer--;
       return false;
     }
     return true;
@@ -313,9 +355,10 @@ class Enemy {
 }
 
 export class Goomba extends Enemy {
-  constructor(x, y) {
+  constructor(x, y, fast = false) {
     super(x, y, 14, 13);
-    this.vx = -0.55;
+    this.fast = fast;
+    this.vx = fast ? -1.15 : -0.55;
     this.animT = 0;
   }
   update(game) {
@@ -337,16 +380,109 @@ export class Goomba extends Enemy {
     sound.stomp();
   }
   draw(g, camX) {
+    const set = this.fast ? SPR.goombaFast : SPR.goomba;
     if (this.flipTimer > 0) {
-      const img = SPR.goomba[0].r;
+      const img = set[0].r;
       const x = Math.round(this.x + this.w / 2 - img.width / 2 - camX);
       const y = Math.round(this.y + this.h - img.height);
       g.save(); g.translate(x + 8, y + 8); g.scale(1, -1); g.drawImage(img, -8, -8); g.restore();
       return;
     }
-    if (this.squashTimer > 0) { drawEntity(g, SPR.goombaFlat, this, camX); return; }
-    const f = SPR.goomba[0];
-    drawEntity(g, (this.animT / 12 | 0) % 2 ? f.r : f.l, this, camX);
+    if (this.squashTimer > 0) {
+      drawEntity(g, this.fast ? SPR.goombaFastFlat : SPR.goombaFlat, this, camX);
+      return;
+    }
+    const f = set[0];
+    drawEntity(g, (this.animT / (this.fast ? 7 : 12) | 0) % 2 ? f.r : f.l, this, camX);
+  }
+}
+
+export class Spiny extends Goomba {
+  // Spiked shell: never stomp it. Fireballs, ice, shells, and stars only.
+  constructor(x, y) {
+    super(x, y, false);
+    this.spiky = true;
+    this.vx = -0.5;
+  }
+  draw(g, camX) {
+    if (this.flipTimer > 0) {
+      const img = SPR.spiny;
+      const x = Math.round(this.x + this.w / 2 - 8 - camX), y = Math.round(this.y + this.h - 16);
+      g.save(); g.translate(x + 8, y + 8); g.scale(1, -1); g.drawImage(img, -8, -8); g.restore();
+      return;
+    }
+    drawEntity(g, SPR.spiny, this, camX);
+  }
+}
+
+export class Hopper extends Enemy {
+  // Bouncy yellow shell-hopper: springs toward the hero.
+  constructor(x, y) {
+    super(x, y, 14, 14);
+    this.vx = -0.5;
+    this.animT = 0;
+  }
+  update(game) {
+    if (!this.baseUpdate(game)) return;
+    this.vy = Math.min(this.vy + 0.3, 6);
+    if (this.onGround && game.frame % 55 === 0) {
+      this.vy = -4.6;
+      this.vx = game.player.x > this.x ? 0.9 : -0.9;
+    }
+    moveAndCollide(this, game.level);
+    if (this.hitWall) this.vx = -this.vx;
+    this.animT++;
+    if (this.y > (ROWS + 2) * TILE) this.dead = true;
+  }
+  stomp(game) {
+    this.flipTimer = 1;
+    this.vy = -3;
+    this.vx = 0;
+    game.addScore(150, this.x, this.y);
+    sound.stomp();
+  }
+  draw(g, camX) {
+    const f = SPR.hopper[this.onGround ? 0 : 1];
+    if (this.flipTimer > 0) {
+      const img = f.l;
+      const x = Math.round(this.x - camX), y = Math.round(this.y);
+      g.save(); g.translate(x + 8, y + 8); g.scale(1, -1); g.drawImage(img, -8, -12); g.restore();
+      return;
+    }
+    drawEntity(g, this.vx > 0 ? f.r : f.l, this, camX);
+  }
+}
+
+export class Ghost extends Enemy {
+  // Shy shade: drifts toward you only while you look away. Star kills it.
+  constructor(x, y) {
+    super(x, y, 13, 13);
+    this.spiky = true;   // touching it always hurts (no stomping a ghost)
+    this.noFire = true;  // fire and ice pass through
+    this.animT = 0;
+    this.homeY = y;
+  }
+  update(game) {
+    if (!this.baseUpdate(game)) return;
+    const p = game.player;
+    const ghostIsRight = this.x + this.w / 2 > p.x + p.w / 2;
+    const playerLooking = (p.facing > 0) === ghostIsRight;
+    this.chasing = !playerLooking && p.state === 'normal';
+    if (this.chasing) {
+      const dx = p.x + p.w / 2 - (this.x + this.w / 2);
+      const dy = p.y + p.h / 2 - (this.y + this.h / 2);
+      const d = Math.hypot(dx, dy) || 1;
+      this.x += (dx / d) * 0.62;
+      this.y += (dy / d) * 0.62;
+      this.faceLeft = dx < 0;
+    }
+    this.animT++;
+    this.y += Math.sin(this.animT / 24) * 0.15; // idle bob
+  }
+  draw(g, camX) {
+    g.globalAlpha = this.chasing ? 0.9 : 0.55; // fades shy when watched
+    drawEntity(g, this.faceLeft ? SPR.ghost : SPR.ghostFlip, this, camX);
+    g.globalAlpha = 1;
   }
 }
 
@@ -509,11 +645,12 @@ export class FireBar {
 
 export class Boss extends Enemy {
   // King Snapjaw: paces his bridge, hops now and then. 8 fireballs or the axe.
-  constructor(x, y, bridge) {
+  constructor(x, y, bridge, opts = {}) {
     super(x, y, 20, 19);
-    this.vx = -0.4;
+    this.vx = -(opts.speed ?? 0.4);
     this.bridge = bridge; // {fromPx, toPx}
-    this.hp = 8;
+    this.hp = opts.hp ?? 8;
+    this.hopEvery = opts.hopEvery ?? 70;
     this.animT = 0;
     this.hopT = 90;
     this.falling = false;
@@ -528,7 +665,7 @@ export class Boss extends Enemy {
     }
     if (!this.baseUpdate(game)) return;
     this.vy = Math.min(this.vy + 0.35, 6);
-    if (--this.hopT <= 0 && this.onGround) { this.vy = -3.6; this.hopT = 70 + (this.animT % 60); }
+    if (--this.hopT <= 0 && this.onGround) { this.vy = -3.6; this.hopT = this.hopEvery + (this.animT % 60); }
     moveAndCollide(this, game.level);
     if (this.hitWall) this.vx = -this.vx;
     if (this.x < this.bridge.fromPx) { this.x = this.bridge.fromPx; this.vx = Math.abs(this.vx); }
@@ -585,18 +722,43 @@ export class Mushroom {
 }
 
 export class FireFlower {
-  constructor(tx, ty) {
+  constructor(tx, ty, ice = false) {
     this.x = tx * TILE + 1; this.y = ty * TILE;
     this.w = 14; this.h = 13;
     this.rise = 16;
+    this.ice = ice;
     this.dead = false;
   }
   update() { if (this.rise > 0) { this.y -= 0.5; this.rise -= 0.5; } }
   collect(game) {
     this.dead = true;
-    game.player.powerUp(game);
+    game.player.powerUp(game, this.ice ? 'ice' : 'fire');
   }
-  draw(g, camX) { drawEntity(g, SPR.flower, this, camX); }
+  draw(g, camX) { drawEntity(g, this.ice ? SPR.iceFlower : SPR.flower, this, camX); }
+}
+
+export class WingsItem {
+  // Floats out of its block then drifts down slowly, swaying.
+  constructor(tx, ty) {
+    this.x = tx * TILE + 1; this.y = ty * TILE;
+    this.w = 14; this.h = 12;
+    this.rise = 16;
+    this.t = 0;
+    this.dead = false;
+  }
+  update(game) {
+    if (this.rise > 0) { this.y -= 0.5; this.rise -= 0.5; return; }
+    this.t++;
+    this.x += Math.sin(this.t / 30) * 0.6;
+    this.vy = 0.4;
+    moveAndCollide(this, game.level);
+    if (this.y > (ROWS + 2) * TILE) this.dead = true;
+  }
+  collect(game) {
+    this.dead = true;
+    game.player.powerUp(game, 'wings');
+  }
+  draw(g, camX) { drawEntity(g, SPR.wingsItem, this, camX); }
 }
 
 export class Star {
@@ -644,10 +806,11 @@ export class CoinPop {
 }
 
 export class Fireball {
-  constructor(x, y, dir) {
+  constructor(x, y, dir, ice = false) {
     this.x = x; this.y = y;
     this.w = 6; this.h = 6;
     this.vx = dir * 3.4; this.vy = 1;
+    this.ice = ice; // iceballs freeze instead of kill
     this.dead = false;
     this.t = 0;
   }
@@ -660,20 +823,32 @@ export class Fireball {
     if (this.x < game.cam - 8 || this.x > game.cam + 264) this.dead = true;
     this.t++;
     for (const e of game.entities) {
-      if (e instanceof Enemy && e.harmful && overlaps(this, e)) {
-        if (e instanceof Boss) e.hit(game);
-        else { e.flip(game, Math.sign(this.vx) || 1, 200); }
-        sound.kick();
-        this.dead = true;
-        return;
+      if (!(e instanceof Enemy) || e.dead || e.flipTimer > 0) continue;
+      if (e.noFire) continue; // ghosts shrug it off
+      if (!overlaps(this, e)) continue;
+      if (e instanceof Boss) {
+        e.hit(game);
+      } else if (e.frozen) {
+        e.flip(game, Math.sign(this.vx) || 1, 200); // shatter
+      } else if (this.ice) {
+        e.freezeTimer = 300;
+        e.vx = 0;
+        game.addScore(100, e.x, e.y);
+      } else if (e.harmful) {
+        e.flip(game, Math.sign(this.vx) || 1, 200);
+      } else {
+        continue;
       }
+      sound.kick();
+      this.dead = true;
+      return;
     }
   }
   draw(g, camX) {
     g.save();
     g.translate(Math.round(this.x + 3 - camX), Math.round(this.y + 3));
     g.rotate((this.t / 4 | 0) * Math.PI / 2);
-    g.drawImage(SPR.fireball, -3, -3);
+    g.drawImage(this.ice ? SPR.iceball : SPR.fireball, -3, -3);
     g.restore();
   }
 }
