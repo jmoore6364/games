@@ -5,6 +5,6 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "test": "node tools/validate-levels.js && node tools/mechanics-test.js && node tools/fuzz.js"
+    "test": "node tools/validate-levels.js && node tools/builder-test.js && node tools/mechanics-test.js && node tools/fuzz.js"
   }
 }

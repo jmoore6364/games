@@ -56,6 +56,37 @@
   .tbtn:active, .tbtn.on { background: #2e2e4e; border-color: #f8d848; }
   .digs .tbtn { width: 64px; height: 64px; font-size: 13px; }
   .hint { color: #667; font-size: 11px; text-align: center; padding-bottom: 6px; }
+  #editor-ui {
+    display: none; flex-direction: column; gap: 6px;
+    width: 100%; max-width: 700px; padding: 0 8px 10px; box-sizing: border-box;
+  }
+  .led-row { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; }
+  .led-btn {
+    background: #1a1a2c; border: 2px solid #445; border-radius: 6px;
+    color: #ccd; font: bold 11px monospace; padding: 6px 8px;
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+  }
+  .led-btn:hover { border-color: #778; }
+  .led-btn.sel { border-color: #f8d848; color: #f8d848; }
+  .led-btn.go { border-color: #2e8; color: #8fc; }
+  .led-btn.warn { border-color: #a44; color: #faa; }
+  #led-name, #led-load {
+    background: #101020; border: 2px solid #445; border-radius: 6px;
+    color: #eee; font: bold 12px monospace; padding: 5px 8px; max-width: 160px;
+  }
+  #led-import {
+    display: none; position: fixed; inset: 0; z-index: 10;
+    background: rgba(0,0,0,0.7); align-items: center; justify-content: center;
+  }
+  .led-modal {
+    background: #14141f; border: 2px solid #556; border-radius: 8px;
+    padding: 16px; width: min(520px, 92vw); color: #ccd; font-size: 13px;
+  }
+  .led-modal textarea {
+    width: 100%; height: 120px; box-sizing: border-box; margin: 8px 0;
+    background: #0b0b14; color: #cd8; border: 1px solid #445; font: 11px monospace;
+  }
+  .led-modal div { display: flex; gap: 8px; justify-content: flex-end; }
   @media (pointer: coarse) {
     #touch { display: flex; }
     .hint { display: none; }

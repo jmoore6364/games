@@ -79,6 +79,25 @@ Progress is saved: any level you've reached can be picked as a starting point
 on the title screen. Scoring: gold 250 · trapping a guard 75 · sealing one
 150 · level clear 1500 + an extra man. High score persists in localStorage.
 
+## Level builder
+
+Pick **LEVEL BUILDER** on the title screen. Paint bricks, slabs, ladders,
+ropes, trap bricks, gold, guards, the start position, and the exit — the EXIT
+tool stamps the whole hidden-ladder column up to the top for you, and
+right-click (or the ERASE tool) clears cells.
+
+The builder runs the **same solvability analysis as `npm test` live while you
+paint**: the status bar tells you what's missing, and any gold the runner
+provably can't reach (walking, climbing, falling, and digging included) gets
+a red outline until you fix it.
+
+- **TEST** playtests instantly; death or victory drops you back in the editor
+- **SAVE** keeps levels in the browser — they appear under **MY LEVELS** on
+  the title screen (X deletes)
+- **SHARE** copies a link; anyone who opens it gets a "PLAY SHARED" option
+  on their title screen — no server, the level lives in the URL
+- **COPY/PASTE** moves levels around as plain JSON
+
 ## Dev/test hooks (browser console)
 
 ```js

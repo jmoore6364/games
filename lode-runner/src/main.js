@@ -3,6 +3,8 @@ import { Game } from './game.js';
 import { TILE, sprites, drawSprite, drawBrick, drawSolid, drawLadder, drawRope, drawHole } from './sprites.js';
 import { input } from './input.js';
 import { audio } from './audio.js';
+import { editor, initEditor, shareURL } from './editor.js';
+import { decodeShare, customLevels, storeCustomLevels } from './share.js';
 import './touch.js';
 
 const cv = document.getElementById('game');
@@ -12,7 +14,7 @@ const BOARD_H = ROWS * TILE;
 const START_LIVES = 5;
 const LEVEL_BONUS = 1500;
 
-let state = 'title';      // title | intro | play | pause | dying | next | gameover | victory
+let state = 'title';      // title | levels | editor | intro | play | pause | dying | next | gameover | victory
 let stateT = 0;
 let level = 0;
 let selLevel = 0;
@@ -24,6 +26,16 @@ let flashT = 0;
 let hiscore = +(localStorage.getItem('lodeRunner.hiscore') || 0);
 let unlocked = +(localStorage.getItem('lodeRunner.unlocked') || 0);
 
+let playMode = 'campaign'; // campaign | custom (saved/shared) | test (from the builder)
+let customDef = null;
+let sharedDef = null;
+try {
+  if (location.hash.startsWith('#lvl=')) sharedDef = decodeShare(location.hash.slice(5));
+} catch { /* bad share link; ignore */ }
+
+let titleSel = 0;
+let levelsSel = 0;
+
 const totalScore = () => banked + (game ? game.score : 0);
 
 function save() {
@@ -33,6 +45,7 @@ function save() {
 }
 
 function startRun(fromLevel) {
+  playMode = 'campaign';
   level = fromLevel;
   lives = START_LIVES;
   banked = 0;
@@ -42,11 +55,102 @@ function startRun(fromLevel) {
 function loadLevel() {
   game = new Game(LEVELS[level]);
   particles = [];
-  state = 'intro';
-  stateT = 1.3;
+  setState('intro', 1.3);
+}
+
+function startCustom(def, mode) {
+  playMode = mode;
+  customDef = def;
+  banked = 0;
+  lives = mode === 'test' ? 1 : START_LIVES;
+  game = new Game(def);
+  particles = [];
+  setState('intro', mode === 'test' ? 0.7 : 1.3);
+}
+
+function enterEditor() {
+  state = 'editor';
+  game = null;
+  editor.show();
 }
 
 function setState(s, t) { state = s; stateT = t; }
+
+function currentLevelTitle() {
+  if (playMode === 'campaign') return [`LEVEL ${level + 1}`, LEVELS[level].name];
+  if (playMode === 'test') return ['PLAYTEST', customDef.name];
+  return ['CUSTOM LEVEL', customDef.name];
+}
+
+// ---------- title / level-browser menus ----------
+
+function titleItems() {
+  const items = [{ id: 'play', label: `< LEVEL ${selLevel + 1}: ${LEVELS[selLevel].name} >` }];
+  if (sharedDef) items.push({ id: 'shared', label: `PLAY SHARED: ${sharedDef.name}` });
+  if (customLevels().length) items.push({ id: 'mine', label: 'MY LEVELS' });
+  items.push({ id: 'build', label: 'LEVEL BUILDER' });
+  return items;
+}
+
+const menuY = i => 205 + i * 27;
+
+function activateTitle(item) {
+  audio.unlock();
+  if (item.id === 'play') { audio.startMusic(); startRun(selLevel); }
+  else if (item.id === 'shared') { audio.startMusic(); startCustom(sharedDef, 'custom'); }
+  else if (item.id === 'mine') { state = 'levels'; levelsSel = 0; }
+  else if (item.id === 'build') enterEditor();
+}
+
+const levelsRowY = i => 130 + i * 26;
+
+function levelsEntries() {
+  return [...customLevels().map(l => l.name), 'BACK'];
+}
+
+function activateLevels(idx, del) {
+  const list = customLevels();
+  if (idx === list.length) { state = 'title'; return; } // BACK
+  if (del) {
+    storeCustomLevels(list.filter((_, i) => i !== idx));
+    levelsSel = Math.min(levelsSel, customLevels().length);
+    return;
+  }
+  audio.unlock();
+  audio.startMusic();
+  startCustom(list[idx], 'custom');
+}
+
+// canvas clicks/taps on the menus
+cv.addEventListener('pointerdown', ev => {
+  if (state !== 'title' && state !== 'levels') return;
+  const rect = cv.getBoundingClientRect();
+  const x = (ev.clientX - rect.left) * (cv.width / rect.width);
+  const y = (ev.clientY - rect.top) * (cv.height / rect.height);
+  if (state === 'title') {
+    const items = titleItems();
+    for (let i = 0; i < items.length; i++) {
+      if (Math.abs(y - (menuY(i) - 6)) < 13) {
+        titleSel = i;
+        if (items[i].id === 'play' && x < cv.width * 0.35) {
+          selLevel = (selLevel + 1) % (unlocked + 1); // tap left third cycles levels
+          return;
+        }
+        activateTitle(items[i]);
+        return;
+      }
+    }
+  } else {
+    const entries = levelsEntries();
+    for (let i = 0; i < entries.length; i++) {
+      if (Math.abs(y - (levelsRowY(i) - 6)) < 12) {
+        levelsSel = i;
+        activateLevels(i, i < entries.length - 1 && x > cv.width * 0.8);
+        return;
+      }
+    }
+  }
+});
 
 function spawnDigParticles(x, y) {
   for (let i = 0; i < 10; i++) {
@@ -73,10 +177,12 @@ function handleEvents() {
     else if (e === 'win') {
       audio.win();
       banked += game.score + LEVEL_BONUS;
-      lives = Math.min(9, lives + 1);
-      unlocked = Math.max(unlocked, Math.min(level + 1, LEVELS.length - 1));
-      save();
-      setState('next', 1.8);
+      if (playMode === 'campaign') {
+        lives = Math.min(9, lives + 1);
+        unlocked = Math.max(unlocked, Math.min(level + 1, LEVELS.length - 1));
+        save();
+      }
+      setState('next', playMode === 'campaign' ? 1.8 : 1.4);
     }
   }
 }
@@ -90,17 +196,32 @@ function update(dt) {
   const digL = input.consume('digL');
   const digR = input.consume('digR');
   const restart = input.consume('restart');
+  // one-shot direction edges; only the menus use them, but always drain them
+  const navDY = (input.consume('navdown') ? 1 : 0) - (input.consume('navup') ? 1 : 0);
+  const navDX = (input.consume('navright') ? 1 : 0) - (input.consume('navleft') ? 1 : 0);
 
   if (state === 'title') {
-    if (!update.selHeld) {
-      if (input.held('left') && selLevel > 0) { selLevel--; update.selHeld = true; }
-      if (input.held('right') && selLevel < unlocked) { selLevel++; update.selHeld = true; }
-    } else if (!input.held('left') && !input.held('right')) update.selHeld = false;
-    if (start || digL || digR) {
-      audio.unlock();
-      audio.startMusic();
-      startRun(selLevel);
+    const items = titleItems();
+    titleSel = Math.min(titleSel, items.length - 1);
+    if (navDY) titleSel = (titleSel + navDY + items.length) % items.length;
+    else if (navDX && items[titleSel].id === 'play') {
+      selLevel = Math.max(0, Math.min(unlocked, selLevel + navDX));
     }
+    if (start || digL || digR) activateTitle(items[titleSel]);
+    return;
+  }
+
+  if (state === 'levels') {
+    const entries = levelsEntries();
+    levelsSel = Math.min(levelsSel, entries.length - 1);
+    if (navDY) levelsSel = (levelsSel + navDY + entries.length) % entries.length;
+    if (start) activateLevels(levelsSel, false);
+    if (digR && levelsSel < entries.length - 1) activateLevels(levelsSel, true); // X deletes
+    return;
+  }
+
+  if (state === 'editor') {
+    editor.update(dt);
     return;
   }
 
@@ -129,20 +250,25 @@ function update(dt) {
   updateParticles(dt);
 
   if (state === 'dying' && stateT <= 0) {
+    if (playMode === 'test') { enterEditor(); return; }
     banked += game.score;
-    save();
+    if (playMode === 'campaign') save();
     lives--;
     if (lives < 0) { audio.gameOver(); setState('gameover', 3); }
-    else loadLevel();
+    else if (playMode === 'campaign') loadLevel();
+    else { game = new Game(customDef); particles = []; setState('intro', 1.3); }
   } else if (state === 'next' && stateT <= 0) {
+    if (playMode === 'test') { enterEditor(); return; }
+    if (playMode === 'custom') { game = null; banked = 0; setState('title', 0); return; }
     level++;
     if (level >= LEVELS.length) setState('victory', 6);
     else loadLevel();
   } else if ((state === 'gameover' || state === 'victory') && (stateT <= 0 || start)) {
-    save();
+    if (playMode === 'campaign') save();
     game = null;
     banked = 0;
-    setState('title', 0);
+    if (playMode === 'test') enterEditor();
+    else setState('title', 0);
   }
 }
 
@@ -231,11 +357,13 @@ function drawHUD() {
   ctx.fillRect(0, BOARD_H, cv.width, cv.height - BOARD_H);
   const y = BOARD_H + 21;
   text(`SCORE ${String(totalScore()).padStart(6, '0')}`, 10, y, 15, '#f8d848');
-  text(`HI ${String(Math.max(hiscore, totalScore())).padStart(6, '0')}`, 190, y, 15, '#8890b0');
+  const hi = playMode === 'campaign' ? Math.max(hiscore, totalScore()) : hiscore;
+  text(`HI ${String(hi).padStart(6, '0')}`, 190, y, 15, '#8890b0');
   const left = game ? game.gold.size + game.carried : 0;
   text(`GOLD ${left}`, 340, y, 15, '#ffd020');
-  text(`MEN ${Math.max(0, lives)}`, 448, y, 15, '#58c8ff');
-  text(`LVL ${level + 1}`, 540, y, 15, '#e8f4ff');
+  text(`MEN ${playMode === 'test' ? '-' : Math.max(0, lives)}`, 448, y, 15, '#58c8ff');
+  const lvl = playMode === 'campaign' ? `LVL ${level + 1}` : playMode === 'test' ? 'TEST' : 'CUSTOM';
+  text(lvl, 540, y, 15, '#e8f4ff');
   if (audio.muted) text('MUTE', 610, y, 15, '#667');
 }
 
@@ -247,7 +375,6 @@ function overlayBox() {
 function drawTitle(t) {
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, cv.width, cv.height);
-  // marching demo bricks
   for (let x = 0; x < COLS; x++) drawBrick(ctx, x * TILE, BOARD_H - TILE * 2);
   drawLadder(ctx, 3 * TILE, BOARD_H - TILE * 5, false);
   drawLadder(ctx, 3 * TILE, BOARD_H - TILE * 4, false);
@@ -255,18 +382,36 @@ function drawTitle(t) {
   ctx.drawImage(sprites.gold, 16 * TILE, BOARD_H - TILE * 3);
   ctx.drawImage(sprites.gold, 21 * TILE, BOARD_H - TILE * 3);
   const bounce = Math.sin(t * 2) * 4;
-  text('LODE RUNNER', cv.width / 2 + 4, 112 + 4 + bounce, 52, '#78290c', 'center');
-  text('LODE RUNNER', cv.width / 2, 112 + bounce, 52, '#f8a800', 'center');
-  text("MOORE'S GOLD", cv.width / 2, 148, 20, '#0aa7a0', 'center');
+  text('LODE RUNNER', cv.width / 2 + 4, 108 + 4 + bounce, 52, '#78290c', 'center');
+  text('LODE RUNNER', cv.width / 2, 108 + bounce, 52, '#f8a800', 'center');
+  text("MOORE'S GOLD", cv.width / 2, 144, 20, '#0aa7a0', 'center');
+
+  const items = titleItems();
+  for (let i = 0; i < items.length; i++) {
+    const sel = i === titleSel;
+    const label = sel ? `> ${items[i].label} <` : items[i].label;
+    text(label, cv.width / 2, menuY(i), 17, sel ? '#f8d848' : '#aab', 'center');
+  }
   const run = (t * 3 | 0) % 2 ? 'run1' : 'run0';
   drawSprite(ctx, sprites.player[run], ((t * 60) % (cv.width + 48)) - 24, BOARD_H - TILE * 3, false);
   drawSprite(ctx, sprites.guard[run], ((t * 60) % (cv.width + 48)) - 24 - 60, BOARD_H - TILE * 3, false);
-  text(`< LEVEL ${selLevel + 1}: ${LEVELS[selLevel].name} >`, cv.width / 2, 210, 17, '#e8f4ff', 'center');
-  if (unlocked > 0) text('left/right to choose level', cv.width / 2, 232, 12, '#667', 'center');
-  if ((t * 1.5 | 0) % 2) text('PRESS ENTER OR TAP START', cv.width / 2, 272, 17, '#f8d848', 'center');
-  text('collect all gold - the exit ladder appears - climb out the top', cv.width / 2, 300, 12, '#99a', 'center');
-  text('Z dig left   X dig right   M mute', cv.width / 2, 318, 12, '#99a', 'center');
+  text('up/down choose - left/right pick level - enter/start go', cv.width / 2, 306, 12, '#667', 'center');
+  text('collect all gold - the exit ladder appears - climb out the top', cv.width / 2, 322, 12, '#99a', 'center');
   text(`HI ${String(hiscore).padStart(6, '0')}`, cv.width / 2, BOARD_H + 20, 14, '#8890b0', 'center');
+}
+
+function drawLevels() {
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, cv.width, cv.height);
+  text('MY LEVELS', cv.width / 2, 80, 30, '#f8a800', 'center');
+  const entries = levelsEntries();
+  for (let i = 0; i < entries.length; i++) {
+    const sel = i === levelsSel;
+    text(sel ? `> ${entries[i]} <` : entries[i], cv.width / 2, levelsRowY(i), 16,
+      sel ? '#f8d848' : entries[i] === 'BACK' ? '#99a' : '#e8f4ff', 'center');
+  }
+  text('enter play - X delete - built levels save here from the builder',
+    cv.width / 2, BOARD_H - 18, 12, '#667', 'center');
 }
 
 let last = 0, titleT = 0;
@@ -278,13 +423,18 @@ function frame(ts) {
   if (state === 'title') {
     titleT += dt;
     drawTitle(titleT);
+  } else if (state === 'levels') {
+    drawLevels();
+  } else if (state === 'editor') {
+    editor.draw();
   } else {
     drawBoard();
     drawHUD();
     if (state === 'intro') {
       overlayBox();
-      text(`LEVEL ${level + 1}`, cv.width / 2, 170, 30, '#f8a800', 'center');
-      text(LEVELS[level].name, cv.width / 2, 205, 20, '#e8f4ff', 'center');
+      const [a, b] = currentLevelTitle();
+      text(a, cv.width / 2, 170, 30, '#f8a800', 'center');
+      text(b, cv.width / 2, 205, 20, '#e8f4ff', 'center');
     } else if (state === 'pause') {
       overlayBox();
       text('PAUSED', cv.width / 2, 190, 30, '#f8d848', 'center');
@@ -292,7 +442,9 @@ function frame(ts) {
     } else if (state === 'next') {
       overlayBox();
       text('LEVEL CLEAR!', cv.width / 2, 180, 30, '#58f898', 'center');
-      text(`BONUS ${LEVEL_BONUS}   EXTRA MAN`, cv.width / 2, 212, 16, '#f8d848', 'center');
+      if (playMode === 'campaign') {
+        text(`BONUS ${LEVEL_BONUS}   EXTRA MAN`, cv.width / 2, 212, 16, '#f8d848', 'center');
+      }
     } else if (state === 'gameover') {
       overlayBox();
       text('GAME OVER', cv.width / 2, 190, 34, '#ff5a48', 'center');
@@ -306,12 +458,24 @@ function frame(ts) {
   }
   requestAnimationFrame(frame);
 }
+
+initEditor({
+  canvas: cv,
+  g: ctx,
+  isEditing: () => state === 'editor',
+  onTest: def => { audio.unlock(); startCustom(def, 'test'); },
+  onExit: () => { setState('title', 0); },
+});
+if (sharedDef) titleSel = 1; // preselect the shared level entry
 requestAnimationFrame(frame);
 
 // dev/test hooks (browser console)
 window.lodeRunner = {
   get game() { return game; },
   get state() { return state; },
-  goto(n) { level = Math.max(0, Math.min(LEVELS.length - 1, n - 1)); lives = START_LIVES; loadLevel(); },
+  get editor() { return editor; },
+  shareURL,
+  goto(n) { playMode = 'campaign'; level = Math.max(0, Math.min(LEVELS.length - 1, n - 1)); lives = START_LIVES; loadLevel(); },
   skip() { if (game) { game.gold.clear(); game.carried = 0; game.revealed = true; game.status = 'won'; game.events.push('win'); handleEvents(); } },
+  openEditor() { enterEditor(); },
 };
