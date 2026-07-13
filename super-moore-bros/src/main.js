@@ -321,8 +321,13 @@ function updatePlay() {
     }
     if (seq.x < game.level.bridge.from && !seq.bossFell) {
       seq.bossFell = true;
-      const boss = game.entities.find(e => e instanceof Boss);
-      if (boss && !boss.dead) { boss.falling = true; boss.vy = 0; game.addScore(5000, boss.x, boss.y); }
+      for (const boss of game.entities) {
+        if (boss instanceof Boss && !boss.dead && !boss.falling) {
+          boss.falling = true;
+          boss.vy = 0;
+          game.addScore(5000, boss.x, boss.y);
+        }
+      }
       sound.stomp();
     }
     if (seq.bossFell && seq.t > 160 && p.state === 'axe') {
@@ -656,7 +661,7 @@ try {
 function titleMenuItems() {
   const items = [];
   if (sharedLevel) items.push('PLAY SHARED LEVEL');
-  items.push('ORIGINAL GAME', 'MOORE WORLDS', 'LEVEL BUILDER');
+  items.push('ORIGINAL GAME', 'MOORE WORLDS', 'SKY WORLDS', 'LEVEL BUILDER');
   if (customLevels().length) items.push('MY LEVELS');
   return items;
 }
@@ -703,8 +708,8 @@ function draw() {
       const sel = i === game.menuIdx;
       drawCenter(sel ? '* ' + it + ' *' : it, MENU_Y0 + i * MENU_ROW, sel ? '#f8d048' : '#ffffff');
     });
-    drawCenter(touchMode ? 'TAP AN OPTION' : 'ARROWS THEN ENTER', 186, '#b8c8ff');
-    if (!touchMode) drawCenter('Z JUMP  X RUN AND FIRE  M MUTE', 196, '#b8c8ff');
+    drawCenter(touchMode ? 'TAP AN OPTION' : 'ARROWS THEN ENTER', 206, '#b8c8ff');
+    if (!touchMode) drawCenter('Z JUMP  X RUN AND FIRE  M MUTE', 216, '#b8c8ff');
   } else if (game.state === 'levels') {
     g.fillStyle = 'rgba(16,16,40,0.7)';
     g.fillRect(0, 0, W, H);
@@ -761,6 +766,7 @@ function step() {
         if (pick === 'PLAY SHARED LEVEL') startCustomLevel(sharedLevel);
         else if (pick === 'ORIGINAL GAME') startGame('original');
         else if (pick === 'MOORE WORLDS') startGame('remix');
+        else if (pick === 'SKY WORLDS') startGame('sky');
         else if (pick === 'LEVEL BUILDER') { game.state = 'editor'; editor.show(); }
         else if (pick === 'MY LEVELS') { game.state = 'levels'; game.levelsIdx = 0; }
       }

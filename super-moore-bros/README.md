@@ -30,6 +30,11 @@ npm start          # serves at http://localhost:8123
   hoppers, wings), 2-2 frostbite fields (slippery ice physics, spinies, ice
   flower), 2-3 the haunted hall (shy ghosts that only drift toward you while
   you look away), 2-4 Snapjaw's Keep (more fire bars, a meaner boss)
+- **Sky Worlds** — world 3: 3-1 spring meadow (bounce over walls), 3-2
+  starlit crossing (platform ballet over the void with moving ferries),
+  3-3 frozen depths (slippery cave, spinies + ghosts + lava slots),
+  3-4 Snapjaw's Revenge (fire bar gauntlet ending with **two bosses on
+  one bridge**)
 - **Level Builder** — paint tiles, blocks, pipes, hazards, springs, moving
   platforms, and every enemy onto a canvas; stamp a complete **boss arena**
   (lava moat + bridge + axe + boss) with one click; pick a theme (incl.

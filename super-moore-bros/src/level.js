@@ -551,6 +551,236 @@ export function buildR4() { // 2-4: Snapjaw's keep
   return level;
 }
 
+// =================================================================
+// SKY WORLDS - world 3: springs, moving platforms, and a double boss.
+// =================================================================
+
+export function buildS1() { // 3-1: spring meadow
+  const { level, set, ground, pipe, stair, spawn, piranha } = newLevel(210, '3-1', 'overworld');
+  level.flagX = 200;
+  level.castleX = 205;
+
+  ground(0, 38); ground(42, 82); ground(87, 128); ground(132, 209);
+
+  const wall = (a, h) => { for (let x = a; x <= a + 1; x++) for (let i = 0; i < h; i++) set(x, 12 - i, T.HARD); };
+  const springAt = (tx) => level.spawns.push({ type: 'spring', x: tx * TILE, y: 0 });
+
+  set(20, 9, T.QM);
+  springAt(27); wall(30, 5);
+  set(30, 6, T.COIN); set(31, 6, T.COIN); set(30, 3, T.COIN); set(31, 3, T.COIN);
+
+  set(45, 9, T.Q);
+  springAt(52); wall(55, 5);
+  set(55, 6, T.COIN); set(56, 6, T.COIN); set(55, 2, T.COIN); set(56, 2, T.COIN);
+  set(60, 9, T.QW);
+
+  pipe(70, 3); piranha(70, 3);
+  level.spawns.push({ type: 'platformh', x: 82 * TILE, y: 10 * TILE }); // over the pit
+
+  springAt(97); wall(100, 5);
+  set(100, 6, T.COIN); set(101, 6, T.COIN);
+  set(110, 9, T.QS);
+  set(118, 9, T.Q1);
+  set(124, 8, T.COIN); set(126, 8, T.COIN);
+
+  springAt(137); wall(140, 5);
+  set(140, 6, T.COIN); set(141, 6, T.COIN); set(140, 2, T.COIN); set(141, 2, T.COIN);
+  set(148, 9, T.Q);
+  pipe(160, 4); piranha(160, 4);
+  set(168, 8, T.COIN); set(170, 8, T.COIN); set(172, 8, T.COIN);
+
+  for (let i = 0; i < 8; i++) stair(186 + i, i + 1);
+  stair(194, 8);
+  stair(200, 1);
+  for (let y = 3; y <= 11; y++) set(200, y, T.POLE);
+  set(200, 2, T.POLE_TOP);
+
+  spawn('goomba', 24);
+  spawn('hopper', 47);
+  spawn('goomba', 64); spawn('goomba', 66);
+  spawn('koopa', 78);
+  spawn('hopper', 92);
+  spawn('goomba', 106); spawn('goomba', 108);
+  spawn('fastgoomba', 122);
+  spawn('hopper', 135);
+  spawn('goomba', 148); spawn('goomba', 150);
+  spawn('koopa', 166);
+  spawn('goomba', 175); spawn('goomba', 177);
+  level.spawns.sort((a, b) => a.x - b.x);
+
+  for (let x = 0; x < level.width; x += 48) {
+    level.decor.hills.push({ x, big: true });
+    level.decor.bushes.push({ x: x + 24, w: 2 });
+    level.decor.clouds.push({ x: x + 10, y: 2, w: 2 });
+    level.decor.clouds.push({ x: x + 32, y: 4, w: 1 });
+  }
+  return level;
+}
+
+export function buildS2() { // 3-2: starlit crossing
+  const { level, set, ground, stair, spawn } = newLevel(200, '3-2', 'night');
+  level.flagX = 194;
+  level.castleX = 195;
+
+  ground(0, 15); ground(184, 199);
+  const plat = (a, b, y) => { for (let x = a; x <= b; x++) set(x, y, T.HARD); };
+  const coins = (a, b, y) => { for (let x = a; x <= b; x++) set(x, y, T.COIN); };
+
+  plat(18, 22, 12);
+  plat(25, 29, 11);  coins(25, 29, 9);
+  plat(32, 36, 9);
+  plat(39, 44, 11);
+  plat(47, 51, 12);
+  plat(54, 58, 10);  coins(54, 58, 8);
+  plat(61, 66, 10);
+  plat(69, 73, 12);
+  plat(76, 81, 11);  set(78, 8, T.QW);
+  plat(84, 88, 9);   coins(84, 88, 7);
+  plat(91, 96, 11);
+  plat(99, 103, 12);
+  plat(106, 111, 10); set(109, 7, T.QS);
+  plat(114, 118, 11);
+  plat(121, 126, 12);
+  plat(129, 134, 10); coins(129, 134, 8);
+  plat(137, 141, 11);
+  plat(144, 149, 12); set(146, 9, T.Q1);
+  plat(152, 157, 11);
+  plat(160, 165, 12);
+  plat(168, 173, 11); coins(168, 173, 9);
+  plat(176, 181, 12);
+
+  // bonus ferries alongside the route
+  level.spawns.push({ type: 'platformh', x: 44 * TILE, y: 8 * TILE });
+  level.spawns.push({ type: 'platformh', x: 96 * TILE, y: 8 * TILE });
+  level.spawns.push({ type: 'platformv', x: 120 * TILE, y: 5 * TILE });
+
+  stair(186, 2); stair(187, 4); stair(188, 6);
+  stair(194, 1);
+  for (let y = 3; y <= 11; y++) set(194, y, T.POLE);
+  set(194, 2, T.POLE_TOP);
+
+  spawn('hopper', 8);
+  spawn('koopared', 41);
+  spawn('koopared', 63);
+  spawn('koopared', 93);
+  spawn('koopared', 131);
+  spawn('koopared', 154);
+  spawn('koopared', 170);
+  spawn('goomba', 187); spawn('goomba', 189);
+  level.spawns.sort((a, b) => a.x - b.x);
+
+  for (let x = 0; x < level.width; x += 44) {
+    level.decor.clouds.push({ x: x + 6, y: 2, w: 2 });
+    level.decor.clouds.push({ x: x + 26, y: 4, w: 1 });
+  }
+  return level;
+}
+
+export function buildS3() { // 3-3: frozen depths (slippery cave)
+  const { level, set, ground, stair, spawn } = newLevel(190, '3-3', 'underground');
+  level.friction = 0.35;
+  level.flagX = 176;
+  level.castleX = 181;
+
+  for (let x = 4; x < 156; x++) set(x, 0, T.GROUND); // ceiling
+  ground(0, 50); ground(54, 110); ground(114, 189);
+  const lava = (a, b) => { for (let x = a; x <= b; x++) { set(x, 13, T.LAVA); set(x, 14, T.LAVA); } };
+  lava(51, 53); lava(111, 113);
+
+  set(14, 9, T.QI); set(16, 9, T.Q);
+  for (let x = 20; x <= 26; x++) { set(x, 9, T.BRICK); set(x, 8, T.COIN); }
+  set(40, 9, T.QM);
+  for (let x = 60; x <= 66; x++) { set(x, 6, T.BRICK); set(x, 5, T.COIN); }
+  set(80, 9, T.QS);
+  for (let y = 10; y <= 12; y++) { set(90, y, T.BRICK); set(100, y, T.BRICK); }
+  for (let x = 92; x <= 98; x++) set(x, 7, T.COIN);
+  set(95, 9, T.Q1);
+  set(126, 9, T.QI); // second ice
+  for (let x = 120; x <= 126; x++) set(x, 8, T.COIN);
+  for (let x = 120; x <= 126; x++) set(x, 9, T.BRICK);
+  for (let x = 134; x <= 138; x++) { set(x, 6, T.BRICK); set(x, 5, T.COIN); }
+
+  for (let i = 0; i < 6; i++) stair(158 + i, i + 1);
+  stair(164, 6);
+  stair(176, 1);
+  for (let y = 3; y <= 11; y++) set(176, y, T.POLE);
+  set(176, 2, T.POLE_TOP);
+
+  spawn('spiny', 30);
+  spawn('ghost', 45);
+  spawn('spiny', 58);
+  spawn('ghost', 70);
+  spawn('goomba', 86); spawn('goomba', 88);
+  spawn('spiny', 104);
+  spawn('ghost', 108);
+  spawn('goomba', 128); spawn('goomba', 130);
+  spawn('spiny', 142);
+  spawn('ghost', 148);
+  level.spawns.sort((a, b) => a.x - b.x);
+
+  return level;
+}
+
+export function buildS4() { // 3-4: Snapjaw's revenge (two bosses!)
+  const { level, set, stair, spawn } = newLevel(180, '3-4', 'castle');
+  level.timeLimit = 300;
+  level.flagX = -1;
+  level.castleX = 176;
+
+  const floor = (a, b) => { for (let x = a; x <= b; x++) { set(x, 13, T.GROUND); set(x, 14, T.GROUND); } };
+  const lava = (a, b) => { for (let x = a; x <= b; x++) { set(x, 13, T.LAVA); set(x, 14, T.LAVA); } };
+  const firebar = (tx, ty) => { set(tx, ty, T.HARD); level.spawns.push({ type: 'firebar', x: tx * TILE - 96, cx: tx * TILE + 8, cy: ty * TILE + 8 }); };
+  const island = (tx) => { set(tx, 12, T.HARD); set(tx + 1, 12, T.HARD); };
+
+  for (let x = 0; x < 160; x++) set(x, 0, T.GROUND);
+
+  floor(0, 24);
+  firebar(10, 9); firebar(18, 10);
+  set(14, 9, T.QW);
+
+  lava(25, 36);
+  island(28); island(33);
+  floor(37, 58);
+  firebar(44, 8); firebar(52, 10);
+  set(48, 9, T.QI);
+
+  lava(59, 64);
+  island(61);
+  floor(65, 88);
+  for (let x = 68; x <= 84; x++) set(x, 5, T.GROUND); // low shelf
+  firebar(76, 9);
+  set(80, 9, T.Q1);
+
+  lava(89, 100);
+  island(93); island(97);
+  floor(101, 120);
+  firebar(106, 9); firebar(114, 10);
+  set(110, 9, T.QS);
+
+  lava(121, 126);
+  island(123);
+  floor(127, 131);
+
+  // the double boss bridge
+  lava(132, 149);
+  for (let x = 132; x <= 147; x++) set(x, 13, T.BRIDGE);
+  set(148, 12, T.AXE); set(148, 11, T.AXE);
+  for (let y = 1; y <= 10; y++) set(149, y, T.GROUND);
+  level.bridge = { from: 132, to: 147, y: 13 };
+  floor(150, 179);
+
+  spawn('spiny', 40);
+  spawn('spiny', 70);
+  spawn('ghost', 84);
+  spawn('spiny', 104);
+  spawn('spiny', 118);
+  level.spawns.push({ type: 'boss2', x: 137 * TILE, y: 0 });
+  level.spawns.push({ type: 'boss2', x: 143 * TILE, y: 0 });
+  level.spawns.sort((a, b) => a.x - b.x);
+
+  return level;
+}
+
 // ------------------------------------------------------------ campaigns ----
 
 export const CAMPAIGNS = {
@@ -563,6 +793,11 @@ export const CAMPAIGNS = {
     title: 'MOORE WORLDS',
     levels: [buildR1, buildR2, buildR3, buildR4],
     names: ['2-1', '2-2', '2-3', '2-4'],
+  },
+  sky: {
+    title: 'SKY WORLDS',
+    levels: [buildS1, buildS2, buildS3, buildS4],
+    names: ['3-1', '3-2', '3-3', '3-4'],
   },
 };
 
