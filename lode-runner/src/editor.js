@@ -5,6 +5,7 @@ import { COLS, ROWS } from './levels.js';
 import { TILE, sprites, drawBrick, drawSolid, drawLadder, drawRope } from './sprites.js';
 import { analyze } from './validate.js';
 import { customLevels, storeCustomLevels, encodeShare } from './share.js';
+import { VERSION } from './version.js';
 
 let ctx = null; // injected by main.js: { canvas, g, isEditing(), onTest(def), onExit() }
 
@@ -311,7 +312,7 @@ export const editor = {
     }
     g.textAlign = 'right';
     g.fillStyle = '#667';
-    g.fillText('BUILDER - RIGHT-CLICK ERASES', W - 10, boardH + 21);
+    g.fillText(`BUILDER ${VERSION} - RIGHT-CLICK ERASES`, W - 10, boardH + 21);
     g.textAlign = 'left';
   },
 
