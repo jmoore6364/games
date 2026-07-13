@@ -17,14 +17,22 @@ const EDGEMAP = {
   Enter: 'start', m: 'mute', M: 'mute', r: 'restart', R: 'restart',
 };
 
+const inForm = e => /^(INPUT|TEXTAREA|SELECT)$/.test(e.target?.tagName || '');
+
 window.addEventListener('keydown', e => {
+  if (inForm(e)) return;
   const dir = KEYMAP[e.key];
-  if (dir) { held[dir] = true; e.preventDefault(); }
+  if (dir) {
+    held[dir] = true;
+    if (!e.repeat) edges.add('nav' + dir); // one-shot edges for menu navigation
+    e.preventDefault();
+  }
   const act = EDGEMAP[e.key];
   if (act && !e.repeat) { edges.add(act); e.preventDefault(); }
   if (e.key === ' ') e.preventDefault();
 });
 window.addEventListener('keyup', e => {
+  if (inForm(e)) return;
   const dir = KEYMAP[e.key];
   if (dir) held[dir] = false;
 });
@@ -42,6 +50,10 @@ function pollPad() {
   if (edge(2) || edge(4)) edges.add('digL');
   if (edge(1) || edge(5) || edge(0)) edges.add('digR');
   if (edge(9)) edges.add('start');
+  if (edge(12)) edges.add('navup');
+  if (edge(13)) edges.add('navdown');
+  if (edge(14)) edges.add('navleft');
+  if (edge(15)) edges.add('navright');
   padButtons = b;
   const ax = pad.axes[0] || 0, ay = pad.axes[1] || 0;
   return {
@@ -60,7 +72,9 @@ export const input = {
   consume(action) { return edges.delete(action); },
   clearEdges() { edges.clear(); },
   setTouch(name, on) {
-    if (name in touchHeld) touchHeld[name] = on;
-    else if (on) edges.add(name);
+    if (name in touchHeld) {
+      touchHeld[name] = on;
+      if (on) edges.add('nav' + name);
+    } else if (on) edges.add(name);
   },
 };
