@@ -1,0 +1,9 @@
+{
+  "name": "kings-quest",
+  "version": "0.1.0",
+  "description": "A Sierra-style graphic adventure homage, vanilla JS + canvas",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
