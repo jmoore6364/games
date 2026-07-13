@@ -1,0 +1,10 @@
+{
+  "name": "lode-runner",
+  "version": "0.1.0",
+  "description": "A classic dig-and-dash arcade puzzler homage, vanilla JS + canvas",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node tools/validate-levels.js && node tools/mechanics-test.js && node tools/fuzz.js"
+  }
+}
