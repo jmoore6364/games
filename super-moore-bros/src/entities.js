@@ -853,6 +853,63 @@ export class Fireball {
   }
 }
 
+export class Spring {
+  // Trampoline: land on it for a huge bounce (hold jump for the max).
+  constructor(x, y) {
+    this.x = x; this.y = y;
+    this.w = 12; this.h = 14;
+    this.squash = 0;
+    this.dead = false;
+  }
+  update(game) {
+    if (this.squash > 0) this.squash--;
+    const p = game.player;
+    if (p.state !== 'normal' || p.vy <= 0) return;
+    const feet = p.y + p.h;
+    if (p.x + p.w > this.x && p.x < this.x + this.w &&
+        feet >= this.y && feet <= this.y + 10) {
+      p.y = this.y - p.h;
+      p.vy = game.jumpHeld ? -10 : -9;
+      this.squash = 10;
+      sound.jump();
+      game.entities.push(
+        new Puff(this.x, this.y + 10, -0.6), new Puff(this.x + this.w, this.y + 10, 0.6));
+    }
+  }
+  draw(g, camX) {
+    const img = this.squash > 4 ? SPR.springSquash : SPR.spring;
+    g.drawImage(img, Math.round(this.x - 2 - camX), Math.round(this.y + this.h - 16));
+  }
+}
+
+export class MovingPlatform {
+  // Ride-on platform, ping-pongs along one axis. Pass-through from below.
+  constructor(x, y, axis = 'h', range = 64, speed = 0.7) {
+    this.x = x; this.y = y;
+    this.w = 48; this.h = 8;
+    this.axis = axis;
+    this.range = range;
+    this.speed = speed;
+    this.baseX = x; this.baseY = y;
+    this.t = 0;
+    this.dx = 0; this.dy = 0;
+    this.dead = false;
+  }
+  update() {
+    this.t += this.speed;
+    // triangle wave: 0 -> range -> 0 -> ...
+    const m = this.t % (this.range * 2);
+    const off = m < this.range ? m : this.range * 2 - m;
+    const nx = this.axis === 'h' ? this.baseX + off : this.baseX;
+    const ny = this.axis === 'v' ? this.baseY + off : this.baseY;
+    this.dx = nx - this.x; this.dy = ny - this.y;
+    this.x = nx; this.y = ny;
+  }
+  draw(g, camX) {
+    g.drawImage(SPR.platform, Math.round(this.x - camX), Math.round(this.y));
+  }
+}
+
 export class Shard { // brick fragments
   constructor(x, y, vx, vy) {
     this.x = x; this.y = y; this.vx = vx; this.vy = vy;

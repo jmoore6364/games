@@ -1,6 +1,6 @@
 // In-game level builder: paint tiles and enemies, playtest, save to
 // localStorage, share as JSON. DOM toolbar + canvas painting.
-import { T, TILE, ROWS, setTile, tileAt } from './level.js';
+import { T, TILE, ROWS, encodeShare } from './level.js';
 import { SPR } from './sprites.js';
 
 let ctx = null; // injected by main.js
@@ -29,7 +29,10 @@ const TILE_TOOLS = {
   coin: T.COIN, lava: T.LAVA,
 };
 const SPAWN_TOOLS = ['goomba', 'fastgoomba', 'spiny', 'koopa', 'koopared', 'hopper', 'ghost'];
-const OTHER_TOOLS = ['pipe 2', 'pipe 3', 'pipe 4', 'piranha', 'firebar', 'pole', 'start', 'erase'];
+const OTHER_TOOLS = [
+  'pipe 2', 'pipe 3', 'pipe 4', 'piranha', 'firebar', 'spring',
+  'plat h', 'plat v', 'boss arena', 'pole', 'start', 'erase',
+];
 
 function flash(m) { ed.msg = m; ed.msgT = 120; }
 
@@ -39,6 +42,7 @@ function blank(width = 120) {
   ed.width = width;
   ed.tiles = new Uint8Array(width * ROWS);
   ed.spawns = [];
+  ed.bridge = null;
   ed.cam = 0;
   ed.startX = 3;
   for (let x = 0; x < width; x++) { rawSet(x, 13, T.GROUND); rawSet(x, 14, T.GROUND); }
@@ -89,7 +93,7 @@ function syncPreview() {
 }
 
 function toJSON() {
-  if (findPole() < 0) placePole(ed.width - 4);
+  if (findPole() < 0 && !ed.bridge) placePole(ed.width - 4);
   return {
     name: (document.getElementById('ed-name').value || 'MY LEVEL').toUpperCase().slice(0, 18),
     width: ed.width,
@@ -100,6 +104,7 @@ function toJSON() {
     castleX: -1,
     playerStart: { x: ed.startX * TILE, y: 176 },
     timeLimit: 400,
+    bridge: ed.bridge || undefined,
   };
 }
 
@@ -109,6 +114,7 @@ function fromJSON(d) {
   ed.tiles = Uint8Array.from(d.tiles);
   ed.spawns = (d.spawns || []).map(s => ({ ...s }));
   ed.startX = Math.floor((d.playerStart?.x ?? 48) / TILE);
+  ed.bridge = d.bridge ? { ...d.bridge } : null;
   ed.cam = 0;
   document.getElementById('ed-name').value = d.name || 'MY LEVEL';
   syncPreview();
@@ -161,6 +167,15 @@ function applyTool(tx, ty, erase) {
   } else if (tool === 'firebar') {
     rawSet(tx, ty, T.HARD);
     ed.spawns.push({ type: 'firebar', x: tx * TILE - 96, cx: tx * TILE + 8, cy: ty * TILE + 8 });
+  } else if (tool === 'spring') {
+    ed.spawns = ed.spawns.filter(s => !(s.type === 'spring' && Math.floor(s.x / TILE) === tx));
+    ed.spawns.push({ type: 'spring', x: tx * TILE, y: 0 });
+  } else if (tool === 'plat h' || tool === 'plat v') {
+    const type = tool === 'plat h' ? 'platformh' : 'platformv';
+    ed.spawns = ed.spawns.filter(s => !(s.type.startsWith('platform') && Math.floor(s.x / TILE) === tx));
+    ed.spawns.push({ type, x: tx * TILE, y: ty * TILE });
+  } else if (tool === 'boss arena') {
+    stampBossArena(tx);
   } else if (tool === 'pole') {
     placePole(tx);
   } else if (tool === 'start') {
@@ -170,6 +185,23 @@ function applyTool(tx, ty, erase) {
     ed.spawns.push({ type: tool, x: tx * TILE, y: 0 });
   }
   syncPreview();
+}
+
+// Stamp a full boss fight: lava moat, bridge, axe, back wall, boss.
+function stampBossArena(tx) {
+  if (tx + 20 >= ed.width) { flash('TOO CLOSE TO THE EDGE'); return; }
+  // clear the strip first
+  for (let x = tx - 1; x <= tx + 20; x++) for (let y = 0; y < ROWS; y++) rawSet(x, y, T.EMPTY);
+  for (let x = tx - 1; x >= Math.max(0, tx - 3); x--) { rawSet(x, 13, T.GROUND); rawSet(x, 14, T.GROUND); }
+  for (let x = tx; x <= tx + 15; x++) { rawSet(x, 13, T.LAVA); rawSet(x, 14, T.LAVA); }
+  for (let x = tx; x <= tx + 13; x++) rawSet(x, 13, T.BRIDGE);
+  rawSet(tx + 14, 12, T.AXE); rawSet(tx + 14, 11, T.AXE);
+  for (let y = 1; y <= 10; y++) rawSet(tx + 15, y, T.GROUND);
+  for (let x = tx + 16; x <= tx + 20; x++) { rawSet(x, 13, T.GROUND); rawSet(x, 14, T.GROUND); }
+  ed.bridge = { from: tx, to: tx + 13, y: 13 };
+  ed.spawns = ed.spawns.filter(s => s.type !== 'boss' && s.type !== 'boss2');
+  ed.spawns.push({ type: 'boss2', x: (tx + 8) * TILE, y: 0 });
+  flash('BOSS ARENA PLACED');
 }
 
 function canvasPos(ev) {
@@ -247,6 +279,13 @@ function buildToolbar() {
   });
   actions.appendChild(load);
 
+  actions.appendChild(btn('SHARE', async () => {
+    try {
+      const url = location.origin + location.pathname + '#lvl=' + encodeShare(toJSON());
+      await navigator.clipboard.writeText(url);
+      flash('SHARE LINK COPIED (' + url.length + ' CHARS)');
+    } catch { flash('CLIPBOARD BLOCKED'); }
+  }, 'go'));
   actions.appendChild(btn('COPY', async () => {
     try {
       await navigator.clipboard.writeText(JSON.stringify(toJSON()));
@@ -357,6 +396,23 @@ export const editor = {
       }
       if (s.type === 'piranha') {
         g.drawImage(SPR.piranha, Math.round(s.cx - 8 - ed.cam), s.top - 20);
+        continue;
+      }
+      if (s.type === 'platformh' || s.type === 'platformv') {
+        g.drawImage(SPR.platform, Math.round(s.x - ed.cam), Math.round(s.y));
+        ctx.drawText(g, s.type === 'platformh' ? '<>' : '^v',
+          Math.round(s.x - ed.cam + 20), Math.round(s.y - 7), '#f8d048');
+        continue;
+      }
+      if (s.type === 'spring') {
+        const tx2 = Math.floor(s.x / TILE);
+        let ty2 = 13;
+        for (let y = 0; y < ROWS; y++) if (rawGet(tx2, y) !== T.EMPTY) { ty2 = y; break; }
+        g.drawImage(SPR.spring, Math.round(s.x - 2 - ed.cam), ty2 * TILE - 16);
+        continue;
+      }
+      if (s.type === 'boss2' || s.type === 'boss') {
+        g.drawImage(SPR.boss.l, Math.round(s.x - ed.cam), 13 * TILE - 20 - 16);
         continue;
       }
       const img =

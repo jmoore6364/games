@@ -2,10 +2,11 @@
 import { initTouch } from './touch.js';
 import { sound } from './audio.js';
 import { initSprites, SPR, TILES, drawText } from './sprites.js';
-import { CAMPAIGNS, buildFromData, TILE, ROWS, T, tileAt, setTile } from './level.js';
+import { CAMPAIGNS, buildFromData, decodeShare, TILE, ROWS, T, tileAt, setTile } from './level.js';
 import {
   Player, Goomba, Koopa, Mushroom, FireFlower, CoinPop, Fireball, Shard, Popup, Star,
-  Piranha, Puff, FireBar, Boss, Enemy, Spiny, Hopper, Ghost, WingsItem, overlaps,
+  Piranha, Puff, FireBar, Boss, Enemy, Spiny, Hopper, Ghost, WingsItem,
+  Spring, MovingPlatform, overlaps,
 } from './entities.js';
 import { initEditor, editor } from './editor.js';
 
@@ -256,12 +257,16 @@ function makeSpawn(s) {
     case 'ghost': return new Ghost(s.x, 8 * TILE);
     case 'spiny': return spawnOnPlatform(new Spiny(s.x, 0));
     case 'fastgoomba': return spawnOnPlatform(new Goomba(s.x, 0, true));
+    case 'spring': return spawnOnPlatform(new Spring(s.x, 0));
+    case 'platformh': return new MovingPlatform(s.x, s.y, 'h');
+    case 'platformv': return new MovingPlatform(s.x, s.y, 'v');
     default: return spawnOnPlatform(new Goomba(s.x, 0));
   }
 }
 
 function updatePlay() {
   const p = game.player;
+  game.jumpHeld = input.down('jump'); // springs read this for max bounce
 
   // spawn enemies as they scroll into view
   const spawns = game.level.spawns;
@@ -273,6 +278,22 @@ function updatePlay() {
   p.update(input, game);
 
   for (const e of game.entities) e.update(game);
+
+  // ride moving platforms (pass-through from below, carried along on top)
+  if (p.state === 'normal') {
+    for (const e of game.entities) {
+      if (!(e instanceof MovingPlatform)) continue;
+      const feet = p.y + p.h;
+      if (p.vy >= 0 && p.x + p.w > e.x + 2 && p.x < e.x + e.w - 2 &&
+          feet >= e.y - 2 && feet <= e.y + 8 + Math.max(0, e.dy)) {
+        p.y = e.y - p.h;
+        p.vy = 0;
+        p.onGround = true;
+        p.coyote = 5;
+        p.x += e.dx;
+      }
+    }
+  }
   game.entities = game.entities.filter(e =>
     !e.dead && !(e.x < game.cam - 48 && e instanceof Enemy && !(e instanceof Boss)));
 
@@ -626,8 +647,16 @@ function drawCenter(text, y, color) {
 
 const MENU_Y0 = 124, MENU_ROW = 12;
 
+// a level shared via #lvl=... in the URL
+let sharedLevel = null;
+try {
+  if (location.hash.startsWith('#lvl=')) sharedLevel = decodeShare(location.hash.slice(5));
+} catch { sharedLevel = null; }
+
 function titleMenuItems() {
-  const items = ['ORIGINAL GAME', 'MOORE WORLDS', 'LEVEL BUILDER'];
+  const items = [];
+  if (sharedLevel) items.push('PLAY SHARED LEVEL');
+  items.push('ORIGINAL GAME', 'MOORE WORLDS', 'LEVEL BUILDER');
   if (customLevels().length) items.push('MY LEVELS');
   return items;
 }
@@ -729,7 +758,8 @@ function step() {
       if (input.pressed('start') || input.pressed('jump')) {
         sound.unlock();
         const pick = items[game.menuIdx];
-        if (pick === 'ORIGINAL GAME') startGame('original');
+        if (pick === 'PLAY SHARED LEVEL') startCustomLevel(sharedLevel);
+        else if (pick === 'ORIGINAL GAME') startGame('original');
         else if (pick === 'MOORE WORLDS') startGame('remix');
         else if (pick === 'LEVEL BUILDER') { game.state = 'editor'; editor.show(); }
         else if (pick === 'MY LEVELS') { game.state = 'levels'; game.levelsIdx = 0; }

@@ -402,6 +402,44 @@ const WING = [
   '...BW...',
 ];
 
+const SPRING_PAL = { R: '#e03828', W: '#f8f8f8', K: '#383840', B: '#181008' };
+const SPRING = [
+  '....WRRRRRRW....',
+  '...WRRRRRRRRW...',
+  '...RRRRRRRRRR...',
+  '.....KK..KK.....',
+  '....K......K....',
+  '.....KKKKKK.....',
+  '....K......K....',
+  '.....KKKKKK.....',
+  '....K......K....',
+  '.....KKKKKK.....',
+  '....K......K....',
+  '...KKKKKKKKKK...',
+  '..BBBBBBBBBBBB..',
+  '..BBBBBBBBBBBB..',
+  '................',
+  '................',
+];
+const SPRING_SQUASH = [
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '....WRRRRRRW....',
+  '...WRRRRRRRRW...',
+  '...RRRRRRRRRR...',
+  '.....KK..KK.....',
+  '....K......K....',
+  '.....KKKKKK.....',
+  '..BBBBBBBBBBBB..',
+  '..BBBBBBBBBBBB..',
+  '................',
+  '................',
+];
+
 const KOOPA_PAL = { G: '#10a848', L: '#88e070', Y: '#f8d048', W: '#f8f8f8', K: '#181008', S: '#f8a848' };
 const KOOPA1 = [
   '....YYYY........',
@@ -774,6 +812,21 @@ export function initSprites() {
   const boss = makeSprite(BOSS, BOSS_PAL);
   SPR.boss = { l: boss, r: flipped(boss) }; // authored facing left
   SPR.axe = makeSprite(AXE, AXE_PAL);
+  SPR.spring = makeSprite(SPRING, SPRING_PAL);
+  SPR.springSquash = makeSprite(SPRING_SQUASH, SPRING_PAL);
+
+  // moving platform: riveted slab, 48x8
+  SPR.platform = (() => {
+    const c = document.createElement('canvas');
+    c.width = 48; c.height = 8;
+    const p = c.getContext('2d');
+    p.fillStyle = '#c8b090'; p.fillRect(0, 0, 48, 8);
+    p.fillStyle = '#f0e0c0'; p.fillRect(0, 0, 48, 2);
+    p.fillStyle = '#705838'; p.fillRect(0, 6, 48, 2);
+    p.fillStyle = '#987848';
+    for (let x = 4; x < 48; x += 8) p.fillRect(x, 3, 2, 2);
+    return c;
+  })();
 
   TILES.overworld = buildTileSet('#c85820', '#78290c', '#f0a060');
   TILES.underground = buildTileSet('#3a68c8', '#122a70', '#8caef8');

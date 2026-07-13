@@ -359,6 +359,8 @@ export function buildR1() { // 2-1: moonlit run
   for (let x = 42; x <= 46; x++) set(x, 5, T.BRICK);
   set(44, 9, T.Q);
   set(50, 8, T.COIN); set(52, 8, T.COIN); set(54, 8, T.COIN);
+  level.spawns.push({ type: 'spring', x: 49 * TILE, y: 0 }); // bounce through the coins
+  level.spawns.push({ type: 'platformh', x: 60 * TILE, y: 10 * TILE }); // ferry over the pit
 
   pipe(70, 4); piranha(70, 4);
   set(78, 9, T.Q); set(80, 9, T.Q1); set(82, 9, T.Q);
@@ -407,6 +409,7 @@ export function buildR2() { // 2-2: frostbite fields (slippery!)
   set(14, 9, T.Q); set(16, 9, T.QI); set(18, 9, T.Q); // ice flower: freeze the spinies
   stair(26, 2); stair(27, 3);
   for (let x = 30; x <= 35; x++) set(x, 7, T.COIN);
+  level.spawns.push({ type: 'spring', x: 32 * TILE, y: 0 }); // launch through the coin arc
 
   set(50, 9, T.BRICK); set(51, 9, T.QM); set(52, 9, T.BRICK);
   for (let x = 58; x <= 63; x++) { set(x, 6, T.HARD); set(x, 5, T.COIN); }
@@ -466,6 +469,7 @@ export function buildR3() { // 2-3: the haunted hall
   for (let x = 66; x <= 71; x++) { set(x, 9, T.BRICK); set(x, 8, T.COIN); }
   for (let y = 10; y <= 12; y++) { set(78, y, T.BRICK); set(88, y, T.BRICK); }
   for (let x = 80; x <= 86; x++) set(x, 6, T.COIN);
+  level.spawns.push({ type: 'platformv', x: 82 * TILE, y: 4 * TILE }); // lift to the coin row
   set(94, 5, T.BRICK); set(95, 5, T.Q1); set(96, 5, T.BRICK);
   for (let x = 93; x <= 97; x++) set(x, 9, T.BRICK);
 
@@ -561,6 +565,35 @@ export const CAMPAIGNS = {
     names: ['2-1', '2-2', '2-3', '2-4'],
   },
 };
+
+// --------------------------------------------------- level sharing (URL) ----
+
+// Compact RLE + url-safe base64 so a whole level fits in a link hash.
+export function encodeShare(d) {
+  const rle = [];
+  let cur = d.tiles[0], n = 0;
+  for (const t of d.tiles) {
+    if (t === cur && n < 255) n++;
+    else { rle.push(cur, n); cur = t; n = 1; }
+  }
+  rle.push(cur, n);
+  const obj = { ...d, tiles: undefined, rle };
+  return btoa(unescape(encodeURIComponent(JSON.stringify(obj))))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+export function decodeShare(s) {
+  const b = s.replace(/-/g, '+').replace(/_/g, '/');
+  const obj = JSON.parse(decodeURIComponent(escape(atob(b))));
+  const tiles = [];
+  for (let i = 0; i < obj.rle.length; i += 2) {
+    for (let k = 0; k < obj.rle[i + 1]; k++) tiles.push(obj.rle[i]);
+  }
+  obj.tiles = tiles;
+  delete obj.rle;
+  if (!obj.width || !obj.spawns || tiles.length !== obj.width * ROWS) throw new Error('bad level');
+  return obj;
+}
 
 // Rebuild a playable level from plain JSON (editor / saved custom levels).
 export function buildFromData(d) {

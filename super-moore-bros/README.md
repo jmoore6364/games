@@ -30,10 +30,13 @@ npm start          # serves at http://localhost:8123
   hoppers, wings), 2-2 frostbite fields (slippery ice physics, spinies, ice
   flower), 2-3 the haunted hall (shy ghosts that only drift toward you while
   you look away), 2-4 Snapjaw's Keep (more fire bars, a meaner boss)
-- **Level Builder** — paint tiles, blocks, pipes, hazards, and every enemy
-  onto a canvas; pick a theme (incl. night/snow/ghost); playtest instantly;
-  save to the browser; share levels as copy/paste JSON. Saved levels appear
-  under **My Levels** on the title screen.
+- **Level Builder** — paint tiles, blocks, pipes, hazards, springs, moving
+  platforms, and every enemy onto a canvas; stamp a complete **boss arena**
+  (lava moat + bridge + axe + boss) with one click; pick a theme (incl.
+  night/snow/ghost); playtest instantly; save to the browser; **share levels
+  as a URL** (SHARE copies a link — anyone who opens it gets a "Play Shared
+  Level" option) or as copy/paste JSON. Saved levels appear under
+  **My Levels** on the title screen.
 
 ## Features
 
@@ -45,6 +48,8 @@ npm start          # serves at http://localhost:8123
 - Enemies: goombas (and fast red ones), koopas with kickable shells and combo
   scoring, red koopas that hold platforms, **spinies** (never stomp), **hoppers**,
   **ghosts**, piranha plants, fire bars, and two bosses
+- **Springs** (land on one for a huge bounce — hold jump for max height) and
+  **moving platforms** (horizontal ferries and vertical lifts that carry you)
 - Question blocks, breakable bricks, secret star bricks
 - Gamepad support (standard mapping) and on-screen touch controls on mobile
 - Flagpole finish with height bonus, castle walk-off, time-to-score countdown
