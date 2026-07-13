@@ -46,34 +46,82 @@ function speckle(g, seed, x, y, w, h, c, n) {
   for (let i = 0; i < n; i++) g.fillRect(x + (rnd() * w) | 0, y + (rnd() * h) | 0, 1, 1);
 }
 
+// Irregular blobby polygon — the heart of the AGI look. Everything organic
+// (ponds, canopies, shadows, rocks) is a seeded jittered ellipse.
+function splat(g, c, cx, cy, rx, ry, seed = 1) {
+  let s = (seed * 7919 + 13) & 0x7fffffff;
+  const rnd = () => (s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+  g.fillStyle = c;
+  g.beginPath();
+  const n = 12;
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    const j = 0.72 + rnd() * 0.56;
+    const x = cx + Math.cos(a) * rx * j, y = cy + Math.sin(a) * ry * j;
+    i ? g.lineTo(x, y) : g.moveTo(x, y);
+  }
+  g.closePath(); g.fill();
+}
+
 function sky(g, top = SCENE_TOP, horizon = 80) {
-  rc(g, 0, top, 320, horizon - top, C.lblue);
-  dither(g, 0, horizon - 14, 320, 7, C.lblue, C.lcyan);
-  rc(g, 0, horizon - 7, 320, 7, C.lcyan);
+  rc(g, 0, top, 320, horizon - top, C.lblue); // flat EGA sky
 }
 
 function cloud(g, x, y, w) {
-  rc(g, x, y, w, 4, C.white);
-  rc(g, x + 4, y - 3, w - 10, 3, C.white);
-  rc(g, x + 8, y + 4, w - 14, 2, C.white);
+  splat(g, C.white, x + w / 2, y, w / 2 + 4, 4, x + y);
+  splat(g, C.white, x + w / 3, y - 3, w / 3, 3, x * 3 + y);
 }
 
 function grass(g, seed, y0 = 80) {
-  rc(g, 0, y0, 320, SCENE_BOT - y0 + 1, C.green);
-  dither(g, 0, y0, 320, 4, C.green, C.lgreen);
-  speckle(g, seed, 0, y0 + 4, 320, SCENE_BOT - y0 - 4, C.lgreen, 260);
-  speckle(g, seed + 7, 0, y0 + 4, 320, SCENE_BOT - y0 - 4, '#007700', 160);
+  rc(g, 0, y0, 320, SCENE_BOT - y0 + 1, C.lgreen); // vivid AGI green
+  let s = (seed * 31 + 7) & 0x7fffffff;
+  const rnd = () => (s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+  for (let i = 0; i < 8; i++) { // organic darker patches
+    splat(g, C.green, rnd() * 320, y0 + 10 + rnd() * (SCENE_BOT - y0 - 16),
+      16 + rnd() * 32, 3.5 + rnd() * 6, seed * 3 + i);
+  }
+  speckle(g, seed + 7, 0, y0 + 4, 320, SCENE_BOT - y0 - 4, C.green, 70);
 }
 
-function tree(g, x, y, s) { // y = base of trunk
-  rc(g, x - 3 * s, y - 14 * s, 6 * s, 14 * s, C.brown);
-  rc(g, x - 2 * s, y - 14 * s, 2 * s, 14 * s, '#7a3c00');
-  g.fillStyle = C.green;
-  g.beginPath(); g.arc(x, y - 20 * s, 12 * s, 0, 7); g.fill();
-  g.beginPath(); g.arc(x - 9 * s, y - 15 * s, 8 * s, 0, 7); g.fill();
-  g.beginPath(); g.arc(x + 9 * s, y - 15 * s, 8 * s, 0, 7); g.fill();
-  g.fillStyle = C.lgreen;
-  g.beginPath(); g.arc(x - 4 * s, y - 23 * s, 6 * s, 0, 7); g.fill();
+function tree(g, x, y, s, seed = 1) { // y = base of trunk; lumpy-canopy oak
+  splat(g, '#00b840', x + 3 * s, y + s, 15 * s, 4 * s, seed + 9); // ground shadow
+  rc(g, x - 3 * s, y - 16 * s, 6 * s, 16 * s, C.brown);
+  rc(g, x - 3 * s, y - 16 * s, 1.5 * s, 16 * s, C.black);        // bark outline
+  rc(g, x - 1, y - 12 * s, 1, 6 * s, C.black);
+  splat(g, C.green, x, y - 24 * s, 14 * s, 10 * s, seed + 1);
+  splat(g, C.green, x - 10 * s, y - 18 * s, 8 * s, 6 * s, seed + 2);
+  splat(g, C.green, x + 10 * s, y - 19 * s, 8 * s, 6 * s, seed + 3);
+  splat(g, '#007700', x + 5 * s, y - 17 * s, 9 * s, 6 * s, seed + 4);
+  splat(g, '#00d84a', x - 4 * s, y - 28 * s, 7 * s, 4 * s, seed + 5);
+}
+
+function spruce(g, x, y, s = 1, seed = 3) { // the classic KQ cyan pine
+  splat(g, '#00b840', x + 2, y + 1, 12 * s, 3 * s, seed);
+  rc(g, x - 2 * s, y - 12 * s, 4 * s, 12 * s, C.brown);
+  rc(g, x - 2 * s, y - 12 * s, s, 12 * s, C.black);
+  g.fillStyle = C.lcyan;
+  for (let i = 0; i < 6; i++) {
+    const w = (15 - i * 2.1) * s, yy = y - (10 + i * 6.5) * s;
+    g.beginPath();
+    g.moveTo(x - w, yy); g.lineTo(x + 0.5 * s, yy - 9 * s); g.lineTo(x + w, yy);
+    g.closePath(); g.fill();
+  }
+  g.fillStyle = C.white; // frosted needle dashes
+  let sd = (seed * 137 + 5) & 0x7fffffff;
+  const rnd = () => (sd = (sd * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+  for (let i = 0; i < 12; i++) {
+    const yy = y - (10 + rnd() * 34) * s;
+    const w = (44 + (yy - y)) * 0.28 * s;
+    g.fillRect(x - w + rnd() * w * 2, yy, 3 + rnd() * 3, 1);
+  }
+}
+
+function rock(g, x, y, s = 1, seed = 5) { // big gray boulder with dark hollow
+  splat(g, '#00b840', x + 6 * s, y + 2 * s, 22 * s, 5 * s, seed);
+  splat(g, C.lgray, x, y - 7 * s, 20 * s, 10 * s, seed + 1);
+  splat(g, C.dgray, x + 6 * s, y - 4 * s, 13 * s, 6 * s, seed + 2);
+  splat(g, C.white, x - 7 * s, y - 12 * s, 8 * s, 3 * s, seed + 3);
+  splat(g, C.black, x - 5 * s, y - 2 * s, 6 * s, 3.5 * s, seed + 4);
 }
 
 function flower(g, x, y, c) {
@@ -82,12 +130,12 @@ function flower(g, x, y, c) {
 }
 
 function water(g, t, x, y, w, h) {
-  dither(g, x, y, w, h, C.blue, C.lblue);
-  g.fillStyle = C.lcyan;
-  for (let i = 0; i < w / 16; i++) {
-    const wx = x + i * 16 + ((t >> 3) + i * 5) % 12;
-    const wy = y + 3 + ((i * 37) % (h - 6));
-    g.fillRect(wx, wy, 6, 1);
+  rc(g, x, y, w, h, C.lblue); // flat AGI water
+  g.fillStyle = C.white;
+  for (let i = 0; i < w / 22; i++) {
+    const wx = x + i * 22 + ((t >> 3) + i * 7) % 14;
+    const wy = y + 3 + ((i * 37) % Math.max(1, h - 6));
+    g.fillRect(wx, wy, 5, 1);
   }
 }
 
@@ -393,9 +441,14 @@ ROOMS.meadow = {
     mountains(g, 78);
     castleFar(g, 130, 76);
     grass(g, 5, 78);
-    // path crossing
-    dither(g, 150, 108, 22, SCENE_BOT - 107, C.brown, '#c88838');
-    dither(g, 0, 138, 320, 14, C.brown, '#c88838');
+    // meandering dirt paths, blobbed AGI-style
+    for (let y = 106; y < SCENE_BOT + 6; y += 9)
+      splat(g, C.brown, 161 + Math.sin(y / 16) * 4, y, 13, 6, y * 3 + 1);
+    for (let x = -8; x < 330; x += 13)
+      splat(g, C.brown, x, 145 + Math.sin(x / 42) * 3, 10, 6.5, x * 5 + 2);
+    speckle(g, 9, 140, 108, 40, 78, '#7a3c00', 40);
+    speckle(g, 11, 0, 136, 320, 18, '#7a3c00', 50);
+    spruce(g, 28, 106, 0.85, 51);
     for (const [fx, fy, fc] of [[30, 116, C.lred], [45, 170, C.yellow], [120, 176, C.white], [200, 180, C.lred], [110, 120, C.yellow]])
       flower(g, fx, fy, fc);
     // well
@@ -494,7 +547,7 @@ ROOMS.meadow = {
 ROOMS.forest = {
   id: 'forest',
   name: 'Whispering Forest',
-  desc: 'Ancient oaks crowd close, their canopy sighing overhead. An owl studies you from a low '
+  desc: 'Ancient oaks and frost-blue firs stand over a still forest pond. An owl studies you from a low '
       + 'branch, and a speckled toadstool sprouts beside an old stump. The meadow lies east.',
   walk: [{ x: 8, y: 116, w: 304, h: 70 }],
   block: [
@@ -504,34 +557,47 @@ ROOMS.forest = {
   ],
   exits: [{ side: 'e', to: 'meadow' }],
   draw(g, t, game) {
-    // canopy gloom
-    rc(g, 0, SCENE_TOP, 320, 110, '#003300');
-    dither(g, 0, SCENE_TOP, 320, 60, '#003300', C.green);
-    speckle(g, 91, 0, SCENE_TOP, 320, 50, C.lgreen, 120);
-    // light shafts
-    g.fillStyle = 'rgba(255,255,85,0.18)';
-    g.beginPath(); g.moveTo(150, SCENE_TOP); g.lineTo(170, SCENE_TOP); g.lineTo(230, SCENE_BOT); g.lineTo(196, SCENE_BOT); g.fill();
-    // ground
-    rc(g, 0, 112, 320, SCENE_BOT - 111, '#116611');
-    speckle(g, 17, 0, 114, 320, SCENE_BOT - 115, C.green, 300);
-    speckle(g, 29, 0, 114, 320, SCENE_BOT - 115, '#0a4a0a', 260);
-    // big owl tree
+    sky(g, SCENE_TOP, 66);
+    cloud(g, 250, SCENE_TOP + 12, 30);
+    grass(g, 17, 66);
+    // a still forest pond, up in the background
+    splat(g, C.blue, 254, 94, 46, 12, 41);
+    splat(g, C.lblue, 252, 93, 42, 10, 42);
+    g.fillStyle = C.white;
+    g.fillRect(238 + ((t >> 4) % 8), 92, 5, 1); g.fillRect(266, 96, 4, 1);
+    // mossy boulder by the pond
+    rock(g, 150, 106, 1.1, 23);
+    // the great owl oak (its trunk is the walkable blocker)
+    splat(g, '#00b840', 56, 132, 26, 6, 61);
     rc(g, 42, 40, 18, 90, C.brown);
-    rc(g, 46, 40, 5, 90, '#7a3c00');
-    rc(g, 58, 74, 40, 5, C.brown); // branch
-    g.fillStyle = C.green;
-    g.beginPath(); g.arc(50, 40, 34, 0, 7); g.fill();
-    g.beginPath(); g.arc(90, 30, 26, 0, 7); g.fill();
-    // second tree
+    rc(g, 42, 40, 4, 90, C.black);
+    rc(g, 52, 60, 2, 40, C.black);
+    rc(g, 58, 74, 40, 5, C.brown); // owl branch
+    rc(g, 58, 78, 40, 1, C.black);
+    splat(g, C.green, 58, 34, 42, 22, 62);
+    splat(g, '#007700', 78, 44, 26, 14, 63);
+    splat(g, C.green, 26, 46, 20, 12, 64);
+    splat(g, '#00d84a', 44, 22, 18, 8, 65);
+    // second oak
+    splat(g, '#00b840', 206, 138, 20, 5, 71);
     rc(g, 196, 60, 16, 80, C.brown);
-    rc(g, 200, 60, 4, 80, '#7a3c00');
-    g.fillStyle = C.green;
-    g.beginPath(); g.arc(204, 52, 30, 0, 7); g.fill();
-    g.fillStyle = C.lgreen;
-    g.beginPath(); g.arc(196, 42, 12, 0, 7); g.fill();
-    tree(g, 290, 130, 1.4);
+    rc(g, 196, 60, 3, 80, C.black);
+    splat(g, C.green, 204, 48, 30, 18, 72);
+    splat(g, '#007700', 216, 56, 16, 10, 73);
+    splat(g, '#00d84a', 196, 36, 14, 7, 74);
+    // frosty spruces
+    spruce(g, 290, 128, 1.25, 81);
+    spruce(g, 250, 112, 0.8, 82);
+    spruce(g, 110, 96, 0.7, 83);
+    // dead snag on the far left
+    rc(g, 8, 84, 7, 34, C.brown);
+    rc(g, 8, 84, 2, 34, C.black);
+    rc(g, 13, 88, 10, 3, C.brown);
+    rc(g, 2, 94, 8, 3, C.brown);
     // stump
+    splat(g, '#00b840', 128, 158, 16, 4, 91);
     rc(g, 118, 148, 20, 14, C.brown);
+    rc(g, 118, 148, 3, 14, C.black);
     rc(g, 120, 146, 16, 5, '#c88838');
     // mushroom by the stump
     if (!game.f.mushroomTaken) g.drawImage(SPR.mushroom, 142, 156);
@@ -610,14 +676,35 @@ ROOMS.lake = {
   draw(g, t, game) {
     sky(g, SCENE_TOP, 74);
     cloud(g, 120, SCENE_TOP + 10, 40);
+    cloud(g, 30, SCENE_TOP + 24, 24);
     grass(g, 12, 74);
-    tree(g, 24, 116, 1.2);
-    // sand
-    dither(g, 0, 130, 320, 26, C.yellow, '#c8a838');
-    speckle(g, 55, 0, 132, 320, 22, C.brown, 90);
-    // water
-    water(g, t, 0, 156, 320, SCENE_BOT - 155);
-    dither(g, 0, 154, 320, 3, C.yellow, C.blue);
+    tree(g, 24, 116, 1.2, 15);
+    spruce(g, 300, 118, 1.0, 16);
+    // sandy shore with a wavy edge
+    g.fillStyle = C.yellow;
+    g.beginPath(); g.moveTo(0, 134);
+    for (let x = 0; x <= 320; x += 16) g.lineTo(x, 130 + Math.sin(x / 26) * 4);
+    g.lineTo(320, SCENE_BOT + 1); g.lineTo(0, SCENE_BOT + 1);
+    g.closePath(); g.fill();
+    speckle(g, 55, 0, 134, 320, 20, C.brown, 60);
+    // the lake, lapping in an organic curve
+    const shoreY = (x) => 152 + Math.sin(x / 34 + 1.2) * 4;
+    g.fillStyle = C.blue;
+    g.beginPath(); g.moveTo(0, shoreY(0));
+    for (let x = 0; x <= 320; x += 12) g.lineTo(x, shoreY(x));
+    g.lineTo(320, SCENE_BOT + 1); g.lineTo(0, SCENE_BOT + 1);
+    g.closePath(); g.fill();
+    g.fillStyle = C.lblue;
+    g.beginPath(); g.moveTo(0, shoreY(0) + 3);
+    for (let x = 0; x <= 320; x += 12) g.lineTo(x, shoreY(x) + 3);
+    g.lineTo(320, SCENE_BOT + 1); g.lineTo(0, SCENE_BOT + 1);
+    g.closePath(); g.fill();
+    g.fillStyle = C.white; // drifting sparkles
+    for (let i = 0; i < 12; i++) {
+      const wx = (i * 29 + ((t >> 3) * (1 + (i % 3)))) % 320;
+      const wy = 160 + (i * 23) % 24;
+      g.fillRect(wx, wy, 5, 1);
+    }
     // reeds
     for (const rx of [270, 278, 286]) {
       rc(g, rx, 140, 2, 18, C.green);
@@ -720,6 +807,8 @@ ROOMS.bridge = {
     speckle(g, 61, 132, 100, 60, SCENE_BOT - 100, '#222222', 140);
     rc(g, 128, 100, 4, SCENE_BOT - 99, '#7a3c00');
     rc(g, 192, 100, 4, SCENE_BOT - 99, '#7a3c00');
+    // grassy lip curling over the gorge rim
+    splat(g, '#007700', 162, 99, 36, 4, 55);
     // river at the bottom of the gorge
     water(g, t, 134, 176, 56, 10);
     // bridge
@@ -729,7 +818,8 @@ ROOMS.bridge = {
     rc(g, 124, 138, 2, 26, '#7a3c00'); rc(g, 198, 138, 2, 26, '#7a3c00');
     g.strokeStyle = '#7a3c00';
     g.beginPath(); g.moveTo(125, 140); g.lineTo(199, 140); g.stroke();
-    tree(g, 40, 120, 1.3);
+    tree(g, 40, 120, 1.3, 35);
+    spruce(g, 288, 112, 0.9, 36);
     for (const [fx, fy, fc] of [[70, 168, C.yellow], [250, 172, C.lred]]) flower(g, fx, fy, fc);
   },
   actors(game, t) {
