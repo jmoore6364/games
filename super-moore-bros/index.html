@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Super Moore Bros</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: #101018;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  canvas {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    background: #6b8cff;
+  }
+  #hint {
+    position: fixed; bottom: 8px; left: 0; right: 0;
+    text-align: center; color: #556; font: 12px monospace;
+    user-select: none;
+  }
+  #touch-ui { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
+  .tbtn {
+    position: absolute; pointer-events: auto;
+    width: 56px; height: 56px; border-radius: 50%;
+    background: rgba(255,255,255,0.12); border: 2px solid rgba(255,255,255,0.35);
+    color: #fff; font: bold 22px monospace;
+    display: flex; align-items: center; justify-content: center;
+    user-select: none; -webkit-user-select: none; touch-action: none;
+  }
+  .tbtn.on { background: rgba(255,255,255,0.35); }
+  .b-left  { left: 16px;  bottom: 40px; }
+  .b-right { left: 88px;  bottom: 40px; }
+  .b-down  { left: 52px;  bottom: 104px; }
+  .b-run   { right: 88px; bottom: 40px; }
+  .b-jump  { right: 16px; bottom: 64px; }
+  .b-start { right: 16px; top: 16px; width: 44px; height: 30px; border-radius: 8px; font-size: 14px; }
+</style>
+</head>
+<body>
+<canvas id="game" width="256" height="240"></canvas>
+<div id="hint">arrows/WASD move &nbsp;·&nbsp; Z/Space jump &nbsp;·&nbsp; X/Shift run+fire &nbsp;·&nbsp; Enter start/pause &nbsp;·&nbsp; M mute</div>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
