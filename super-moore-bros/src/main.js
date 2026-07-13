@@ -25,12 +25,18 @@ fitCanvas();
 
 initSprites();
 const input = new Input();
-initTouch(input);
+const touchMode = initTouch(input);
+const PROMPT = touchMode ? 'TAP' : 'PRESS ENTER';
 
 // iOS/Android require AudioContext creation inside a real gesture handler
 for (const ev of ['pointerdown', 'touchstart', 'keydown']) {
   window.addEventListener(ev, () => sound.unlock(), { passive: true });
 }
+
+// on menu screens a tap/click anywhere on the game acts as Start
+canvas.addEventListener('pointerdown', () => {
+  if (game.state !== 'play' && game.state !== 'pause') input.press('start');
+});
 
 // ------------------------------------------------------------------ game ----
 
@@ -552,7 +558,7 @@ function draw() {
     g.fillRect(46, 60, 164, 38);
     drawCenter('SUPER', 68, '#ffffff');
     drawCenter('MOORE BROS!', 82, '#f8d048');
-    if (game.frame % 60 < 40) drawCenter('PRESS ENTER TO START', 140, '#ffffff');
+    if (game.frame % 60 < 40) drawCenter(PROMPT + ' TO START', 140, '#ffffff');
     if (game.highScore > 0) drawCenter('TOP ' + game.highScore, 118, '#f8d048');
     drawCenter('Z JUMP  X RUN AND FIRE', 168, '#b8c8ff');
     drawCenter('ARROWS MOVE  M MUTE', 178, '#b8c8ff');
@@ -566,7 +572,7 @@ function draw() {
     drawCenter('COURSE CLEAR!', 96, '#f8d048');
     drawCenter('SCORE ' + game.score, 116, '#ffffff');
     if (game.frame % 60 < 40) {
-      drawCenter('PRESS ENTER FOR WORLD ' + LEVEL_NAMES[game.levelIdx + 1], 140, '#ffffff');
+      drawCenter(PROMPT + ' FOR WORLD ' + LEVEL_NAMES[game.levelIdx + 1], 140, '#ffffff');
     }
   } else if (game.state === 'won') {
     g.fillStyle = 'rgba(0,0,0,0.5)';
@@ -574,13 +580,13 @@ function draw() {
     drawCenter('YOU SAVED THE KINGDOM!', 88, '#f8d048');
     drawCenter('SCORE ' + game.score, 112, '#ffffff');
     drawCenter('TOP ' + game.highScore, 124, '#b8c8ff');
-    if (game.frame % 60 < 40) drawCenter('PRESS ENTER', 148, '#ffffff');
+    if (game.frame % 60 < 40) drawCenter(PROMPT + ' TO CONTINUE', 148, '#ffffff');
   } else if (game.state === 'gameover') {
     g.fillStyle = 'rgba(0,0,0,0.6)';
     g.fillRect(0, 0, W, H);
     drawCenter('GAME OVER', 104, '#f85030');
     drawCenter('SCORE ' + game.score, 124, '#ffffff');
-    if (game.frame % 60 < 40) drawCenter('PRESS ENTER', 148, '#ffffff');
+    if (game.frame % 60 < 40) drawCenter(PROMPT + ' TO CONTINUE', 148, '#ffffff');
   }
 }
 

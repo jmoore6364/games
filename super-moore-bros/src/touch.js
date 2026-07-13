@@ -1,10 +1,11 @@
 // On-screen controls for touch devices (force with ?touch=1 for testing).
 // Pointer events so they also work with mouse/pen, and capture so a finger
 // sliding off a button doesn't leave it stuck down.
+// Returns true when the touch UI was installed (used to adapt on-screen prompts).
 export function initTouch(input) {
   const force = location.search.includes('touch=1');
   const touchy = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-  if (!touchy && !force) return;
+  if (!touchy && !force) return false;
 
   const hint = document.getElementById('hint');
   if (hint) hint.remove();
@@ -43,4 +44,5 @@ export function initTouch(input) {
   mkBtn('▶▶', 'start', 'b-start');
 
   document.body.appendChild(root);
+  return true;
 }

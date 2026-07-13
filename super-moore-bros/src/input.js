@@ -56,6 +56,9 @@ export class Input {
     this.touchHeld[a] = on;
   }
 
+  // One-shot press (e.g. tapping the screen on menu states).
+  press(a) { this.pressedNow[a] = true; }
+
   down(a) { return !!(this.held[a] || this.gpHeld[a] || this.touchHeld[a]); }
   pressed(a) { return !!this.pressedNow[a]; }
   endFrame() { this.pressedNow = {}; }
