@@ -133,6 +133,19 @@
 <script>
   if ('serviceWorker' in navigator) {
     addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
+    // When an updated service worker takes control, reload so the new
+    // version shows immediately instead of on the next launch. Skipped on
+    // first-ever install (page is already fresh) and while mid-game.
+    let hadController = !!navigator.serviceWorker.controller;
+    let reloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!hadController) { hadController = true; return; }
+      if (reloaded) return;
+      const st = window.lodeRunner && window.lodeRunner.state;
+      if (performance.now() > 15000 && st !== 'title' && st !== 'levels') return;
+      reloaded = true;
+      location.reload();
+    });
   }
 </script>
 <script type="module" src="src/main.js"></script>
