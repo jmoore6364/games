@@ -5,6 +5,7 @@ import { input } from './input.js';
 import { audio } from './audio.js';
 import { editor, initEditor, shareURL } from './editor.js';
 import { decodeShare, customLevels, storeCustomLevels } from './share.js';
+import { VERSION } from './version.js';
 import './touch.js';
 
 const cv = document.getElementById('game');
@@ -398,6 +399,7 @@ function drawTitle(t) {
   text('up/down choose - left/right pick level - enter/start go', cv.width / 2, 306, 12, '#667', 'center');
   text('collect all gold - the exit ladder appears - climb out the top', cv.width / 2, 322, 12, '#99a', 'center');
   text(`HI ${String(hiscore).padStart(6, '0')}`, cv.width / 2, BOARD_H + 20, 14, '#8890b0', 'center');
+  text(VERSION, cv.width - 8, cv.height - 8, 11, '#556', 'right');
 }
 
 function drawLevels() {

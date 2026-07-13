@@ -150,10 +150,17 @@
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       if (!hadController) { hadController = true; return; }
       if (reloaded) return;
-      const st = window.lodeRunner && window.lodeRunner.state;
-      if (performance.now() > 15000 && st !== 'title' && st !== 'levels') return;
-      reloaded = true;
-      location.reload();
+      // reload as soon as it's safe: immediately at launch, otherwise the
+      // next time the player is back on a menu screen (never mid-game)
+      const tryReload = () => {
+        if (reloaded) return;
+        const st = window.lodeRunner && window.lodeRunner.state;
+        if (performance.now() < 15000 || st === 'title' || st === 'levels') {
+          reloaded = true;
+          location.reload();
+        } else setTimeout(tryReload, 3000);
+      };
+      tryReload();
     });
   }
 </script>
