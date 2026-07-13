@@ -980,6 +980,231 @@ export function buildD4() { // 4-4: the abyss (Kraken's lair)
   return level;
 }
 
+// =================================================================
+// STAR ROAD - world 5: everything at once, and the Mega Snapjaw.
+// =================================================================
+
+export function buildW1() { // 5-1: the gauntlet
+  const { level, set, ground, pipe, stair, spawn, piranha } = newLevel(200, '5-1', 'overworld');
+  level.flagX = 190;
+  level.castleX = 195;
+
+  ground(0, 55); ground(59, 110); ground(114, 199);
+  const wall = (a, h) => { for (let x = a; x <= a + 1; x++) for (let i = 0; i < h; i++) set(x, 12 - i, T.HARD); };
+
+  set(14, 9, T.QM); set(18, 9, T.Q);
+  pipe(26, 3); piranha(26, 3);
+  level.spawns.push({ type: 'spring', x: 34 * TILE, y: 0 });
+  wall(37, 5);
+  set(37, 6, T.COIN); set(38, 6, T.COIN); set(37, 2, T.COIN); set(38, 2, T.COIN);
+  set(44, 9, T.QW);
+  level.spawns.push({ type: 'cloudrider', x: 48 * TILE, y: 0 });
+
+  level.spawns.push({ type: 'platformh', x: 55 * TILE, y: 10 * TILE });
+  set(64, 9, T.Q); set(66, 9, T.QI); set(68, 9, T.Q);
+  pipe(76, 4); piranha(76, 4);
+  for (let x = 82; x <= 86; x++) set(x, 8, T.COIN);
+  set(92, 9, T.QS);
+  wall(98, 5);
+  set(98, 6, T.COIN); set(99, 6, T.COIN);
+
+  set(120, 9, T.Q1);
+  pipe(128, 2); piranha(128, 2);
+  for (let x = 134; x <= 139; x++) { set(x, 6, T.HARD); set(x, 5, T.COIN); }
+  set(146, 9, T.Q);
+  pipe(154, 3); piranha(154, 3);
+  for (let x = 162; x <= 166; x++) set(x, 8, T.COIN);
+
+  for (let i = 0; i < 8; i++) stair(176 + i, i + 1);
+  stair(184, 8);
+  stair(190, 1);
+  for (let y = 3; y <= 11; y++) set(190, y, T.POLE);
+  set(190, 2, T.POLE_TOP);
+
+  spawn('goomba', 20);
+  spawn('hopper', 42);
+  spawn('koopa', 52);
+  spawn('fastgoomba', 70);
+  spawn('goomba', 84); spawn('goomba', 86);
+  spawn('koopared', 100);
+  spawn('fastgoomba', 124);
+  spawn('hopper', 134);
+  spawn('goomba', 144); spawn('goomba', 146);
+  spawn('fastgoomba', 160); spawn('fastgoomba', 162);
+  level.spawns.sort((a, b) => a.x - b.x);
+
+  for (let x = 0; x < level.width; x += 48) {
+    level.decor.hills.push({ x, big: true });
+    level.decor.bushes.push({ x: x + 24, w: 2 });
+    level.decor.clouds.push({ x: x + 10, y: 2, w: 2 });
+  }
+  return level;
+}
+
+export function buildW2() { // 5-2: storm heights
+  const { level, set, ground, stair, spawn } = newLevel(190, '5-2', 'night');
+  level.flagX = 184;
+  level.castleX = 185;
+
+  ground(0, 14); ground(174, 189);
+  const plat = (a, b, y) => { for (let x = a; x <= b; x++) set(x, y, T.HARD); };
+  const coins = (a, b, y) => { for (let x = a; x <= b; x++) set(x, y, T.COIN); };
+
+  plat(17, 21, 12);
+  plat(24, 28, 11);  coins(24, 28, 9);
+  plat(31, 35, 9);
+  plat(38, 43, 11);  set(40, 8, T.QW);
+  plat(46, 50, 12);
+  level.spawns.push({ type: 'spring', x: 48 * TILE, y: 0 });
+  plat(53, 58, 8);   coins(53, 58, 6); // spring up to this one
+  plat(61, 66, 10);
+  plat(69, 73, 12);
+  plat(76, 81, 11);  set(78, 8, T.QS);
+  plat(84, 88, 9);
+  plat(91, 96, 11);  coins(91, 96, 9);
+  plat(99, 103, 12);
+  level.spawns.push({ type: 'platformv', x: 106 * TILE, y: 5 * TILE });
+  plat(110, 115, 10); set(112, 7, T.Q1);
+  plat(118, 122, 11);
+  plat(125, 130, 12); coins(125, 130, 10);
+  plat(133, 137, 10);
+  plat(140, 145, 11);
+  plat(148, 153, 12);
+  plat(156, 161, 11); coins(156, 161, 9);
+  plat(164, 169, 12);
+
+  stair(176, 2); stair(177, 4); stair(178, 6);
+  stair(184, 1);
+  for (let y = 3; y <= 11; y++) set(184, y, T.POLE);
+  set(184, 2, T.POLE_TOP);
+
+  spawn('hopper', 8);
+  spawn('koopared', 40);
+  spawn('koopared', 63);
+  spawn('koopared', 93);
+  spawn('koopared', 112);
+  spawn('koopared', 142);
+  spawn('koopared', 158);
+  spawn('goomba', 177); spawn('goomba', 179);
+  level.spawns.sort((a, b) => a.x - b.x);
+
+  for (let x = 0; x < level.width; x += 44) {
+    level.decor.clouds.push({ x: x + 6, y: 2, w: 2 });
+    level.decor.clouds.push({ x: x + 26, y: 4, w: 1 });
+  }
+  return level;
+}
+
+export function buildW3() { // 5-3: the flooded keep
+  const b = newLevel(180, '5-3', 'water');
+  b.level.water = true;
+  const { level, set, ground, spawn } = b;
+  level.flagX = 170;
+  level.castleX = 175;
+
+  ground(0, 84); ground(89, 179);
+  const firebar = (tx, ty) => { set(tx, ty, T.HARD); level.spawns.push({ type: 'firebar', x: tx * TILE - 96, cx: tx * TILE + 8, cy: ty * TILE + 8 }); };
+  const ruin = (tx, h) => { for (let i = 0; i < h; i++) set(tx, 12 - i, T.BRICK); };
+  const arc = (a, b2, y) => { for (let x = a; x <= b2; x++) set(x, y, T.COIN); };
+
+  set(12, 8, T.QM);
+  ruin(18, 5); ruin(19, 5);
+  firebar(24, 9);
+  arc(28, 32, 5);
+  ruin(36, 7); ruin(37, 7);
+  set(42, 7, T.QI);
+  firebar(48, 8);
+  arc(52, 56, 9);
+  ruin(60, 6); ruin(61, 6);
+  firebar(66, 10);
+  set(72, 6, T.QS);
+  arc(76, 80, 4);
+
+  arc(92, 96, 8);
+  ruin(100, 7); ruin(101, 7);
+  firebar(106, 8);
+  set(112, 7, T.Q1);
+  arc(118, 122, 5);
+  ruin(126, 5); ruin(127, 5);
+  firebar(132, 9);
+  arc(138, 143, 7);
+  ruin(148, 6); ruin(149, 6);
+  arc(154, 158, 4);
+
+  set(170, 12, T.HARD);
+  for (let y = 3; y <= 11; y++) set(170, y, T.POLE);
+  set(170, 2, T.POLE_TOP);
+
+  spawn('fish', 30); spawn('squid', 44);
+  spawn('fish', 56); spawn('fish', 70);
+  spawn('squid', 82);
+  spawn('fish', 98); spawn('squid', 116);
+  spawn('fish', 130); spawn('fish', 142);
+  spawn('squid', 156);
+  level.spawns.sort((a, b2) => a.x - b2.x);
+
+  for (let x = 8; x < level.width; x += 22) level.decor.bushes.push({ x, w: 1 });
+  return level;
+}
+
+export function buildW4() { // 5-4: star summit - the Mega Snapjaw
+  const { level, set, stair, spawn } = newLevel(190, '5-4', 'castle');
+  level.timeLimit = 300;
+  level.flagX = -1;
+  level.castleX = 186;
+
+  const floor = (a, b) => { for (let x = a; x <= b; x++) { set(x, 13, T.GROUND); set(x, 14, T.GROUND); } };
+  const lava = (a, b) => { for (let x = a; x <= b; x++) { set(x, 13, T.LAVA); set(x, 14, T.LAVA); } };
+  const firebar = (tx, ty) => { set(tx, ty, T.HARD); level.spawns.push({ type: 'firebar', x: tx * TILE - 96, cx: tx * TILE + 8, cy: ty * TILE + 8 }); };
+  const island = (tx) => { set(tx, 12, T.HARD); set(tx + 1, 12, T.HARD); };
+
+  for (let x = 0; x < 168; x++) set(x, 0, T.GROUND);
+
+  floor(0, 22);
+  firebar(10, 9); firebar(15, 8);
+  set(19, 9, T.QW);
+
+  lava(23, 32);
+  island(26); set(28, 12, T.HARD); island(30);
+  floor(33, 54);
+  firebar(40, 10); firebar(48, 8);
+  set(44, 9, T.QI);
+
+  lava(55, 62);
+  level.spawns.push({ type: 'spring', x: 54 * TILE, y: 0 }); // vault the lake
+  island(58);
+  floor(63, 86);
+  for (let x = 66; x <= 82; x++) set(x, 5, T.GROUND);
+  set(78, 9, T.Q1);
+
+  lava(87, 96);
+  island(90); island(94);
+  floor(97, 118);
+  firebar(102, 9); firebar(110, 10);
+  set(106, 9, T.QS);
+
+  lava(119, 124);
+  island(121);
+  floor(125, 133);
+  firebar(129, 8);
+
+  // the summit bridge: MEGA SNAPJAW
+  lava(134, 155);
+  for (let x = 134; x <= 153; x++) set(x, 13, T.BRIDGE);
+  set(154, 12, T.AXE); set(154, 11, T.AXE);
+  for (let y = 1; y <= 10; y++) set(155, y, T.GROUND);
+  level.bridge = { from: 134, to: 153, y: 13 };
+  floor(156, 189);
+
+  spawn('spiny', 36); spawn('spiny', 50);
+  spawn('ghost', 70);
+  spawn('spiny', 100); spawn('spiny', 114);
+  level.spawns.push({ type: 'megaboss', x: 144 * TILE, y: 0 });
+  level.spawns.sort((a, b) => a.x - b.x);
+
+  return level;
+}
+
 // ------------------------------------------------------------ campaigns ----
 
 export const CAMPAIGNS = {
@@ -1002,6 +1227,11 @@ export const CAMPAIGNS = {
     title: 'THE DEEP',
     levels: [buildD1, buildD2, buildD3, buildD4],
     names: ['4-1', '4-2', '4-3', '4-4'],
+  },
+  star: {
+    title: 'STAR ROAD',
+    levels: [buildW1, buildW2, buildW3, buildW4],
+    names: ['5-1', '5-2', '5-3', '5-4'],
   },
 };
 

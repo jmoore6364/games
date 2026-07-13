@@ -402,6 +402,26 @@ const WING = [
   '...BW...',
 ];
 
+const CLOUDRIDER_PAL = { W: '#f8f8f8', G: '#d0d8e8', Y: '#e8b820', K: '#181008' };
+const CLOUDRIDER = [
+  '......YYYY......',
+  '.....YKYYYY.....',
+  '.....YYKYYY.....',
+  '.....YYYYY......',
+  '......YYY.......',
+  '...WWWWWWWWW....',
+  '..WWWWWWWWWWW...',
+  '.WWWWWWWWWWWWW..',
+  'WWWWWWWWWWWWWWW.',
+  'WWWWWWWWWWWWWWWW',
+  '.WWWGWWWWGWWWW..',
+  '..WGW.WWW..GW...',
+  '...W...W....W...',
+  '................',
+  '................',
+  '................',
+];
+
 const FISH_PAL = { R: '#e84838', W: '#f8f8f8', K: '#181008', O: '#f8a030' };
 const FISH = [
   '................',
@@ -896,6 +916,7 @@ export function initSprites() {
   SPR.squid = makeSprite(SQUID, SQUID_PAL);
   const kraken = makeSprite(KRAKEN, KRAKEN_PAL);
   SPR.kraken = { l: kraken, r: flipped(kraken) };
+  SPR.cloudRider = makeSprite(CLOUDRIDER, CLOUDRIDER_PAL);
 
   // lava: two-frame animated surface
   SPR.lava = [0, 1].map(f => makeTile(g => {

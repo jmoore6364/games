@@ -659,11 +659,14 @@ export class FireBar {
 export class Boss extends Enemy {
   // King Snapjaw: paces his bridge, hops now and then. 8 fireballs or the axe.
   constructor(x, y, bridge, opts = {}) {
-    super(x, y, 20, 19);
+    super(x, y, opts.mega ? 28 : 20, opts.mega ? 26 : 19);
     this.vx = -(opts.speed ?? 0.4);
     this.bridge = bridge; // {fromPx, toPx}
     this.hp = opts.hp ?? 8;
     this.hopEvery = opts.hopEvery ?? 70;
+    this.spits = !!opts.spits;
+    this.mega = !!opts.mega;
+    this.spitT = 120;
     this.animT = 0;
     this.hopT = 90;
     this.falling = false;
@@ -685,6 +688,13 @@ export class Boss extends Enemy {
     if (this.x + this.w > this.bridge.toPx) { this.x = this.bridge.toPx - this.w; this.vx = -Math.abs(this.vx); }
     // face the hero
     this.vx = Math.abs(this.vx) * (game.player.x > this.x ? 1 : -1);
+    // spit an arcing flame at the hero
+    if (this.spits && --this.spitT <= 0) {
+      const p = game.player;
+      game.entities.push(new EnemyFire(this.x + this.w / 2, this.y + 4, p.x + p.w / 2, p.y));
+      sound.fireball();
+      this.spitT = this.mega ? 110 : 160;
+    }
     this.animT++;
   }
   hit(game) { // fireball damage
@@ -693,13 +703,18 @@ export class Boss extends Enemy {
   }
   stomp() { /* can't be squashed */ }
   draw(g, camX) {
+    const scale = this.mega ? 1.45 : 1;
+    const img = SPR.boss.l;
     if (this.flipTimer > 0 || this.falling) {
-      const img = SPR.boss.l;
-      const x = Math.round(this.x + this.w / 2 - 12 - camX), y = Math.round(this.y + this.h - 18);
-      g.save(); g.translate(x + 12, y + 10); g.scale(1, -1); g.drawImage(img, -12, -10); g.restore();
+      const x = Math.round(this.x + this.w / 2 - camX), y = Math.round(this.y + this.h - 18 * scale + 10);
+      g.save(); g.translate(x, y); g.scale(scale, -scale); g.drawImage(img, -12, -10); g.restore();
       return;
     }
-    drawEntity(g, this.vx > 0 ? SPR.boss.r : SPR.boss.l, this, camX);
+    const use = this.vx > 0 ? SPR.boss.r : SPR.boss.l;
+    const dw = Math.round(use.width * scale), dh = Math.round(use.height * scale);
+    g.drawImage(use,
+      Math.round(this.x + this.w / 2 - dw / 2 - camX),
+      Math.round(this.y + this.h - dh + (this.mega ? 3 : 0)), dw, dh);
   }
 }
 
@@ -1050,6 +1065,81 @@ export class Kraken extends Enemy {
   }
 }
 function game_facing(e) { return e.vx > 0.2; }
+
+export class CloudRider extends Enemy {
+  // Hovers overhead tracking the hero and drops spinies. Stomp the cloud!
+  constructor(x, y) {
+    super(x, y, 15, 12);
+    this.dropT = 130;
+    this.retireX = 1e9; // stops following past this point
+  }
+  update(game) {
+    if (!this.baseUpdate(game)) return;
+    const p = game.player;
+    const targetX = Math.min(p.x + 70, this.retireX);
+    this.vx += (targetX > this.x ? 0.06 : -0.06);
+    this.vx = Math.max(-1.7, Math.min(1.7, this.vx));
+    this.x += this.vx;
+    this.y = 38 + Math.sin(game.frame / 40) * 6;
+    if (--this.dropT <= 0 && Math.abs(this.x - p.x) < 130) {
+      const mySpinies = game.entities.filter(e =>
+        e instanceof Spiny && !e.dead && e.fromCloud).length;
+      if (mySpinies < 3) {
+        const s = new Spiny(this.x + 2, this.y + 12);
+        s.fromCloud = true;
+        s.vy = 1;
+        game.entities.push(s);
+      }
+      this.dropT = 150;
+    }
+  }
+  stomp(game) {
+    this.flip(game, 1, 800);
+    sound.stomp();
+  }
+  draw(g, camX) {
+    if (this.flipTimer > 0) {
+      g.save();
+      g.translate(Math.round(this.x + 8 - camX), Math.round(this.y + 6));
+      g.scale(1, -1);
+      g.drawImage(SPR.cloudRider, -8, -6);
+      g.restore();
+      return;
+    }
+    drawEntity(g, SPR.cloudRider, this, camX);
+  }
+}
+
+export class EnemyFire {
+  // Boss spit: a ballistic arc that actually lands on the hero's spot.
+  constructor(x, y, tx, ty) {
+    this.x = x; this.y = y;
+    this.w = 6; this.h = 6;
+    const g = 0.09;
+    const dx = tx - x, dy = ty - y;
+    const T = Math.max(35, Math.min(95, Math.abs(dx) / 1.7)); // flight time
+    this.vx = dx / T;
+    this.vy = dy / T - (g * T) / 2;
+    this.t = 0;
+    this.dead = false;
+  }
+  update(game) {
+    this.vy = Math.min(this.vy + 0.09, 3);
+    this.x += this.vx;
+    this.y += this.vy;
+    this.t++;
+    const tx = Math.floor((this.x + 3) / TILE), ty = Math.floor((this.y + 3) / TILE);
+    if (SOLID.has(tileAt(game.level, tx, ty))) this.dead = true;
+    if (this.t > 400 || this.y > (ROWS + 2) * TILE) this.dead = true;
+  }
+  draw(g, camX) {
+    g.save();
+    g.translate(Math.round(this.x + 3 - camX), Math.round(this.y + 3));
+    g.rotate((this.t / 3 | 0) * Math.PI / 2);
+    g.drawImage(SPR.fireball, -3, -3);
+    g.restore();
+  }
+}
 
 export class Bubble {
   constructor(x, y) {

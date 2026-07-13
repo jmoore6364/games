@@ -6,7 +6,7 @@ import { CAMPAIGNS, buildFromData, decodeShare, TILE, ROWS, T, tileAt, setTile }
 import {
   Player, Goomba, Koopa, Mushroom, FireFlower, CoinPop, Fireball, Shard, Popup, Star,
   Piranha, Puff, FireBar, Boss, Enemy, Spiny, Hopper, Ghost, WingsItem,
-  Spring, MovingPlatform, Fish, Squid, Kraken, Bubble, overlaps,
+  Spring, MovingPlatform, Fish, Squid, Kraken, Bubble, CloudRider, EnemyFire, overlaps,
 } from './entities.js';
 import { initEditor, editor } from './editor.js';
 
@@ -251,6 +251,13 @@ function makeSpawn(s) {
     case 'firebar': return new FireBar(s.cx, s.cy);
     case 'boss': return new Boss(s.x, (br ? br.y : 13) * TILE - 19, bossBridge);
     case 'boss2': return new Boss(s.x, (br ? br.y : 13) * TILE - 19, bossBridge, { hp: 12, speed: 0.55, hopEvery: 45 });
+    case 'megaboss': return new Boss(s.x, (br ? br.y : 13) * TILE - 26, bossBridge,
+      { hp: 16, speed: 0.5, hopEvery: 55, spits: true, mega: true });
+    case 'cloudrider': {
+      const cr = new CloudRider(s.x, 38);
+      cr.retireX = (game.level.flagX > 0 ? game.level.flagX - 26 : game.level.width - 30) * TILE;
+      return cr;
+    }
     case 'koopa': return new Koopa(s.x, 13 * TILE - 14);
     case 'koopared': return spawnOnPlatform(new Koopa(s.x, 0, true));
     case 'hopper': return spawnOnPlatform(new Hopper(s.x, 0));
@@ -367,6 +374,11 @@ function updatePlay() {
       if (e instanceof FireBar && p.starTimer <= 0 && p.state === 'normal' && e.hits(p)) {
         p.hurt(game);
       }
+      // boss spit
+      if (e instanceof EnemyFire && !e.dead && p.state === 'normal' && overlaps(p, e)) {
+        if (p.starTimer > 0) { e.dead = true; }
+        else { p.hurt(game); e.dead = true; }
+      }
     }
 
     // items & enemies
@@ -386,10 +398,12 @@ function updatePlay() {
           continue;
         }
         if (!e.harmful && !(e instanceof Koopa && e.mode === 'shell')) continue;
-        if (p.starTimer > 0) { // invincible: plow through everything
-          e.flip(game, p.facing, 200);
-          sound.kick();
-          continue;
+        if (p.starTimer > 0) { // invincible: plow through everything (except bosses)
+          if (typeof e.hit !== 'function') {
+            e.flip(game, p.facing, 200);
+            sound.kick();
+          }
+          continue; // bosses and the hero pass through each other unharmed
         }
         if (e instanceof Koopa && e.mode === 'shell' && e.flipTimer === 0) {
           // kick the resting shell
@@ -687,7 +701,7 @@ try {
 function titleMenuItems() {
   const items = [];
   if (sharedLevel) items.push('PLAY SHARED LEVEL');
-  items.push('ORIGINAL GAME', 'MOORE WORLDS', 'SKY WORLDS', 'THE DEEP', 'LEVEL BUILDER');
+  items.push('ORIGINAL GAME', 'MOORE WORLDS', 'SKY WORLDS', 'THE DEEP', 'STAR ROAD', 'LEVEL BUILDER');
   if (customLevels().length) items.push('MY LEVELS');
   return items;
 }
@@ -764,7 +778,9 @@ function draw() {
   } else if (game.state === 'won') {
     g.fillStyle = 'rgba(0,0,0,0.5)';
     g.fillRect(0, 0, W, H);
-    drawCenter('YOU SAVED THE KINGDOM!', 88, '#f8d048');
+    const starRoad = (game.levelNames[0] || '').startsWith('5');
+    drawCenter(starRoad ? 'THE STAR ROAD IS YOURS!' : 'YOU SAVED THE KINGDOM!', 82, '#f8d048');
+    if (starRoad) drawCenter('TRUE HERO OF THE KINGDOM', 94, '#ffffff');
     drawCenter('SCORE ' + game.score, 112, '#ffffff');
     drawCenter('TOP ' + game.highScore, 124, '#b8c8ff');
     if (game.frame % 60 < 40) drawCenter(PROMPT + ' TO CONTINUE', 148, '#ffffff');
@@ -798,6 +814,7 @@ function step() {
         else if (pick === 'MOORE WORLDS') startGame('remix');
         else if (pick === 'SKY WORLDS') startGame('sky');
         else if (pick === 'THE DEEP') startGame('deep');
+        else if (pick === 'STAR ROAD') startGame('star');
         else if (pick === 'LEVEL BUILDER') { game.state = 'editor'; editor.show(); }
         else if (pick === 'MY LEVELS') { game.state = 'levels'; game.levelsIdx = 0; }
       }

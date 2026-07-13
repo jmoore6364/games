@@ -40,6 +40,11 @@ npm start          # serves at http://localhost:8123
   under walls), 4-3 sunken ruins (cursed flames), 4-4 the abyss — where
   the **crowned Kraken** guards the flagpole. Its own water waltz
   soundtrack, swaying kelp, and rising bubbles.
+- **Star Road** — world 5, the endgame: 5-1 the gauntlet (everything at
+  once, plus the **cloud rider** raining spinies from above — stomp the
+  cloud!), 5-2 storm heights, 5-3 the flooded keep, and 5-4 Star Summit,
+  where **Mega Snapjaw** spits ballistic fire arcs across a 20-tile
+  bridge. Sixteen fireballs, or the axe. Stars don't work on bosses.
 - **Level Builder** — paint tiles, blocks, pipes, hazards, springs, moving
   platforms, and every enemy onto a canvas; stamp a complete **boss arena**
   (lava moat + bridge + axe + boss) with one click; pick a theme (incl.
