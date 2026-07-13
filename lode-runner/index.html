@@ -60,6 +60,15 @@
     display: none; flex-direction: column; gap: 6px;
     width: 100%; max-width: 700px; padding: 0 8px 10px; box-sizing: border-box;
   }
+  /* builder mode: hide play controls, allow scrolling to the toolbar,
+     keep the board itself paintable (no scroll gestures on it) */
+  body.editing { overflow: auto; touch-action: pan-y; }
+  body.editing #wrap { height: auto; min-height: 100%; justify-content: flex-start; }
+  body.editing #touch, body.editing .hint { display: none !important; }
+  body.editing canvas { touch-action: none; }
+  @media (pointer: coarse) {
+    body.editing canvas { max-height: none; }
+  }
   .led-row { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; }
   .led-btn {
     background: #1a1a2c; border: 2px solid #445; border-radius: 6px;

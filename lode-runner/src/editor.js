@@ -21,6 +21,7 @@ const ed = {
   hover: null,
   msg: '', msgT: 0,
   analysis: null,
+  openedAt: 0,     // guards against the opening tap ghost-clicking the new UI
 };
 
 function flash(m) { ed.msg = m; ed.msgT = 2.2; }
@@ -172,7 +173,8 @@ function buildToolbar() {
   actions.appendChild(btn('CLOSE', () => { hide(); ctx.onExit(); }, 'warn'));
   bar.appendChild(actions);
 
-  document.body.appendChild(bar);
+  // inside #wrap so it lays out under the canvas (body is overflow:hidden)
+  document.getElementById('wrap').appendChild(bar);
 
   // import modal
   const modal = document.createElement('div');
@@ -192,6 +194,7 @@ function buildToolbar() {
   // canvas painting
   ctx.canvas.addEventListener('pointerdown', ev => {
     if (!ctx.isEditing()) return;
+    if (performance.now() - ed.openedAt < 300) return; // the tap that opened us
     ev.preventDefault();
     ed.painting = true;
     ed.erasing = ev.button === 2;
@@ -211,7 +214,10 @@ function buildToolbar() {
   });
 }
 
-function hide() { document.getElementById('editor-ui').style.display = 'none'; }
+function hide() {
+  document.getElementById('editor-ui').style.display = 'none';
+  document.body.classList.remove('editing');
+}
 
 export function shareURL() {
   return location.origin + location.pathname + '#lvl=' + encodeShare(toJSON());
@@ -247,7 +253,14 @@ export const editor = {
   show() {
     if (!ed.rows) blank();
     reanalyze();
-    document.getElementById('editor-ui').style.display = 'flex';
+    ed.openedAt = performance.now();
+    const bar = document.getElementById('editor-ui');
+    bar.style.display = 'flex';
+    // the tap that opened the editor must not ghost-click a button that
+    // reflows in under the finger (mobile taps fire click after layout)
+    bar.style.pointerEvents = 'none';
+    setTimeout(() => { bar.style.pointerEvents = ''; }, 400);
+    document.body.classList.add('editing');
     refreshLoad();
   },
 
