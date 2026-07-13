@@ -1,0 +1,10 @@
+{
+  "name": "cruisin-usa",
+  "version": "0.1.0",
+  "description": "A Cruis'n USA style pseudo-3D arcade racer, vanilla JS + canvas",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node tools/track-test.js"
+  }
+}

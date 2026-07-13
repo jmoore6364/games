@@ -1,0 +1,50 @@
+# Cruis'n Moore
+
+A Cruis'n USA style pseudo-3D arcade racer built from scratch in vanilla
+JavaScript + canvas — zero dependencies. The road engine is classic 90s
+sprite-scaling: projected road segments with curves, hills and fog, scaled
+roadside scenery, two-way traffic and rival racers. All pixel art is drawn
+procedurally at runtime and every sound (engine, skids, crashes, chiptune
+soundtrack) is synthesized with WebAudio; there are no asset files.
+
+## Run
+
+```
+npm start          # serves at http://localhost:8126
+npm test           # course geometry + sprite reference sanity checks
+```
+
+## How to play
+
+Pick one of three courses — **Pacific Coast**, **Route 66**, or
+**Moore City Nights** — and beat 7 rivals across 2 laps before the clock
+runs out. Checkpoints and the lap line add time. Watch for oncoming
+traffic in the left lanes: a head-on hit at speed sends you into the
+signature Cruis'n barrel-roll wipeout, and so does clipping a palm tree,
+cactus, or building while off-road. Rear-ending same-direction traffic
+just costs you speed. Your best finish time per course is saved locally.
+
+## Controls
+
+| Key | Action |
+|-----|--------|
+| ← → / A D | Steer (also switches course on the title screen) |
+| ↑ / W | Gas |
+| ↓ / S | Brake |
+| Enter | Start / continue |
+| M | Mute |
+
+Gamepad (standard mapping: stick/dpad to steer, A or right trigger for gas,
+B or left trigger for brake) and on-screen touch controls on mobile are
+also supported.
+
+## How it works
+
+The track is a list of fixed-length segments, each with a curve value and
+elevation, projected every frame from the camera with 1/z scaling
+(`src/game.js`). Curves are faked by accumulating a per-segment horizontal
+drift while rendering — the same trick the arcade originals used. Rivals
+rubber-band toward the player to keep races close, steer around traffic,
+and race the same two laps you do; your standing is computed from actual
+distance along the track. Course layouts live in `src/track.js` (pure
+data, node-testable), art in `src/sprites.js`, audio in `src/audio.js`.

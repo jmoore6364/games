@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Cruis'n Moore</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: #0a0a14; overflow: hidden;
+    font-family: monospace;
+    touch-action: none;
+  }
+  body { display: flex; align-items: center; justify-content: center; }
+  canvas {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    background: #000;
+  }
+  #touch-controls {
+    position: fixed; inset: auto 0 0 0;
+    display: flex; justify-content: space-between;
+    padding: 0 14px 14px; pointer-events: none;
+    user-select: none; -webkit-user-select: none;
+  }
+  .tc-group { display: flex; gap: 12px; pointer-events: auto; }
+  .tc-btn {
+    width: 74px; height: 74px; border-radius: 50%;
+    border: 3px solid rgba(255,255,255,0.5);
+    background: rgba(20,20,40,0.5); color: #fff;
+    font: bold 15px monospace;
+    touch-action: none;
+  }
+  .tc-btn.on { background: rgba(248,168,0,0.6); }
+  .tc-gas { border-color: rgba(90,220,110,0.7); }
+  .tc-brake { border-color: rgba(230,80,60,0.7); }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
