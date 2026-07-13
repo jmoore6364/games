@@ -3,14 +3,22 @@
 <head>
 <meta charset="utf-8">
 <title>Lode Runner: Moore's Gold</title>
-<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%23000'/><path d='M2 13h12v3H2z' fill='%23a83820'/><path d='M5 8h6v3H5z' fill='%23ffd020'/></svg>">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#06060c">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Lode Runner">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png" type="image/png">
 <style>
   html, body {
     margin: 0; padding: 0; height: 100%;
     background: #06060c; color: #dde;
     font-family: monospace;
     overflow: hidden;
+    overscroll-behavior: none;
     touch-action: none;
     -webkit-user-select: none; user-select: none;
   }
@@ -19,6 +27,9 @@
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
     gap: 8px;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right)
+             env(safe-area-inset-bottom) env(safe-area-inset-left);
+    box-sizing: border-box;
   }
   canvas {
     image-rendering: pixelated;
@@ -26,6 +37,7 @@
     background: #000;
     max-width: 100vw;
     max-height: calc(100vh - 90px);
+    max-height: calc(100dvh - 90px);
   }
   #touch {
     display: none;
@@ -47,6 +59,26 @@
   @media (pointer: coarse) {
     #touch { display: flex; }
     .hint { display: none; }
+    canvas {
+      max-height: calc(100vh - 210px);
+      max-height: calc(100dvh - 210px);
+    }
+  }
+  /* phones in landscape: controls float over the sides so the board gets the full height */
+  @media (pointer: coarse) and (orientation: landscape) {
+    canvas {
+      max-height: 100vh;
+      max-height: 100dvh;
+    }
+    #touch {
+      position: fixed; left: 0; right: 0;
+      bottom: calc(8px + env(safe-area-inset-bottom));
+      max-width: none;
+      padding: 0 calc(12px + env(safe-area-inset-right)) 0 calc(12px + env(safe-area-inset-left));
+      pointer-events: none;
+      z-index: 2;
+    }
+    #touch .tbtn { pointer-events: auto; opacity: 0.72; }
   }
 </style>
 </head>
@@ -67,6 +99,11 @@
     </div>
   </div>
 </div>
+<script>
+  if ('serviceWorker' in navigator) {
+    addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
+  }
+</script>
 <script type="module" src="src/main.js"></script>
 </body>
 </html>

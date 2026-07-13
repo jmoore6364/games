@@ -37,6 +37,22 @@ brick seals is destroyed. Guards respawn at the top. You don't.
 Gamepad (standard mapping: dpad/stick, X = dig left, B = dig right) and
 on-screen touch controls on mobile are also supported.
 
+## Play on mobile / add to home screen
+
+The game is an installable PWA:
+
+- **Android/Chrome** — open the game, then "Add to Home Screen" (or accept
+  the install prompt). It launches fullscreen in landscape with its own icon.
+- **iPhone/iPad Safari** — Share → "Add to Home Screen".
+- Once installed it works **offline**: a service worker precaches the whole
+  game (it's ~40 KB with zero external assets) and picks up new versions in
+  the background on the next visit.
+
+In a plain mobile browser tab, tapping START requests fullscreen and locks
+landscape where the platform allows it. On-screen controls: d-pad on the
+left, DIG buttons on the right; in landscape they float over the board so
+the game gets the full screen height.
+
 ## The board
 
 - **Bricks** — diggable; regenerate after ~7 seconds

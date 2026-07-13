@@ -9,6 +9,7 @@ const PORT = process.env.PORT || 8125;
 const MIME = {
   '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css',
   '.png': 'image/png', '.json': 'application/json', '.ico': 'image/x-icon',
+  '.webmanifest': 'application/manifest+json',
 };
 
 http.createServer(async (req, res) => {
