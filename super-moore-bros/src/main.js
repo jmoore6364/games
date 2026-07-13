@@ -14,9 +14,9 @@ const g = canvas.getContext('2d');
 g.imageSmoothingEnabled = false;
 
 function fitCanvas() {
-  const scale = Math.max(1, Math.min(
-    Math.floor(window.innerWidth / W),
-    Math.floor((window.innerHeight - 24) / H)));
+  // integer scaling for crispness on big screens; fractional fill on phones
+  const raw = Math.min(window.innerWidth / W, (window.innerHeight - 8) / H);
+  const scale = raw >= 2 ? Math.floor(raw) : Math.max(0.75, raw);
   canvas.style.width = W * scale + 'px';
   canvas.style.height = H * scale + 'px';
 }
@@ -26,6 +26,11 @@ fitCanvas();
 initSprites();
 const input = new Input();
 initTouch(input);
+
+// iOS/Android require AudioContext creation inside a real gesture handler
+for (const ev of ['pointerdown', 'touchstart', 'keydown']) {
+  window.addEventListener(ev, () => sound.unlock(), { passive: true });
+}
 
 // ------------------------------------------------------------------ game ----
 

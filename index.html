@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Moore Arcade</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body {
+    margin: 0; min-height: 100vh;
+    background: #101018; color: #eee;
+    font-family: monospace;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 48px 16px;
+  }
+  h1 {
+    color: #f8a800; letter-spacing: 4px; text-transform: uppercase;
+    text-shadow: 3px 3px 0 #78290c;
+    font-size: clamp(24px, 6vw, 42px);
+  }
+  .games { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; margin-top: 32px; }
+  a.card {
+    display: block; width: 260px; padding: 20px;
+    background: #1a1a28; border: 3px solid #f8a800; border-radius: 6px;
+    color: #eee; text-decoration: none;
+    transition: transform 0.1s;
+  }
+  a.card:hover { transform: translateY(-4px); background: #222236; }
+  .card h2 { margin: 0 0 8px; color: #0aa7a0; font-size: 18px; }
+  .card p { margin: 0; font-size: 13px; color: #99a; line-height: 1.5; }
+  footer { margin-top: auto; padding-top: 40px; color: #556; font-size: 12px; }
+</style>
+</head>
+<body>
+<h1>Moore Arcade</h1>
+<div class="games">
+  <a class="card" href="super-moore-bros/">
+    <h2>Super Moore Bros</h2>
+    <p>Classic side-scrolling platformer. Four worlds, powerups, koopa shells,
+    piranha plants, and a castle boss. Keyboard, gamepad, or touch.</p>
+  </a>
+</div>
+<footer>vanilla JS &middot; no dependencies &middot; original art &amp; music</footer>
+</body>
+</html>

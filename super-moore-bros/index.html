@@ -3,18 +3,21 @@
 <head>
 <meta charset="utf-8">
 <title>Super Moore Bros</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <style>
   html, body {
     margin: 0; padding: 0; height: 100%;
     background: #101018;
     display: flex; align-items: center; justify-content: center;
     overflow: hidden;
+    touch-action: none;
+    overscroll-behavior: none;
   }
   canvas {
     image-rendering: pixelated;
     image-rendering: crisp-edges;
     background: #6b8cff;
+    touch-action: none;
   }
   #hint {
     position: fixed; bottom: 8px; left: 0; right: 0;
@@ -31,12 +34,17 @@
     user-select: none; -webkit-user-select: none; touch-action: none;
   }
   .tbtn.on { background: rgba(255,255,255,0.35); }
-  .b-left  { left: 16px;  bottom: 40px; }
-  .b-right { left: 88px;  bottom: 40px; }
-  .b-down  { left: 52px;  bottom: 104px; }
-  .b-run   { right: 88px; bottom: 40px; }
-  .b-jump  { right: 16px; bottom: 64px; }
-  .b-start { right: 16px; top: 16px; width: 44px; height: 30px; border-radius: 8px; font-size: 14px; }
+  .b-left  { left: calc(16px + env(safe-area-inset-left, 0px));  bottom: calc(36px + env(safe-area-inset-bottom, 0px)); }
+  .b-right { left: calc(92px + env(safe-area-inset-left, 0px));  bottom: calc(36px + env(safe-area-inset-bottom, 0px)); }
+  .b-down  { left: calc(54px + env(safe-area-inset-left, 0px));  bottom: calc(104px + env(safe-area-inset-bottom, 0px)); }
+  .b-run   { right: calc(92px + env(safe-area-inset-right, 0px)); bottom: calc(36px + env(safe-area-inset-bottom, 0px)); }
+  .b-jump  { right: calc(16px + env(safe-area-inset-right, 0px)); bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
+  .b-start { right: calc(16px + env(safe-area-inset-right, 0px)); top: 12px; width: 48px; height: 32px; border-radius: 8px; font-size: 14px; }
+  @media (max-height: 500px) { /* phone landscape: slightly bigger targets */
+    .tbtn { width: 62px; height: 62px; }
+    .b-right { left: calc(100px + env(safe-area-inset-left, 0px)); }
+    .b-run   { right: calc(100px + env(safe-area-inset-right, 0px)); }
+  }
 </style>
 </head>
 <body>
