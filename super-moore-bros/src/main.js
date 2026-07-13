@@ -6,15 +6,15 @@ import { CAMPAIGNS, buildFromData, decodeShare, TILE, ROWS, T, tileAt, setTile }
 import {
   Player, Goomba, Koopa, Mushroom, FireFlower, CoinPop, Fireball, Shard, Popup, Star,
   Piranha, Puff, FireBar, Boss, Enemy, Spiny, Hopper, Ghost, WingsItem,
-  Spring, MovingPlatform, overlaps,
+  Spring, MovingPlatform, Fish, Squid, Kraken, Bubble, overlaps,
 } from './entities.js';
 import { initEditor, editor } from './editor.js';
 
 const THEME_BG = {
   overworld: '#6b8cff', underground: '#080810', castle: '#1a0a10',
-  night: '#0e1434', snow: '#a8c8e8', ghost: '#1a0f26',
+  night: '#0e1434', snow: '#a8c8e8', ghost: '#1a0f26', water: '#1858a8',
 };
-const THEME_MUSIC = { overworld: 0, night: 0, snow: 0, underground: 1, ghost: 1, castle: 1 };
+const THEME_MUSIC = { overworld: 0, night: 0, snow: 0, underground: 1, ghost: 1, castle: 1, water: 2 };
 
 const W = 256, H = 240;
 const canvas = document.getElementById('game');
@@ -260,6 +260,9 @@ function makeSpawn(s) {
     case 'spring': return spawnOnPlatform(new Spring(s.x, 0));
     case 'platformh': return new MovingPlatform(s.x, s.y, 'h');
     case 'platformv': return new MovingPlatform(s.x, s.y, 'v');
+    case 'fish': return new Fish(s.x, s.y || 7 * TILE);
+    case 'squid': return new Squid(s.x, s.y || 6 * TILE);
+    case 'kraken': return new Kraken(s.x, s.y || 6 * TILE);
     default: return spawnOnPlatform(new Goomba(s.x, 0));
   }
 }
@@ -394,7 +397,8 @@ function updatePlay() {
           e.kick(game, dir);
           continue;
         }
-        if (e instanceof Piranha || e.spiky) { p.hurt(game); continue; } // never stompable
+        // never stompable: piranhas, spiky things, and anything underwater
+        if (e instanceof Piranha || e.spiky || game.level.water) { p.hurt(game); continue; }
         const stomping = p.vy > 0 && (p.y + p.h) - e.y < 9;
         if (stomping) {
           e.stomp(game);
@@ -453,6 +457,11 @@ function updatePlay() {
     }
   }
 
+  // ambient bubbles drift up through water levels
+  if (game.level.water && game.frame % 24 === 0) {
+    game.entities.push(new Bubble(game.cam + (game.frame * 83) % W, H - 30));
+  }
+
   // timer
   if (p.state === 'normal') {
     if (game.frame % 24 === 0 && game.time > 0) {
@@ -502,7 +511,24 @@ function drawBackground() {
   }
   for (const b of game.level.decor.bushes) {
     if (b.x + b.w + 2 < camT - 1 || b.x > camT + 17) continue;
-    drawBush((b.x - camT) * TILE, b.w);
+    if (theme === 'water') drawKelp((b.x - camT) * TILE, b.x);
+    else drawBush((b.x - camT) * TILE, b.w);
+  }
+}
+
+function drawKelp(x, seed) {
+  const h = 40 + (seed % 4) * 14;
+  const baseY = 13 * TILE;
+  g.fillStyle = '#1e7e46';
+  for (let i = 0; i < h; i += 4) {
+    const sway = Math.sin((game.frame / 40) + i / 10 + seed) * 3;
+    g.fillRect(Math.round(x + sway), baseY - i - 4, 3, 5);
+    if (i % 12 === 4) {
+      g.fillStyle = '#2ea85e';
+      g.fillRect(Math.round(x + sway - 3), baseY - i - 4, 3, 3);
+      g.fillRect(Math.round(x + sway + 3), baseY - i - 8, 3, 3);
+      g.fillStyle = '#1e7e46';
+    }
   }
 }
 
@@ -650,7 +676,7 @@ function drawCenter(text, y, color) {
   drawText(g, text, Math.round(W / 2 - wpx / 2), y, color);
 }
 
-const MENU_Y0 = 124, MENU_ROW = 12;
+const MENU_Y0 = 116, MENU_ROW = 12;
 
 // a level shared via #lvl=... in the URL
 let sharedLevel = null;
@@ -661,7 +687,7 @@ try {
 function titleMenuItems() {
   const items = [];
   if (sharedLevel) items.push('PLAY SHARED LEVEL');
-  items.push('ORIGINAL GAME', 'MOORE WORLDS', 'SKY WORLDS', 'LEVEL BUILDER');
+  items.push('ORIGINAL GAME', 'MOORE WORLDS', 'SKY WORLDS', 'THE DEEP', 'LEVEL BUILDER');
   if (customLevels().length) items.push('MY LEVELS');
   return items;
 }
@@ -687,6 +713,10 @@ function draw() {
   for (const e of game.entities) if (e.drawUnder) e.draw(g, game.cam); // piranhas behind pipes
   drawTiles();
   drawEntities();
+  if (game.level.water) { // underwater tint over the world
+    g.fillStyle = 'rgba(30,90,200,0.16)';
+    g.fillRect(0, 0, W, H);
+  }
   game.player.draw(g, game.cam);
   for (const p of game.popups) drawText(g, p.text, Math.round(p.x - game.cam), Math.round(p.y), '#ffffff');
   drawHUD();
@@ -767,6 +797,7 @@ function step() {
         else if (pick === 'ORIGINAL GAME') startGame('original');
         else if (pick === 'MOORE WORLDS') startGame('remix');
         else if (pick === 'SKY WORLDS') startGame('sky');
+        else if (pick === 'THE DEEP') startGame('deep');
         else if (pick === 'LEVEL BUILDER') { game.state = 'editor'; editor.show(); }
         else if (pick === 'MY LEVELS') { game.state = 'levels'; game.levelsIdx = 0; }
       }

@@ -781,6 +781,205 @@ export function buildS4() { // 3-4: Snapjaw's revenge (two bosses!)
   return level;
 }
 
+// =================================================================
+// THE DEEP - world 4: underwater. Swim with jump taps; no stomping.
+// =================================================================
+
+function deepLevel(width, name) {
+  const b = newLevel(width, name, 'water');
+  b.level.water = true;
+  return b;
+}
+
+export function buildD1() { // 4-1: sunlit shallows
+  const { level, set, ground, spawn } = deepLevel(180, '4-1');
+  level.flagX = 170;
+  level.castleX = 175;
+
+  ground(0, 60); ground(64, 120); ground(124, 179);
+  const pillar = (tx, h) => { for (let i = 0; i < h; i++) set(tx, 12 - i, T.HARD); };
+  const arc = (a, b, y) => { for (let x = a; x <= b; x++) set(x, y, T.COIN); };
+
+  set(14, 9, T.QM);
+  arc(20, 25, 8); arc(22, 23, 5);
+  pillar(30, 3); pillar(31, 3);
+  arc(36, 40, 10);
+  set(44, 7, T.QI);
+  pillar(50, 5); pillar(51, 5);
+  arc(56, 59, 6);
+
+  arc(68, 73, 9);
+  pillar(78, 4); pillar(79, 4);
+  set(84, 8, T.Q); set(86, 8, T.Q);
+  arc(92, 97, 5);
+  pillar(104, 6); pillar(105, 6);
+  set(110, 9, T.Q1);
+  arc(114, 118, 7);
+
+  arc(128, 133, 9);
+  pillar(138, 3); pillar(139, 3);
+  set(144, 8, T.QS);
+  arc(150, 155, 6);
+  pillar(160, 4); pillar(161, 4);
+
+  set(170, 12, T.HARD);
+  for (let y = 3; y <= 11; y++) set(170, y, T.POLE);
+  set(170, 2, T.POLE_TOP);
+
+  spawn('fish', 40); spawn('fish', 55);
+  spawn('fish', 72); spawn('fish', 85); spawn('fish', 98);
+  spawn('fish', 112); spawn('fish', 126);
+  spawn('fish', 140); spawn('fish', 152);
+  level.spawns.sort((a, b) => a.x - b.x);
+
+  for (let x = 8; x < level.width; x += 22) level.decor.bushes.push({ x, w: 1 }); // kelp
+  return level;
+}
+
+export function buildD2() { // 4-2: the kelp weave
+  const { level, set, ground, spawn } = deepLevel(180, '4-2');
+  level.flagX = 170;
+  level.castleX = 175;
+
+  ground(0, 179);
+  const wallUp = (tx, h) => { for (let i = 0; i < h; i++) set(tx, 12 - i, T.BRICK); };
+  const wallDown = (tx, h) => { for (let i = 0; i < h; i++) set(tx, 1 + i, T.BRICK); };
+  const arc = (a, b, y) => { for (let x = a; x <= b; x++) set(x, y, T.COIN); };
+
+  // over/under weave: swim over floor walls, under ceiling stalactites
+  wallUp(22, 7); wallDown(30, 7);
+  wallUp(38, 7); wallDown(46, 7);
+  arc(32, 36, 11); arc(40, 44, 3);
+  set(26, 5, T.QM);
+
+  wallUp(56, 6); wallDown(63, 9);
+  arc(58, 61, 4);
+  set(68, 8, T.QI);
+  wallUp(74, 9); wallDown(82, 6);
+  arc(76, 80, 2);
+
+  wallUp(92, 7); wallDown(99, 8);
+  set(96, 4, T.QS);
+  wallUp(108, 8); wallDown(116, 7);
+  arc(110, 114, 3);
+  set(122, 8, T.Q1);
+
+  wallUp(130, 6); wallDown(137, 9);
+  arc(132, 135, 4);
+  wallUp(146, 9); wallDown(153, 6);
+  arc(148, 151, 2);
+
+  set(170, 12, T.HARD);
+  for (let y = 3; y <= 11; y++) set(170, y, T.POLE);
+  set(170, 2, T.POLE_TOP);
+
+  spawn('squid', 52); spawn('fish', 54);
+  spawn('squid', 70); spawn('fish', 72);
+  spawn('squid', 88); spawn('fish', 105);
+  spawn('squid', 124); spawn('fish', 122);
+  spawn('squid', 160); spawn('fish', 158);
+  level.spawns.sort((a, b) => a.x - b.x);
+
+  for (let x = 6; x < level.width; x += 18) level.decor.bushes.push({ x, w: 1 });
+  return level;
+}
+
+export function buildD3() { // 4-3: sunken ruins
+  const { level, set, ground, spawn } = deepLevel(170, '4-3');
+  level.flagX = 160;
+  level.castleX = 165;
+
+  ground(0, 44); ground(49, 100); ground(105, 169);
+  const firebar = (tx, ty) => { set(tx, ty, T.HARD); level.spawns.push({ type: 'firebar', x: tx * TILE - 96, cx: tx * TILE + 8, cy: ty * TILE + 8 }); };
+  const ruin = (tx, h) => { for (let i = 0; i < h; i++) set(tx, 12 - i, T.BRICK); };
+  const arc = (a, b, y) => { for (let x = a; x <= b; x++) set(x, y, T.COIN); };
+
+  ruin(12, 4); ruin(13, 4); ruin(20, 6); ruin(21, 6);
+  firebar(16, 8);
+  set(26, 7, T.QM);
+  arc(30, 35, 5);
+  firebar(38, 9);
+
+  ruin(52, 5); ruin(53, 5);
+  arc(58, 62, 8);
+  firebar(66, 7);
+  set(72, 8, T.QI);
+  ruin(78, 7); ruin(79, 7);
+  firebar(86, 9);
+  arc(90, 95, 4);
+
+  set(108, 7, T.QS);
+  firebar(114, 8);
+  ruin(120, 5); ruin(121, 5);
+  arc(126, 131, 6);
+  firebar(136, 9);
+  set(142, 8, T.Q1);
+  arc(148, 152, 5);
+
+  set(160, 12, T.HARD);
+  for (let y = 3; y <= 11; y++) set(160, y, T.POLE);
+  set(160, 2, T.POLE_TOP);
+
+  spawn('fish', 32); spawn('squid', 46);
+  spawn('fish', 60); spawn('fish', 74);
+  spawn('squid', 90);
+  spawn('fish', 110); spawn('squid', 124);
+  spawn('fish', 138); spawn('fish', 148);
+  level.spawns.sort((a, b) => a.x - b.x);
+
+  for (let x = 10; x < level.width; x += 26) level.decor.bushes.push({ x, w: 1 });
+  return level;
+}
+
+export function buildD4() { // 4-4: the abyss (Kraken's lair)
+  const { level, set, ground, spawn } = deepLevel(170, '4-4');
+  level.timeLimit = 300;
+  level.flagX = 162;
+  level.castleX = 166;
+
+  ground(0, 30); ground(35, 74); ground(79, 118); ground(123, 169);
+  const pillar = (tx, h) => { for (let i = 0; i < h; i++) set(tx, 12 - i, T.HARD); };
+  const arc = (a, b, y) => { for (let x = a; x <= b; x++) set(x, y, T.COIN); };
+
+  set(14, 8, T.QM);
+  pillar(22, 5); pillar(23, 5);
+  arc(27, 31, 6);
+
+  pillar(40, 7); pillar(41, 7);
+  set(46, 6, T.QI);
+  arc(52, 56, 9);
+  pillar(62, 4); pillar(63, 4);
+  arc(66, 70, 4);
+
+  set(84, 8, T.QS);
+  pillar(90, 6); pillar(91, 6);
+  arc(96, 101, 7);
+  pillar(108, 8); pillar(109, 8);
+  set(114, 5, T.Q1);
+
+  arc(126, 130, 8);
+  pillar(134, 5); pillar(135, 5);
+  arc(140, 144, 4);
+
+  // the Kraken guards the pole
+  level.spawns.push({ type: 'kraken', x: 150 * TILE, y: 6 * TILE });
+
+  set(162, 12, T.HARD);
+  for (let y = 3; y <= 11; y++) set(162, y, T.POLE);
+  set(162, 2, T.POLE_TOP);
+
+  spawn('squid', 26);
+  spawn('fish', 38); spawn('fish', 50);
+  spawn('squid', 58);
+  spawn('fish', 68); spawn('squid', 88);
+  spawn('fish', 100); spawn('squid', 112);
+  spawn('fish', 128); spawn('squid', 138);
+  level.spawns.sort((a, b) => a.x - b.x);
+
+  for (let x = 8; x < level.width; x += 20) level.decor.bushes.push({ x, w: 1 });
+  return level;
+}
+
 // ------------------------------------------------------------ campaigns ----
 
 export const CAMPAIGNS = {
@@ -798,6 +997,11 @@ export const CAMPAIGNS = {
     title: 'SKY WORLDS',
     levels: [buildS1, buildS2, buildS3, buildS4],
     names: ['3-1', '3-2', '3-3', '3-4'],
+  },
+  deep: {
+    title: 'THE DEEP',
+    levels: [buildD1, buildD2, buildD3, buildD4],
+    names: ['4-1', '4-2', '4-3', '4-4'],
   },
 };
 
@@ -844,6 +1048,7 @@ export function buildFromData(d) {
     playerStart: d.playerStart ? { ...d.playerStart } : { x: 40, y: 176 },
     timeLimit: d.timeLimit || 400,
     friction: d.theme === 'snow' ? 0.35 : 1,
+    water: d.theme === 'water',
     bridge: d.bridge ? { ...d.bridge } : undefined,
   };
   if (level.theme === 'overworld' || level.theme === 'night') {

@@ -402,6 +402,61 @@ const WING = [
   '...BW...',
 ];
 
+const FISH_PAL = { R: '#e84838', W: '#f8f8f8', K: '#181008', O: '#f8a030' };
+const FISH = [
+  '................',
+  '......RRRR......',
+  '...O.RRRRRRR....',
+  '..OO.RRWKRRRR...',
+  '.OOORRRWWRRRRR..',
+  '.OORRRRRRRRRRRR.',
+  '.OOORRRRRRRRRR..',
+  '..OO.RRRRRRRR...',
+  '...O..RRRRRR....',
+  '......RRRR......',
+  '................',
+  '................',
+];
+
+const SQUID_PAL = { W: '#f0f0f8', K: '#181028', B: '#c0c0d8' };
+const SQUID = [
+  '.....WWWWWW.....',
+  '....WWWWWWWW....',
+  '...WWWWWWWWWW...',
+  '...WWKKWWKKWW...',
+  '...WWKKWWKKWW...',
+  '...WWWWWWWWWW...',
+  '....WWWWWWWW....',
+  '...WBWWBWWBWW...',
+  '..WBW.WBW..BW...',
+  '..BW..WB...WB...',
+  '..B...BW....B...',
+  '.WB..WB....WB...',
+  '.B...B......B...',
+  '................',
+];
+
+const KRAKEN_PAL = { P: '#9048c8', L: '#c090e8', W: '#f8f8f8', K: '#181028', Y: '#ffd800' };
+const KRAKEN = [
+  '.......Y..Y..Y..........',
+  '.......YYYYYY...........',
+  '.....PPPPPPPPPP.........',
+  '...PPPPPPPPPPPPPP.......',
+  '..PPPPPPPPPPPPPPPP......',
+  '..PPWWKPPPPPPKWWPP......',
+  '.PPPWWKPPPPPPKWWPPP.....',
+  '.PPPPPPPPPPPPPPPPPP.....',
+  '.PPPPPPPPPPPPPPPPPP.....',
+  '.PPPLPPLPPLPPLPPLPP.....',
+  '..PPLPPLPPLPPLPPLP......',
+  '..PLP.PLP.PLP.PLP.......',
+  '.PLP..PL...PL..PLP......',
+  '.LP..PLP...PLP..LP......',
+  'PLP..LP.....LP..PLP.....',
+  'LP..PL.......PL..LP.....',
+  'P...L.........L...P.....',
+];
+
 const SPRING_PAL = { R: '#e03828', W: '#f8f8f8', K: '#383840', B: '#181008' };
 const SPRING = [
   '....WRRRRRRW....',
@@ -834,6 +889,13 @@ export function initSprites() {
   TILES.snow = buildTileSet('#dce8f4', '#7890b0', '#ffffff');
   TILES.night = TILES.overworld;
   TILES.ghost = buildTileSet('#7858a8', '#382058', '#c8a8e8');
+  TILES.water = buildTileSet('#d8b868', '#8a6828', '#f8e8a8'); // sandy sea floor
+
+  const fish = makeSprite(FISH, FISH_PAL);
+  SPR.fish = { l: fish, r: flipped(fish) }; // authored swimming left
+  SPR.squid = makeSprite(SQUID, SQUID_PAL);
+  const kraken = makeSprite(KRAKEN, KRAKEN_PAL);
+  SPR.kraken = { l: kraken, r: flipped(kraken) };
 
   // lava: two-frame animated surface
   SPR.lava = [0, 1].map(f => makeTile(g => {

@@ -228,28 +228,41 @@ export class Player {
       else this.vx -= Math.sign(this.vx) * decel;
     }
 
-    // ---- jump (with small buffer + coyote time; wings add one air jump) ----
-    if (this.onGround) this.airJumps = this.wings ? 1 : 0;
-    this.coyote = this.onGround ? 5 : Math.max(0, this.coyote - 1);
-    this.jumpBuf = input.pressed('jump') ? 5 : Math.max(0, this.jumpBuf - 1);
-    if (this.jumpBuf > 0 && this.coyote > 0) {
-      this.vy = -(JUMP_V + Math.abs(this.vx) * 0.35);
-      this.coyote = 0;
-      this.jumpBuf = 0;
-      this.size > 0 ? sound.bigJump() : sound.jump();
-    } else if (this.jumpBuf > 0 && this.airJumps > 0 && this.vy > -3) {
-      this.vy = -6;
-      this.airJumps--;
-      this.jumpBuf = 0;
-      sound.jump();
-      game.entities.push(
-        new Puff(this.x - 2, this.y + this.h - 2, -0.8),
-        new Puff(this.x + this.w, this.y + this.h - 2, 0.8));
-    }
+    if (level.water) {
+      // ---- swimming: every jump press is a stroke, gravity is gentle ----
+      this.vx = Math.max(-1.6, Math.min(1.6, this.vx));
+      if (input.pressed('jump')) {
+        this.vy = -3.2;
+        sound.tone('triangle', 300, 500, 0.08, 0.4);
+        if ((game.frame & 1) === 0) {
+          game.entities.push(new Bubble(this.x + this.w / 2, this.y + 2));
+        }
+      }
+      this.vy = Math.min(this.vy + 0.12, 1.8);
+    } else {
+      // ---- jump (with small buffer + coyote time; wings add one air jump) ----
+      if (this.onGround) this.airJumps = this.wings ? 1 : 0;
+      this.coyote = this.onGround ? 5 : Math.max(0, this.coyote - 1);
+      this.jumpBuf = input.pressed('jump') ? 5 : Math.max(0, this.jumpBuf - 1);
+      if (this.jumpBuf > 0 && this.coyote > 0) {
+        this.vy = -(JUMP_V + Math.abs(this.vx) * 0.35);
+        this.coyote = 0;
+        this.jumpBuf = 0;
+        this.size > 0 ? sound.bigJump() : sound.jump();
+      } else if (this.jumpBuf > 0 && this.airJumps > 0 && this.vy > -3) {
+        this.vy = -6;
+        this.airJumps--;
+        this.jumpBuf = 0;
+        sound.jump();
+        game.entities.push(
+          new Puff(this.x - 2, this.y + this.h - 2, -0.8),
+          new Puff(this.x + this.w, this.y + this.h - 2, 0.8));
+      }
 
-    // ---- gravity: hold jump to float higher ----
-    const g = (this.vy < 0 && input.down('jump')) ? GRAV_HOLD : GRAV;
-    this.vy = Math.min(this.vy + g, MAX_FALL);
+      // ---- gravity: hold jump to float higher ----
+      const g = (this.vy < 0 && input.down('jump')) ? GRAV_HOLD : GRAV;
+      this.vy = Math.min(this.vy + g, MAX_FALL);
+    }
 
     moveAndCollide(this, level, (tx, ty) => game.bumpTile(tx, ty, this));
     if (this.hitWall) this.vx = 0;
@@ -826,7 +839,7 @@ export class Fireball {
       if (!(e instanceof Enemy) || e.dead || e.flipTimer > 0) continue;
       if (e.noFire) continue; // ghosts shrug it off
       if (!overlaps(this, e)) continue;
-      if (e instanceof Boss) {
+      if (typeof e.hit === 'function') { // bosses and the kraken take damage
         e.hit(game);
       } else if (e.frozen) {
         e.flip(game, Math.sign(this.vx) || 1, 200); // shatter
@@ -925,6 +938,133 @@ export class Shard { // brick fragments
     g.fillRect(Math.round(this.x - camX), Math.round(this.y), 4, 4);
     g.fillStyle = '#78290c';
     g.fillRect(Math.round(this.x - camX) + 1, Math.round(this.y) + 1, 2, 2);
+  }
+}
+
+export class Fish extends Enemy {
+  // Reef darter: swims left in a lazy sine wave, ignores terrain.
+  constructor(x, y) {
+    super(x, y, 14, 9);
+    this.baseY = y;
+    this.t = Math.floor(x) % 60;
+    this.speed = 0.8 + ((Math.floor(x) % 3) * 0.25);
+  }
+  update(game) {
+    if (!this.baseUpdate(game)) return;
+    this.t++;
+    this.x -= this.speed;
+    this.y = this.baseY + Math.sin(this.t / 26) * 14;
+    if (this.x < game.cam - 48) this.dead = true;
+  }
+  stomp(game) { this.flip(game, -1, 150); sound.stomp(); }
+  draw(g, camX) {
+    if (this.flipTimer > 0) {
+      g.save();
+      g.translate(Math.round(this.x + 7 - camX), Math.round(this.y + 5));
+      g.scale(1, -1);
+      g.drawImage(SPR.fish.l, -8, -6);
+      g.restore();
+      return;
+    }
+    drawEntity(g, SPR.fish.l, this, camX);
+  }
+}
+
+export class Squid extends Enemy {
+  // Jets toward the hero in bursts, drifts between them. No stomping.
+  constructor(x, y) {
+    super(x, y, 13, 15);
+    this.spiky = true; // touching hurts; kill with fire/ice/star
+    this.jetT = 30 + (Math.floor(x) % 40);
+    this.t = 0;
+  }
+  update(game) {
+    if (!this.baseUpdate(game)) return;
+    this.t++;
+    const p = game.player;
+    if (--this.jetT <= 0) {
+      const dx = p.x - this.x, dy = p.y - this.y;
+      const d = Math.hypot(dx, dy) || 1;
+      this.vx = (dx / d) * 1.9;
+      this.vy = (dy / d) * 1.9;
+      this.jetT = 65;
+    }
+    this.vx *= 0.96;
+    this.vy = this.vy * 0.96 + 0.03; // slow sink between jets
+    this.x += this.vx;
+    this.y = Math.max(12, Math.min((ROWS - 2) * TILE, this.y + this.vy));
+  }
+  draw(g, camX) {
+    if (this.flipTimer > 0) {
+      g.save();
+      g.translate(Math.round(this.x + 7 - camX), Math.round(this.y + 8));
+      g.scale(1, -1);
+      g.drawImage(SPR.squid, -8, -8);
+      g.restore();
+      return;
+    }
+    drawEntity(g, SPR.squid, this, camX);
+  }
+}
+
+export class Kraken extends Enemy {
+  // Crowned terror of the abyss: fast jets, takes 10 hits.
+  constructor(x, y) {
+    super(x, y, 22, 15);
+    this.spiky = true;
+    this.hp = 10;
+    this.jetT = 40;
+    this.homeX = x;
+  }
+  update(game) {
+    if (!this.baseUpdate(game)) return;
+    const p = game.player;
+    if (--this.jetT <= 0) {
+      const dx = (p.x + (Math.random() < 0.3 ? 40 : 0)) - this.x;
+      const dy = p.y - this.y;
+      const d = Math.hypot(dx, dy) || 1;
+      this.vx = (dx / d) * 2.6;
+      this.vy = (dy / d) * 2.6;
+      this.jetT = 45;
+    }
+    this.vx *= 0.97;
+    this.vy = this.vy * 0.97 + 0.02;
+    this.x = Math.max(this.homeX - 120, Math.min(this.homeX + 80, this.x + this.vx));
+    this.y = Math.max(12, Math.min((ROWS - 2) * TILE, this.y + this.vy));
+  }
+  hit(game) {
+    if (--this.hp <= 0) this.flip(game, 1, 5000);
+    else game.addScore(200, this.x, this.y);
+  }
+  draw(g, camX) {
+    if (this.flipTimer > 0) {
+      g.save();
+      g.translate(Math.round(this.x + 11 - camX), Math.round(this.y + 8));
+      g.scale(1, -1);
+      g.drawImage(SPR.kraken.l, -12, -9);
+      g.restore();
+      return;
+    }
+    const img = game_facing(this) ? SPR.kraken.r : SPR.kraken.l;
+    drawEntity(g, img, this, camX);
+  }
+}
+function game_facing(e) { return e.vx > 0.2; }
+
+export class Bubble {
+  constructor(x, y) {
+    this.x = x; this.y = y;
+    this.t = 0;
+    this.dead = false;
+  }
+  update() {
+    this.y -= 0.6;
+    this.x += Math.sin(this.t / 8) * 0.3;
+    if (++this.t > 70 || this.y < 4) this.dead = true;
+  }
+  draw(g, camX) {
+    g.strokeStyle = 'rgba(220,240,255,0.7)';
+    g.strokeRect(Math.round(this.x - camX), Math.round(this.y), 2, 2);
   }
 }
 

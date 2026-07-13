@@ -20,7 +20,7 @@ const ed = {
   erasing: false,
 };
 
-const THEMES = ['overworld', 'night', 'underground', 'ghost', 'snow', 'castle'];
+const THEMES = ['overworld', 'night', 'underground', 'ghost', 'snow', 'castle', 'water'];
 
 const TILE_TOOLS = {
   ground: T.GROUND, brick: T.BRICK, hard: T.HARD,
@@ -28,7 +28,7 @@ const TILE_TOOLS = {
   'q wings': T.QW, 'q ice': T.QI,
   coin: T.COIN, lava: T.LAVA,
 };
-const SPAWN_TOOLS = ['goomba', 'fastgoomba', 'spiny', 'koopa', 'koopared', 'hopper', 'ghost'];
+const SPAWN_TOOLS = ['goomba', 'fastgoomba', 'spiny', 'koopa', 'koopared', 'hopper', 'ghost', 'fish', 'squid'];
 const OTHER_TOOLS = [
   'pipe 2', 'pipe 3', 'pipe 4', 'piranha', 'firebar', 'spring',
   'plat h', 'plat v', 'boss arena', 'pole', 'start', 'erase',
@@ -182,7 +182,9 @@ function applyTool(tx, ty, erase) {
     ed.startX = tx;
   } else if (SPAWN_TOOLS.includes(tool)) {
     ed.spawns = ed.spawns.filter(s => !(s.type === tool && Math.floor(s.x / TILE) === tx));
-    ed.spawns.push({ type: tool, x: tx * TILE, y: 0 });
+    // swimmers keep the clicked height; walkers drop to the floor
+    const swims = tool === 'fish' || tool === 'squid';
+    ed.spawns.push({ type: tool, x: tx * TILE, y: swims ? ty * TILE : 0 });
   }
   syncPreview();
 }
@@ -413,6 +415,11 @@ export const editor = {
       }
       if (s.type === 'boss2' || s.type === 'boss') {
         g.drawImage(SPR.boss.l, Math.round(s.x - ed.cam), 13 * TILE - 20 - 16);
+        continue;
+      }
+      if (s.type === 'fish' || s.type === 'squid') {
+        g.drawImage(s.type === 'fish' ? SPR.fish.l : SPR.squid,
+          Math.round(s.x - ed.cam), Math.round(s.y || 7 * TILE));
         continue;
       }
       const img =

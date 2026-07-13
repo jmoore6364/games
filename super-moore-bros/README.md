@@ -35,6 +35,11 @@ npm start          # serves at http://localhost:8123
   3-3 frozen depths (slippery cave, spinies + ghosts + lava slots),
   3-4 Snapjaw's Revenge (fire bar gauntlet ending with **two bosses on
   one bridge**)
+- **The Deep** — world 4, fully underwater: tap jump to swim, no stomping
+  down there. 4-1 sunlit shallows, 4-2 the kelp weave (thread over and
+  under walls), 4-3 sunken ruins (cursed flames), 4-4 the abyss — where
+  the **crowned Kraken** guards the flagpole. Its own water waltz
+  soundtrack, swaying kelp, and rising bubbles.
 - **Level Builder** — paint tiles, blocks, pipes, hazards, springs, moving
   platforms, and every enemy onto a canvas; stamp a complete **boss arena**
   (lava moat + bridge + axe + boss) with one click; pick a theme (incl.

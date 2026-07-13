@@ -29,9 +29,23 @@ const MELODY_CAVE = [
 ];
 const BASS_CAVE = [45, 45, 45, 45, 43, 43, 45, 45, 41, 41, 43, 43, 40, 40, 45, 45];
 
+// Original water waltz: slow, gentle, triangle lead.
+const MELODY_WATER = [
+  60, 0, 64, 67, 0, 64, 60, 0,
+  62, 0, 65, 69, 0, 65, 62, 0,
+  64, 0, 67, 71, 0, 67, 64, 0,
+  65, 64, 62, 0, 60, 0, 0, 0,
+  60, 0, 64, 67, 0, 72, 67, 0,
+  69, 0, 65, 62, 0, 65, 69, 0,
+  67, 0, 64, 60, 0, 64, 67, 0,
+  62, 0, 60, 0, 0, 0, 0, 0,
+];
+const BASS_WATER = [36, 36, 38, 38, 40, 40, 41, 43, 36, 36, 41, 41, 40, 40, 36, 36];
+
 const TRACKS = [
-  { melody: MELODY, bass: BASS, stepDur: 0.135 },
-  { melody: MELODY_CAVE, bass: BASS_CAVE, stepDur: 0.165 },
+  { melody: MELODY, bass: BASS, stepDur: 0.135, lead: 'square' },
+  { melody: MELODY_CAVE, bass: BASS_CAVE, stepDur: 0.165, lead: 'square' },
+  { melody: MELODY_WATER, bass: BASS_WATER, stepDur: 0.19, lead: 'triangle' },
 ];
 
 class Sound {
@@ -138,12 +152,12 @@ class Sound {
   // Called every frame: schedules music notes just ahead of playback.
   update() {
     if (!this.ctx || !this.musicOn) return;
-    const { melody, bass, stepDur } = TRACKS[this.track || 0];
+    const { melody, bass, stepDur, lead } = TRACKS[this.track || 0];
     while (this.nextTime < this.ctx.currentTime + 0.15) {
       const i = this.step % melody.length;
       const m = melody[i];
       const when = this.nextTime - this.ctx.currentTime;
-      if (m) this.tone('square', midi(m), midi(m), stepDur * 0.9, 0.35, when, this.musicGain);
+      if (m) this.tone(lead || 'square', midi(m), midi(m), stepDur * 0.9, lead === 'triangle' ? 0.7 : 0.35, when, this.musicGain);
       if (i % 4 === 0) {
         const b = bass[(i / 4) % bass.length];
         this.tone('triangle', midi(b), midi(b), stepDur * 3.2, 0.8, when, this.musicGain);
