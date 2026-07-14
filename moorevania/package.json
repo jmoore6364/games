@@ -1,0 +1,9 @@
+{
+  "name": "moorevania",
+  "version": "0.1.0",
+  "description": "Moorevania II: Jason's Quest — a Simon's Quest style action-adventure, vanilla JS + canvas",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
