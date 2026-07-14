@@ -86,6 +86,11 @@ ropes, trap bricks, gold, guards, the start position, and the exit — the EXIT
 tool stamps the whole hidden-ladder column up to the top for you, and
 right-click (or the ERASE tool) clears cells.
 
+**FILL ALL** floods the whole board with the selected tile (fill with brick,
+then carve). **BOX** mode turns drags into rectangle fills with a live
+preview — right-click-drag erases a rectangle. **UNDO** steps back through
+strokes, fills, NEW, LOAD, and PASTE (60 levels deep).
+
 The builder runs the **same solvability analysis as `npm test` live while you
 paint**: the status bar tells you what's missing, and any gold the runner
 provably can't reach (walking, climbing, falling, and digging included) gets

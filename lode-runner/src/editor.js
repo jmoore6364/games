@@ -17,11 +17,14 @@ const TOOLS = [
 const ed = {
   rows: null,      // ROWS x COLS array of char arrays
   tool: '#',
+  mode: 'paint',   // 'paint' (drag paints cells) | 'box' (drag fills a rectangle)
   painting: false,
   erasing: false,
   hover: null,
+  boxA: null, boxB: null, // rectangle-fill drag corners
   msg: '', msgT: 0,
   analysis: null,
+  undo: [],
   openedAt: 0,     // guards against the opening tap ghost-clicking the new UI
 };
 
@@ -40,6 +43,32 @@ const set = (x, y, c) => { if (x >= 0 && x < COLS && y >= 0 && y < ROWS) ed.rows
 export function rowsAsStrings() { return ed.rows.map(r => r.join('')); }
 
 function reanalyze() { ed.analysis = analyze(rowsAsStrings()); }
+
+function pushUndo() {
+  if (!ed.rows) return;
+  ed.undo.push(rowsAsStrings());
+  if (ed.undo.length > 60) ed.undo.shift();
+}
+
+function popUndo() {
+  const s = ed.undo.pop();
+  if (!s) { flash('NOTHING TO UNDO'); return; }
+  ed.rows = s.map(r => [...r]);
+  reanalyze();
+  flash('UNDONE');
+}
+
+// rectangle fill; used by box-drag and FILL ALL. 'P' is a single tile only.
+function fillRect(x0, y0, x1, y1, tool) {
+  if (tool === 'P') { flash('START IS A SINGLE TILE'); return; }
+  pushUndo();
+  for (let y = Math.max(0, Math.min(y0, y1)); y <= Math.min(ROWS - 1, Math.max(y0, y1)); y++) {
+    for (let x = Math.max(0, Math.min(x0, x1)); x <= Math.min(COLS - 1, Math.max(x0, x1)); x++) {
+      set(x, y, tool);
+    }
+  }
+  reanalyze();
+}
 
 function applyTool(x, y, erase) {
   if (x < 0 || x >= COLS || y < 0 || y >= ROWS) return;
@@ -128,6 +157,20 @@ function buildToolbar() {
   name.spellcheck = false;
   actions.appendChild(name);
 
+  const boxBtn = btn('BOX: OFF', () => {
+    ed.mode = ed.mode === 'box' ? 'paint' : 'box';
+    boxBtn.textContent = ed.mode === 'box' ? 'BOX: ON' : 'BOX: OFF';
+    boxBtn.classList.toggle('sel', ed.mode === 'box');
+    flash(ed.mode === 'box' ? 'DRAG A RECTANGLE TO FILL IT' : 'PAINT MODE');
+  });
+  actions.appendChild(boxBtn);
+  actions.appendChild(btn('FILL ALL', () => {
+    if (ed.tool === 'P') { flash('START IS A SINGLE TILE'); return; }
+    fillRect(0, 0, COLS - 1, ROWS - 1, ed.tool);
+    flash('FILLED - UNDO TO REVERT');
+  }));
+  actions.appendChild(btn('UNDO', popUndo));
+
   actions.appendChild(btn('▶ TEST', () => {
     if (ed.analysis.problems.some(p => p.startsWith('NO START') || p.startsWith('MORE THAN'))) {
       flash('PLACE EXACTLY ONE START (P) FIRST');
@@ -149,7 +192,7 @@ function buildToolbar() {
   load.id = 'led-load';
   load.addEventListener('change', () => {
     const found = customLevels().find(l => l.name === load.value);
-    if (found) { fromJSON(found); flash('LOADED ' + found.name); }
+    if (found) { pushUndo(); fromJSON(found); flash('LOADED ' + found.name); }
     load.selectedIndex = 0;
   });
   actions.appendChild(load);
@@ -170,7 +213,7 @@ function buildToolbar() {
   actions.appendChild(btn('PASTE', () => {
     document.getElementById('led-import').style.display = 'flex';
   }));
-  actions.appendChild(btn('NEW', () => { blank(); flash('FRESH LEVEL'); }));
+  actions.appendChild(btn('NEW', () => { pushUndo(); blank(); flash('FRESH LEVEL'); }));
   actions.appendChild(btn('CLOSE', () => { hide(); ctx.onExit(); }, 'warn'));
   bar.appendChild(actions);
 
@@ -184,7 +227,9 @@ function buildToolbar() {
   const bwrap = modal.querySelector('div div');
   bwrap.appendChild(btn('IMPORT', () => {
     try {
-      fromJSON(JSON.parse(modal.querySelector('textarea').value));
+      const d = JSON.parse(modal.querySelector('textarea').value);
+      pushUndo();
+      fromJSON(d);
       modal.style.display = 'none';
       flash('IMPORTED');
     } catch { flash('BAD LEVEL JSON'); }
@@ -192,23 +237,39 @@ function buildToolbar() {
   bwrap.appendChild(btn('CANCEL', () => { modal.style.display = 'none'; }));
   document.body.appendChild(modal);
 
-  // canvas painting
+  // canvas painting / box-fill drags
   ctx.canvas.addEventListener('pointerdown', ev => {
     if (!ctx.isEditing()) return;
     if (performance.now() - ed.openedAt < 300) return; // the tap that opened us
     ev.preventDefault();
-    ed.painting = true;
     ed.erasing = ev.button === 2;
     const { tx, ty } = canvasPos(ev);
-    applyTool(tx, ty, ed.erasing);
+    if (ty < 0 || ty >= ROWS || tx < 0 || tx >= COLS) return;
+    ed.painting = true;
+    if (ed.mode === 'box') {
+      ed.boxA = { tx, ty };
+      ed.boxB = { tx, ty };
+    } else {
+      pushUndo();
+      applyTool(tx, ty, ed.erasing);
+    }
   });
   ctx.canvas.addEventListener('pointermove', ev => {
     if (!ctx.isEditing()) return;
     const { tx, ty } = canvasPos(ev);
     ed.hover = { tx, ty };
-    if (ed.painting) applyTool(tx, ty, ed.erasing);
+    if (!ed.painting) return;
+    if (ed.mode === 'box') {
+      if (ed.boxA) ed.boxB = { tx: Math.max(0, Math.min(COLS - 1, tx)), ty: Math.max(0, Math.min(ROWS - 1, ty)) };
+    } else applyTool(tx, ty, ed.erasing);
   });
-  window.addEventListener('pointerup', () => { ed.painting = false; });
+  window.addEventListener('pointerup', () => {
+    if (ed.painting && ed.mode === 'box' && ed.boxA && ed.boxB) {
+      fillRect(ed.boxA.tx, ed.boxA.ty, ed.boxB.tx, ed.boxB.ty, ed.erasing ? ' ' : ed.tool);
+    }
+    ed.boxA = ed.boxB = null;
+    ed.painting = false;
+  });
   ctx.canvas.addEventListener('pointerleave', () => { ed.hover = null; });
   ctx.canvas.addEventListener('contextmenu', ev => {
     if (ctx.isEditing()) ev.preventDefault();
@@ -292,6 +353,19 @@ export const editor = {
       g.strokeStyle = '#f8d848';
       g.lineWidth = 1;
       g.strokeRect(ed.hover.tx * TILE + 0.5, ed.hover.ty * TILE + 0.5, TILE - 1, TILE - 1);
+    }
+
+    // box-fill drag preview
+    if (ed.boxA && ed.boxB) {
+      const bx = Math.min(ed.boxA.tx, ed.boxB.tx) * TILE;
+      const by = Math.min(ed.boxA.ty, ed.boxB.ty) * TILE;
+      const bw = (Math.abs(ed.boxB.tx - ed.boxA.tx) + 1) * TILE;
+      const bh = (Math.abs(ed.boxB.ty - ed.boxA.ty) + 1) * TILE;
+      g.fillStyle = ed.erasing ? 'rgba(255,80,80,0.22)' : 'rgba(248,216,72,0.22)';
+      g.fillRect(bx, by, bw, bh);
+      g.strokeStyle = ed.erasing ? '#ff5050' : '#f8d848';
+      g.lineWidth = 2;
+      g.strokeRect(bx + 1, by + 1, bw - 2, bh - 2);
     }
 
     // status bar
