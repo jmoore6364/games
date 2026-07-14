@@ -244,6 +244,10 @@ function update(dt) {
 
   if (state === 'pause') {
     if (start) setState('play', 0);
+    else if (digL || digR) { // bail out: playtest -> editor, game -> title
+      if (playMode === 'test') enterEditor();
+      else { game = null; banked = 0; setState('title', 0); }
+    }
     return;
   }
 
@@ -440,7 +444,9 @@ function frame(ts) {
     } else if (state === 'pause') {
       overlayBox();
       text('PAUSED', cv.width / 2, 190, 30, '#f8d848', 'center');
-      text('ENTER TO RESUME', cv.width / 2, 220, 14, '#99a', 'center');
+      text('ENTER / START TO RESUME', cv.width / 2, 220, 14, '#99a', 'center');
+      text(playMode === 'test' ? 'DIG BUTTON: BACK TO EDITOR' : 'DIG BUTTON: QUIT TO TITLE',
+        cv.width / 2, 242, 14, '#99a', 'center');
     } else if (state === 'next') {
       overlayBox();
       text('LEVEL CLEAR!', cv.width / 2, 180, 30, '#58f898', 'center');

@@ -1,7 +1,7 @@
 // Offline support: precache the whole game (it is tiny and has no external
 // assets), serve cache-first, and refresh entries in the background so a new
 // deploy is picked up on the next visit.
-const CACHE = 'lode-runner-v5';
+const CACHE = 'lode-runner-v6';
 const ASSETS = [
   './',
   'index.html',
