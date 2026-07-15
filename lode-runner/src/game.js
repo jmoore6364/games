@@ -46,6 +46,9 @@ export class Game {
       else if (c === 'G') this.guards.push(makeEnt('guard', x, y));
     }));
     this.goldTotal = this.gold.size;
+    // a level with no gold to collect starts with its exit already open
+    // (the reveal check otherwise only runs when gold changes hands)
+    if (this.goldTotal === 0) this.revealed = true;
   }
 
   // ---- board queries ----

@@ -79,8 +79,10 @@ function applyTool(x, y, erase) {
     }
     set(x, y, 'P');
   } else if (tool === 'X') {
-    // the exit must reach the top: stamp the column upward through open air
-    let yy = y;
+    // the exit must reach the top: land the clicked cell no matter what,
+    // then stamp the column upward through open air
+    set(x, y, 'X');
+    let yy = y - 1;
     for (; yy >= 0; yy--) {
       const c = get(x, yy);
       if (c === ' ' || c === 'X' || c === '$') set(x, yy, 'X');
@@ -300,7 +302,9 @@ function drawCell(g, x, y) {
   else if (c === 'H') drawLadder(g, px, py, false);
   else if (c === '-') drawRope(g, px, py);
   else if (c === 'X') {
-    g.globalAlpha = 0.55;
+    g.fillStyle = 'rgba(248, 208, 96, 0.16)'; // glow so it reads on small screens
+    g.fillRect(px, py, TILE, TILE);
+    g.globalAlpha = 0.85;
     drawLadder(g, px, py, true);
     g.globalAlpha = 1;
   } else if (c === '$') g.drawImage(sprites.gold, px, py);
