@@ -92,6 +92,15 @@ function levelNoGuard() {
   assert(ev && g.deathCause === 'sealed', 'hole seals over the player and kills him');
 }
 
+// --- scenario 3b: a level with no gold starts with its exit already open ---
+{
+  const g = new Game({ name: 'TEST', rows: TEST_LEVEL.rows.map(r => r.replace('G', ' ').replace('$', ' ')) });
+  assert(g.revealed && g.at(0, 5) === 'H', 'zero-gold level starts revealed');
+  const ev = runUntil(g, gg => gg.status === 'won', 20,
+    gg => (gg.player.cx > 0 ? { ...IDLE, dx: -1 } : { ...IDLE, dy: -1 }));
+  assert(ev && ev.includes('win'), 'zero-gold level is winnable immediately');
+}
+
 // --- scenario 4: collect all gold -> ladder reveals -> climb out the top -> won ---
 {
   const g = new Game(levelNoGuard());
