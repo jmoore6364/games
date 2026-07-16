@@ -1,0 +1,9 @@
+{
+  "name": "mooretroid",
+  "version": "0.1.0",
+  "description": "Mooretroid — an NES Metroid style exploration shooter, vanilla JS + canvas",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
