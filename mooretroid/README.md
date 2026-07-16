@@ -30,14 +30,19 @@ Or serve the folder with any static file server.
 
 ## The mission
 
-- **Five areas**: the Blue Caverns, the Molten Vein, Gorluk's Den, Skyrax's
-  Roost, and the Hive — 26 rooms of shafts, corridors, and lava.
+- **Six areas**: the Blue Caverns, the Crystal Hollows, the Molten Vein,
+  Gorluk's Den, Skyrax's Roost, and the Hive — 31 rooms of shafts,
+  corridors, and lava.
 - **Powerups**: Morph Ball, Missiles, Bombs, Long Beam, Ice Beam, Hi-Jump
-  Boots, Varia Suit, 4 Energy Tanks, 7 missile packs.
+  Boots, Varia Suit, Screw Attack, 5 Energy Tanks, 9 missile packs.
 - **Doors**: blue doors open to any shot; red doors demand a missile; the Hive
   gate opens only when both titans have fallen.
-- **Phazoids** are immune to beams — freeze them with the Ice Beam and finish
-  them with missiles. If one latches on, shake it off (mash jump) or bomb it.
+- **Ice Beam** shots deal normal damage and freeze anything that survives the
+  hit. Phazoids are immune to beam damage — freeze them and finish with
+  missiles. If one latches on, shake it off (mash jump) or bomb it.
+- **The Crystal Hollows** are optional: a red door low on the left side of the
+  great shaft hides an elevator to the Screw Attack — somersault through
+  enemies like they aren't there.
 - Destroy the Overmind and you have 2:30 to reach the surface before the
   planet comes down. Your gunship is waiting.
 
