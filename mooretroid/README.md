@@ -40,8 +40,8 @@ Or serve the folder with any static file server.
 - **Ice Beam** shots deal normal damage and freeze anything that survives the
   hit. Phazoids are immune to beam damage — freeze them and finish with
   missiles. If one latches on, shake it off (mash jump) or bomb it.
-- **The Crystal Hollows** are optional: a red door low on the left side of the
-  great shaft hides an elevator to the Screw Attack — somersault through
+- **The Crystal Hollows** are optional: the upper red door on the left side of
+  the great shaft hides an elevator to the Screw Attack — somersault through
   enemies like they aren't there.
 - Destroy the Overmind and you have 2:30 to reach the surface before the
   planet comes down. Your gunship is waiting.
