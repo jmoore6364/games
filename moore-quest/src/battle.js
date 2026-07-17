@@ -25,6 +25,7 @@ const BG = {
   swamp: ['#607048', '#75855c'],
   cave: ['#484048', '#5c545c'],
   ash: ['#787068', '#8a8278'],
+  sand: ['#d8c088', '#e8d8a0'],
   boss: ['#382838', '#4a3a4a'],
 };
 
@@ -388,10 +389,11 @@ export class Battle {
       if (!targets.length) return;
       const tgt = targets[rnd(targets.length)];
       if (a.cast && Math.random() < a.cast.chance) {
-        g.sound.fire();
+        a.cast.kind === 'storm' ? g.sound.storm() : g.sound.fire();
         const dmg = Math.max(1, a.cast.pow + a.atk - eDef(tgt) + rnd(6) - 3);
         this.hitHero(tgt, dmg);
-        this.say(`${this.foeName(a)} BREATHES DARK FIRE AT ${tgt.name}!`);
+        const verb = a.cast.kind === 'storm' ? 'CALLS THE STORM DOWN ON' : 'BREATHES DARK FIRE AT';
+        this.say(`${this.foeName(a)} ${verb} ${tgt.name}!`);
       } else {
         const { dmg, crit } = this.physDamage(a.atk, eDef(tgt));
         this.hitHero(tgt, dmg);

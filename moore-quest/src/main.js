@@ -6,7 +6,7 @@ import { initSprites, drawSprite, drawWalker, drawTile, drawWindow, SPR } from '
 import {
   TILE, W_W, W_H, WORLD, MAPS, TOWN_AT, CAVE_AT, walkable, BUMPS, START_POS,
   ITEMS, GEAR, SHOPS, PARTY_DEFS, SKILLS, ENEMIES, ZONES, TERRAIN_RATE,
-  STORY, ENDING, xpForLevel, validateWorld,
+  DOCKS, WORLD_BOSSES, STORY, ENDING, xpForLevel, validateWorld,
 } from './world.js';
 import { Battle, eAtk, eDef, knownSkills } from './battle.js';
 
@@ -345,6 +345,20 @@ class Game {
           this.loadMap(dung.id, entry[0], entry[1], 'down');
           return;
         }
+        // ferry docks
+        if (ch === 'D' && DOCKS[key]) {
+          const [dx, dy] = DOCKS[key];
+          this.sound.stairs();
+          this.loadMap('world', dx, dy, 'down');
+          this.showBanner('THE FERRY CROSSES THE BAY');
+          return;
+        }
+        // bosses that walk the open world
+        const wboss = WORLD_BOSSES[key];
+        if (wboss && !this.save.flags[wboss.flag]) {
+          this.say([wboss.text], () => this.startBattle(wboss.group, { boss: true, flag: wboss.flag }));
+          return;
+        }
       } else if (m.kind === 'dungeon') {
         const link = m.links[`${p.x},${p.y}`];
         if (link) {
@@ -458,8 +472,9 @@ class Game {
       if (!zone) return;
       rate = zone.rate * (TERRAIN_RATE[ch] || 1);
       groups = zone.groups;
-      bg = ch === 'S' ? 'swamp' : (ch === 'a' || ch === 'A' || ch === 'p' && this.player.y < 15) ? 'ash' : 'field';
+      bg = ch === 'S' ? 'swamp' : 'field';
       if (this.player.y < 15) bg = 'ash';
+      if (this.player.y >= 61 && this.player.x >= 39) bg = 'sand';
     } else if (m.kind === 'dungeon' && m.encounters) {
       rate = m.encounters.rate;
       groups = m.encounters.groups;
@@ -621,6 +636,37 @@ class Game {
             'LYRA: HALF THE VILLAGE BURNS', 'WITH MARSH FEVER. A MOONBLOOM',
             'FROM THE MIRE CAVE WOULD', 'CURE THEM -- BUT THE MIRE', 'MAW GUARDS THE DEEP POOLS.',
           ]);
+        }
+        return;
+      case 'hunter':
+        if (f.stagDone) {
+          this.say(['HUNTER: WEAR THE COAT WELL.', 'THERE WILL NOT BE ANOTHER', 'BEAST LIKE THAT ONE.']);
+        } else if (f.k_stag) {
+          this.say(['HUNTER: BY THE OLD OAKS...', 'YOU TOOK THE PALE STAG.', 'ITS HIDE IS YOURS BY RIGHT --', 'I ONLY ASK TO SEW IT.'], () => {
+            f.stagDone = true;
+            this.save.gold = Math.min(99999, this.save.gold + 200);
+            this.sound.itemGet();
+            this.giveGear('staghide');
+            this.writeSave();
+          });
+        } else {
+          this.say(['HUNTER: SOMETHING WALKS THE', 'EASTERN GLADE THAT NO ARROW', 'TOUCHES. A STAG, PALE AS', 'BONE, OLD AS THE WOOD.', 'FELL IT, AND I WILL MAKE', 'YOU A COAT OF LEGENDS.']);
+        }
+        return;
+      case 'caravan':
+        if (f.cargoDone) {
+          this.say(['CARAVAN MASTER: TRADE FLOWS', 'AGAIN, THANKS TO YOU.']);
+        } else if (this.save.inv.cargo) {
+          this.say(['CARAVAN MASTER: MY STRONGBOX!', 'SEAL UNBROKEN AND ALL.', 'YOU ARE WORTH TEN GUARDS.'], () => {
+            delete this.save.inv.cargo;
+            f.cargoDone = true;
+            this.save.gold = Math.min(99999, this.save.gold + 300);
+            this.save.inv.ether = Math.min(9, (this.save.inv.ether || 0) + 2);
+            this.sound.itemGet();
+            this.say(['RECEIVED 300 GOLD', 'AND 2 ETHERS!'], () => this.writeSave());
+          });
+        } else {
+          this.say(['CARAVAN MASTER: THE HUSK\'S', 'CREATURES DRAGGED MY STRONG-', 'BOX INTO THE SEPULCHER EAST', 'OF TOWN. RETURN IT SEALED', 'AND I WILL PAY HANDSOMELY.']);
         }
         return;
       case 'fisher':
@@ -932,33 +978,33 @@ class Game {
       '.': '#58a838', f: '#186010', h: '#3f8828', m: '#8a7a5a', w: '#2858d8',
       s: '#e8d8a0', S: '#607048', p: '#c8a058', b: '#a87840', B: '#a87840',
       a: '#787068', A: '#383028', T: '#f84020', C: '#101010', W: '#f88018',
-      G: '#f8d838', M: '#c8d2e6',
+      G: '#f8d838', M: '#c8d2e6', d: '#d8c088', u: '#30a020', D: '#a87840',
     };
-    const ox = 32, oy = 106;
+    const ox = 48, oy = 118;
     for (let y = 0; y < W_H; y++) {
       for (let x = 0; x < W_W; x++) {
         ctx.fillStyle = COLORS[WORLD[y][x]] || '#000';
-        ctx.fillRect(ox + x * 2, oy + y * 2, 2, 2);
+        ctx.fillRect(ox + x, oy + y, 1, 1);
       }
     }
     const lw = this.save.lastWorld || { x: START_POS.x, y: START_POS.y };
     if (this.frame & 16) {
       ctx.fillStyle = '#fff';
-      ctx.fillRect(ox + lw.x * 2 - 1, oy + lw.y * 2 - 1, 4, 4);
+      ctx.fillRect(ox + lw.x - 1, oy + lw.y - 1, 3, 3);
     }
-    text(ctx, 'MOORULE', 128, 228, '#f8d838', 8, 'center');
+    text(ctx, 'MOORULE', 128, 104, '#f8d838', 8, 'center');
   }
 
   drawBestiary() {
     const ids = Object.keys(ENEMIES);
     const seen = this.save.seen || {};
     const count = ids.filter((id) => seen[id]).length;
-    drawWindow(ctx, 22, 96, 212, 142);
+    drawWindow(ctx, 12, 96, 232, 142);
     text(ctx, `BESTIARY  ${count}/${ids.length}`, 128, 104, '#f8d838', 8, 'center');
     ids.forEach((id, i) => {
       const col = (i / 10) | 0, row = i % 10;
       const name = seen[id] ? ENEMIES[id].name : '???';
-      text(ctx, name, 36 + col * 100, 118 + row * 11, seen[id] ? (ENEMIES[id].boss ? '#f8a800' : '#fff') : '#556');
+      text(ctx, name, 22 + col * 76, 118 + row * 11, seen[id] ? (ENEMIES[id].boss ? '#f8a800' : '#fff') : '#556', 7);
     });
   }
 
