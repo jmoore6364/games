@@ -16,22 +16,26 @@ npm test           # course geometry + sprite reference sanity checks
 
 ## How to play
 
-Pick one of three courses — **Pacific Coast**, **Route 66**, or
-**Moore City Nights** — and beat 7 rivals across 2 laps before the clock
-runs out. Checkpoints and the lap line add time. Watch for oncoming
-traffic in the left lanes: a head-on hit at speed sends you into the
-signature Cruis'n barrel-roll wipeout, and so does clipping a palm tree,
-cactus, or building while off-road. Rear-ending same-direction traffic
-just costs you speed. Your best finish time per course is saved locally.
+Pick a course — **Pacific Coast**, **Route 66**, **Rocky Summit**, or
+**Moore City Nights** — or take on the **Moore Tour**, a points
+championship across all four. Then pick your ride: the balanced
+**Roadster**, the fast-but-slippery **La Bomba**, or the grippy
+**Moore Wagon**. Beat 7 rivals across 2 laps before the clock runs out;
+checkpoints and the lap line add time. Watch for oncoming traffic in the
+left lanes: a head-on hit at speed sends you into the signature Cruis'n
+barrel-roll wipeout, and so does clipping a palm tree, cactus, or
+building while off-road. Rear-ending same-direction traffic just costs
+you speed. Your best finish time per course is saved locally.
 
 ## Controls
 
 | Key | Action |
 |-----|--------|
-| ← → / A D | Steer (also switches course on the title screen) |
+| ← → / A D | Steer (also navigates menus) |
 | ↑ / W | Gas |
 | ↓ / S | Brake |
-| Enter | Start / continue |
+| Enter | Start / continue (or tap GAS on touch) |
+| R | Restart race |
 | M | Mute |
 
 Gamepad (standard mapping: stick/dpad to steer, A or right trigger for gas,
@@ -46,5 +50,6 @@ elevation, projected every frame from the camera with 1/z scaling
 drift while rendering — the same trick the arcade originals used. Rivals
 rubber-band toward the player to keep races close, steer around traffic,
 and race the same two laps you do; your standing is computed from actual
-distance along the track. Course layouts live in `src/track.js` (pure
-data, node-testable), art in `src/sprites.js`, audio in `src/audio.js`.
+distance along the track. In tour mode the same seven rivals carry points
+from race to race. Course layouts live in `src/track.js` (pure data,
+node-testable), art in `src/sprites.js`, audio in `src/audio.js`.

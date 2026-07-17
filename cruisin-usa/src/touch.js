@@ -19,7 +19,7 @@ export function setupTouch(input) {
   const set = (act, on) => {
     input.touch[act] = on;
     if (on && (act === 'left' || act === 'right')) input.pressed[act] = true;
-    if (on) input.pressed.start = true; // any tap advances menus
+    if (on && (act === 'accel' || act === 'brake')) input.pressed.start = true; // gas/brake taps confirm menus
   };
 
   for (const btn of wrap.querySelectorAll('.tc-btn')) {

@@ -26,6 +26,14 @@ const CAR_LENGTH = SEGMENT_LENGTH * 1.1;
 
 const RIVAL_NAMES = ['BLAZE', 'TEX', 'VINNY', 'PEACH', 'GHOST', 'DIESEL', 'SURGE'];
 
+// selectable rides: top speed / acceleration / steering multipliers
+const CARS = [
+  { name: 'ROADSTER',    tag: 'ALL-AROUNDER',   top: 1.0,  accel: 1.0,  steer: 1.0,  pips: [4, 3, 3] },
+  { name: 'LA BOMBA',    tag: 'PURE TOP SPEED', top: 1.05, accel: 0.85, steer: 0.85, pips: [5, 2, 2] },
+  { name: 'MOORE WAGON', tag: 'LAUNCH + GRIP',  top: 0.94, accel: 1.2,  steer: 1.2,  pips: [3, 4, 5] },
+];
+const TOUR_POINTS = [10, 8, 7, 6, 5, 4, 3, 2];
+
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 function wrap(z, len) { return ((z % len) + len) % len; }
 function overlap(x1, w1, x2, w2) { return Math.abs(x1 - x2) < (w1 + w2) / 2; }
@@ -40,6 +48,13 @@ export class Game {
     this.sound = sound;
     this.courses = buildCourses();
     this.courseIndex = 0;
+    this.menuIndex = 0;      // title carousel: courses..., then MOORE TOUR
+    this.carIndex = 0;
+    this.stats = CARS[0];
+    this.mode = 'single';    // 'single' | 'tour'
+    this.tourIndex = 0;
+    this.tourPoints = null;
+    this.tourOver = false;
     this.state = 'title';
     this.flash = null;       // { text, sub, t }
     this.attractPos = 0;
@@ -149,17 +164,34 @@ export class Game {
 
     if (this.input.consume('mute')) this.sound.toggleMute();
 
+    if ((this.state === 'race' || this.state === 'countdown') && this.input.consume('restart')) {
+      this.startRace();
+      return;
+    }
+
     switch (this.state) {
       case 'title': this.updateTitle(dt); break;
+      case 'car': this.updateCarSelect(dt); break;
       case 'countdown': this.updateCountdown(dt, inp); break;
       case 'race': this.updateRace(dt, inp); break;
       case 'finish':
       case 'gameover':
         this.updateCars(dt);
+        if (this.input.consume('start')) this.leaveRaceEnd();
+        break;
+      case 'standings':
         if (this.input.consume('start')) {
-          this.sound.stopEngine(); this.sound.stopMusic();
-          this.state = 'title';
+          if (!this.tourOver && this.tourIndex < this.courses.length - 1) {
+            this.tourIndex++;
+            this.loadCourse(this.tourIndex);
+            this.startRace();
+          } else {
+            this.state = 'champion';
+          }
         }
+        break;
+      case 'champion':
+        if (this.input.consume('start')) { this.mode = 'single'; this.state = 'title'; }
         break;
     }
     if (this.flash) {
@@ -172,15 +204,74 @@ export class Game {
   updateTitle(dt) {
     // attract mode: cruise the camera down the selected course
     this.attractPos = wrap(this.attractPos + MAX_SPEED * 0.35 * dt, this.trackLength);
+    const entries = this.courses.length + 1; // + MOORE TOUR
+    let moved = 0;
+    if (this.input.consume('left')) moved = -1;
+    if (this.input.consume('right')) moved = 1;
+    if (moved) {
+      this.menuIndex = (this.menuIndex + entries + moved) % entries;
+      if (this.menuIndex < this.courses.length) this.loadCourse(this.menuIndex);
+      this.sound.blip(500, 0.08);
+    }
+    if (this.input.consume('start')) {
+      if (this.menuIndex === this.courses.length) {
+        this.mode = 'tour';
+        this.tourIndex = 0;
+        this.tourPoints = {};
+        this.tourOver = false;
+        this.loadCourse(0);
+      } else {
+        this.mode = 'single';
+        this.loadCourse(this.menuIndex);
+      }
+      this.state = 'car';
+      this.sound.blip(700, 0.1);
+    }
+  }
+
+  updateCarSelect(dt) {
+    this.attractPos = wrap(this.attractPos + MAX_SPEED * 0.35 * dt, this.trackLength);
     if (this.input.consume('left')) {
-      this.loadCourse((this.courseIndex + this.courses.length - 1) % this.courses.length);
+      this.carIndex = (this.carIndex + CARS.length - 1) % CARS.length;
       this.sound.blip(500, 0.08);
     }
     if (this.input.consume('right')) {
-      this.loadCourse((this.courseIndex + 1) % this.courses.length);
+      this.carIndex = (this.carIndex + 1) % CARS.length;
       this.sound.blip(500, 0.08);
     }
-    if (this.input.consume('start')) this.startRace();
+    if (this.input.consume('start')) {
+      this.stats = CARS[this.carIndex];
+      this.startRace();
+    }
+  }
+
+  leaveRaceEnd() {
+    this.sound.stopEngine();
+    this.sound.stopMusic();
+    if (this.mode === 'tour') {
+      this.applyTourPoints(this.state === 'finish');
+      if (this.state === 'gameover') this.tourOver = true;
+      this.state = 'standings';
+    } else {
+      this.state = 'title';
+    }
+  }
+
+  applyTourPoints(finished) {
+    const rivals = this.cars.filter((c) => c.kind === 'rival')
+      .sort((a, b) => b.dist - a.dist)
+      .map((r) => r.name);
+    const order = rivals.slice();
+    if (finished) order.splice(this.finPos - 1, 0, 'YOU');
+    else order.push('YOU'); // DNF
+    order.forEach((name, i) => {
+      const pts = (name === 'YOU' && !finished) ? 0 : TOUR_POINTS[i];
+      this.tourPoints[name] = (this.tourPoints[name] || 0) + pts;
+    });
+  }
+
+  tourTable() {
+    return Object.entries(this.tourPoints).sort((a, b) => b[1] - a[1]);
   }
 
   updateCountdown(dt, inp) {
@@ -217,13 +308,15 @@ export class Game {
       }
       this.steer = 0;
     } else {
-      if (inp.left) { this.playerX -= dx; this.steer = Math.max(-1, this.steer - dt * 6); }
-      else if (inp.right) { this.playerX += dx; this.steer = Math.min(1, this.steer + dt * 6); }
+      const sdx = dx * this.stats.steer;
+      if (inp.left) { this.playerX -= sdx; this.steer = Math.max(-1, this.steer - dt * 6); }
+      else if (inp.right) { this.playerX += sdx; this.steer = Math.min(1, this.steer + dt * 6); }
       else this.steer *= Math.max(0, 1 - dt * 8);
 
       this.playerX -= dx * speedPct * playerSeg.curve * CENTRIFUGAL;
 
-      if (inp.accel) this.speed += ACCEL * (1 - speedPct * 0.25) * dt;
+      const maxSpd = MAX_SPEED * this.stats.top;
+      if (inp.accel) this.speed += ACCEL * this.stats.accel * (1 - (this.speed / maxSpd) * 0.25) * dt;
       else if (inp.brake) this.speed += BRAKING * dt;
       else this.speed += DECEL * dt;
 
@@ -253,7 +346,7 @@ export class Game {
     }
 
     this.playerX = clamp(this.playerX, -2.2, 2.2);
-    this.speed = clamp(this.speed, 0, MAX_SPEED);
+    this.speed = clamp(this.speed, 0, MAX_SPEED * this.stats.top);
 
     // advance
     const prevTotal = this.totalDist;
@@ -421,17 +514,21 @@ export class Game {
     if (this.shake > 0.05) {
       ctx.translate((Math.random() - 0.5) * this.shake * 14, (Math.random() - 0.5) * this.shake * 10);
     }
-    const camZ = this.state === 'title' ? this.attractPos : this.position;
-    this.renderWorld(camZ, this.state === 'title' ? 0 : this.playerX);
-    if (this.state !== 'title') this.renderPlayer();
+    const inMenu = this.state === 'title' || this.state === 'car';
+    const camZ = inMenu ? this.attractPos : this.position;
+    this.renderWorld(camZ, inMenu ? 0 : this.playerX);
+    if (!inMenu) this.renderPlayer();
     ctx.restore();
 
     switch (this.state) {
       case 'title': this.renderTitle(); break;
+      case 'car': this.renderCarSelect(); break;
       case 'countdown': this.renderHUD(); this.renderCountdown(); break;
       case 'race': this.renderHUD(); break;
       case 'finish': this.renderHUD(); this.renderResults(true); break;
       case 'gameover': this.renderHUD(); this.renderResults(false); break;
+      case 'standings': this.renderStandings(); break;
+      case 'champion': this.renderChampion(); break;
     }
   }
 
@@ -615,7 +712,7 @@ export class Game {
 
   renderPlayer() {
     const ctx = this.ctx;
-    const img = this.vehicles.player;
+    const img = this.vehicles.players[this.carIndex];
     const speedPct = this.speed / MAX_SPEED;
     // same projection as other cars at the player's z, so sizes match side-by-side
     const w = Math.min(W * 0.3, (CAMERA_DEPTH / PLAYER_Z) * (PLAYER_W * ROAD_WIDTH * 1.1) * W / 2);
@@ -669,6 +766,28 @@ export class Game {
     this.text(String(mph), W - 24, H - 34, 44, '#fff', 'right');
     this.text('MPH', W - 24, H - 12, 14, '#ffb14a', 'right');
 
+    // race progress bar with rival blips
+    const total = this.trackLength * this.course.laps;
+    const bx = W / 2 - 150, by = 14, bw = 300, bh = 8;
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.fillRect(bx - 3, by - 3, bw + 6, bh + 6);
+    ctx.fillStyle = 'rgba(255,255,255,0.22)';
+    ctx.fillRect(bx, by, bw, bh);
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.fillRect(bx + bw / 2 - 1, by, 2, bh); // lap line
+    for (const car of this.cars) {
+      if (car.kind !== 'rival') continue;
+      const p = clamp(car.dist / total, 0, 1);
+      ctx.fillStyle = '#9adcff';
+      ctx.fillRect(bx + p * bw - 2, by + 1, 4, bh - 2);
+    }
+    const pp = clamp(this.totalDist / total, 0, 1);
+    ctx.fillStyle = '#ff4030';
+    ctx.fillRect(bx + pp * bw - 3, by - 3, 6, bh + 6);
+    if (this.mode === 'tour') {
+      this.text(`TOUR RACE ${this.tourIndex + 1}/${this.courses.length}`, W / 2, by + 34, 13, '#ff8ad8');
+    }
+
     // center flash
     if (this.flash) {
       const a = clamp(this.flash.t / 0.4, 0, 1);
@@ -719,22 +838,115 @@ export class Game {
     this.text('MOORE', W / 2, 190, 76, '#ff4030');
     this.text('COAST TO COAST ARCADE RACING', W / 2, 224, 16, '#9adcff');
 
-    // course select
-    const c = this.course;
+    // course / tour carousel
+    const isTour = this.menuIndex === this.courses.length;
     this.text('◀', W / 2 - 250, 320, 30, '#ffb14a');
     this.text('▶', W / 2 + 250, 320, 30, '#ffb14a');
     ctx.fillStyle = 'rgba(8,8,20,0.7)';
     ctx.fillRect(W / 2 - 210, 270, 420, 84);
-    ctx.strokeStyle = '#f8a800'; ctx.lineWidth = 3;
+    ctx.strokeStyle = isTour ? '#ff8ad8' : '#f8a800'; ctx.lineWidth = 3;
     ctx.strokeRect(W / 2 - 210, 270, 420, 84);
-    this.text(c.name, W / 2, 305, 26, '#fff');
-    const best = this.getBest(c.id);
-    this.text(best ? `BEST TIME ${best.toFixed(2)}` : `${c.laps} LAPS · BEAT 7 RIVALS`, W / 2, 336, 15, '#9adcff');
-    this.text(`COURSE ${this.courseIndex + 1}/${this.courses.length}`, W / 2, 380, 14, '#889');
+    if (isTour) {
+      this.text('MOORE TOUR', W / 2, 305, 26, '#ff8ad8');
+      this.text(`ALL ${this.courses.length} COURSES · POINTS CHAMPIONSHIP`, W / 2, 336, 15, '#9adcff');
+    } else {
+      const c = this.course;
+      this.text(c.name, W / 2, 305, 26, '#fff');
+      const best = this.getBest(c.id);
+      this.text(best ? `BEST TIME ${best.toFixed(2)}` : `${c.laps} LAPS · BEAT 7 RIVALS`, W / 2, 336, 15, '#9adcff');
+    }
+    this.text(`${this.menuIndex + 1}/${this.courses.length + 1}`, W / 2, 380, 14, '#889');
 
     if (Math.floor(performance.now() / 500) % 2 === 0) {
-      this.text('PRESS ENTER TO RACE', W / 2, 440, 26, '#7dff6a');
+      this.text('PRESS ENTER OR TAP GAS', W / 2, 440, 26, '#7dff6a');
     }
-    this.text('←→ STEER · ↑ GAS · ↓ BRAKE · M MUTE', W / 2, H - 24, 14, '#99a');
+    this.text('←→ STEER · ↑ GAS · ↓ BRAKE · R RESTART · M MUTE', W / 2, H - 24, 14, '#99a');
+  }
+
+  renderCarSelect() {
+    const ctx = this.ctx;
+    ctx.fillStyle = 'rgba(6,6,18,0.55)';
+    ctx.fillRect(0, 0, W, H);
+    this.text('SELECT YOUR RIDE', W / 2, 88, 40, '#ffe14a');
+    this.text(this.mode === 'tour' ? `MOORE TOUR · ${this.courses.length} RACES` : this.course.name,
+      W / 2, 120, 16, this.mode === 'tour' ? '#ff8ad8' : '#9adcff');
+
+    const statNames = ['SPEED', 'ACCEL', 'GRIP'];
+    for (let i = 0; i < CARS.length; i++) {
+      const cx = W / 2 + (i - 1) * 265;
+      const sel = i === this.carIndex;
+      ctx.fillStyle = sel ? 'rgba(30,30,62,0.9)' : 'rgba(10,10,24,0.72)';
+      ctx.fillRect(cx - 115, 150, 230, 268);
+      ctx.strokeStyle = sel ? '#f8a800' : '#445'; ctx.lineWidth = 3;
+      ctx.strokeRect(cx - 115, 150, 230, 268);
+      const img = this.vehicles.players[i];
+      const w = sel ? 160 : 140;
+      const h = w * (img.height / img.width);
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(img, cx - w / 2, 235 - h, w, h);
+      this.text(CARS[i].name, cx, 268, 18, sel ? '#fff' : '#99a');
+      this.text(CARS[i].tag, cx, 290, 11, '#9adcff');
+      for (let s = 0; s < 3; s++) {
+        const y = 322 + s * 24;
+        this.text(statNames[s], cx - 95, y, 12, '#889', 'left');
+        for (let p = 0; p < 5; p++) {
+          ctx.fillStyle = p < CARS[i].pips[s] ? '#7dff6a' : '#31374a';
+          ctx.fillRect(cx - 20 + p * 20, y - 9, 15, 10);
+        }
+      }
+    }
+    if (Math.floor(performance.now() / 500) % 2 === 0) {
+      this.text('PRESS ENTER OR TAP GAS', W / 2, 470, 24, '#7dff6a');
+    }
+  }
+
+  renderStandings() {
+    const ctx = this.ctx;
+    ctx.fillStyle = 'rgba(8,8,20,0.85)';
+    ctx.fillRect(W / 2 - 260, 44, 520, 452);
+    ctx.strokeStyle = '#ff8ad8'; ctx.lineWidth = 3;
+    ctx.strokeRect(W / 2 - 260, 44, 520, 452);
+    this.text('TOUR STANDINGS', W / 2, 88, 30, '#ffe14a');
+    this.text(`AFTER RACE ${this.tourIndex + 1} OF ${this.courses.length}`, W / 2, 114, 14, '#9adcff');
+    this.tourTable().forEach(([name, pts], i) => {
+      const y = 154 + i * 36;
+      const you = name === 'YOU';
+      const col = you ? '#ffe14a' : '#fff';
+      this.text(`${i + 1}.`, W / 2 - 205, y, 20, you ? '#ffe14a' : '#889', 'left');
+      this.text(name, W / 2 - 155, y, 20, col, 'left');
+      this.text(`${pts} PTS`, W / 2 + 205, y, 20, you ? '#ffe14a' : '#9adcff', 'right');
+    });
+    if (Math.floor(performance.now() / 500) % 2 === 0) {
+      const last = this.tourOver || this.tourIndex >= this.courses.length - 1;
+      this.text(last ? 'PRESS ENTER FOR FINAL RESULTS' : 'PRESS ENTER FOR NEXT RACE', W / 2, 478, 16, '#7dff6a');
+    }
+  }
+
+  renderChampion() {
+    const ctx = this.ctx;
+    const table = this.tourTable();
+    const rank = table.findIndex(([name]) => name === 'YOU') + 1;
+    ctx.fillStyle = 'rgba(8,8,20,0.88)';
+    ctx.fillRect(W / 2 - 280, 44, 560, 452);
+    ctx.strokeStyle = '#ffe14a'; ctx.lineWidth = 4;
+    ctx.strokeRect(W / 2 - 280, 44, 560, 452);
+    if (rank === 1) {
+      this.text('★ TOUR CHAMPION ★', W / 2, 100, 40, '#ffe14a');
+      this.text('CRUIS-TACULAR, COAST TO COAST!', W / 2, 132, 16, '#ff8ad8');
+    } else {
+      const sup = ['st', 'nd', 'rd'][rank - 1] || 'th';
+      this.text('TOUR COMPLETE', W / 2, 100, 36, '#9adcff');
+      this.text(this.tourOver ? 'RAN OUT OF TIME ON THE ROAD' : `${rank}${sup} OVERALL — KEEP CRUIS’N`, W / 2, 132, 16, '#fff');
+    }
+    table.forEach(([name, pts], i) => {
+      const y = 172 + i * 34;
+      const you = name === 'YOU';
+      this.text(`${i + 1}.`, W / 2 - 205, y, 19, you ? '#ffe14a' : '#889', 'left');
+      this.text(name, W / 2 - 155, y, 19, you ? '#ffe14a' : '#fff', 'left');
+      this.text(`${pts} PTS`, W / 2 + 205, y, 19, you ? '#ffe14a' : '#9adcff', 'right');
+    });
+    if (Math.floor(performance.now() / 500) % 2 === 0) {
+      this.text('PRESS ENTER', W / 2, 478, 16, '#7dff6a');
+    }
   }
 }
