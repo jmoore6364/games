@@ -34,6 +34,12 @@ golden-hour skies, or rain that slickens your steering. A top-5
 **leaderboard** per course is saved locally — set a time and punch in
 your three initials, arcade style.
 
+Mind the **highway patrol** parked on the shoulders: blast past a cruiser
+above ~110 mph and it lights up and hunts you for ten seconds — get
+caught and you're BUSTED, sitting still while the clock runs. And once
+you set a course record, a translucent **ghost** of that run races you
+on every attempt, with a live gap readout under the progress bar.
+
 ## Controls
 
 | Key | Action |

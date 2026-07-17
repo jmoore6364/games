@@ -137,6 +137,42 @@ function compactCar() { // teal compact: quick off the line, sticks to the road
   });
 }
 
+function policeCar(phase) { // rear view, lightbar alternates by phase
+  return mk(42, 28, (g) => {
+    R(g, 3, 24, 36, 3, 'rgba(0,0,0,0.4)');
+    R(g, 3, 16, 9, 9, '#0c0c0c'); R(g, 30, 16, 9, 9, '#0c0c0c');
+    R(g, 4, 10, 34, 11, '#e8e8ec');                      // white body
+    R(g, 2, 12, 4, 7, '#b8b8c0'); R(g, 36, 12, 4, 7, '#b8b8c0');
+    R(g, 4, 17, 34, 4, '#1a1a20');                       // black lower band
+    R(g, 8, 4, 26, 7, '#e8e8ec');                        // roof
+    R(g, 10, 5, 22, 5, '#26202a');                       // rear window
+    // lightbar
+    R(g, 13, 1, 16, 3, '#22222a');
+    R(g, 13, 1, 8, 3, phase ? '#ff2020' : '#5a0a0a');
+    R(g, 21, 1, 8, 3, phase ? '#101060' : '#2040ff');
+    if (phase) { g.fillStyle = 'rgba(255,60,60,0.4)'; g.fillRect(9, 0, 12, 6); }
+    else { g.fillStyle = 'rgba(60,90,255,0.4)'; g.fillRect(21, 0, 12, 6); }
+    R(g, 5, 12, 5, 3, '#ff4a30'); R(g, 32, 12, 5, 3, '#ff4a30');
+    g.fillStyle = '#1a1a20'; g.font = 'bold 5px monospace'; g.textAlign = 'center';
+    g.fillText('POLICE', 21, 15);
+  });
+}
+
+function ghostCar() { // pale spectre of the roadster
+  return mk(44, 28, (g) => {
+    g.globalAlpha = 0.55;
+    R(g, 3, 17, 10, 9, '#3a4a5a'); R(g, 31, 17, 10, 9, '#3a4a5a');
+    R(g, 4, 11, 36, 11, '#9fd8e8');
+    R(g, 2, 13, 4, 7, '#6fa8b8'); R(g, 38, 13, 4, 7, '#6fa8b8');
+    R(g, 8, 5, 28, 3, '#6fa8b8');
+    R(g, 13, 7, 18, 4, '#4a6a7a');
+    R(g, 19, 2, 6, 5, '#cfeaf4');
+    R(g, 6, 13, 6, 3, '#e8ffff'); R(g, 32, 13, 6, 3, '#e8ffff');
+    R(g, 18, 16, 8, 4, '#cfeaf4');
+    g.globalAlpha = 1;
+  });
+}
+
 // --- scenery ----------------------------------------------------------------
 
 function palm() {
@@ -467,5 +503,7 @@ export function buildVehicles(night) {
       carFront('#5a78a0', '#3c5270', night),
       carFront('#7a7a5a', '#55553c', night),
     ],
+    police: [policeCar(0), policeCar(1)],
+    ghost: ghostCar(),
   };
 }
