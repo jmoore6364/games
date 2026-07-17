@@ -5,6 +5,7 @@ const MAP = {
   ArrowDown: 'down', KeyS: 'down',
   KeyZ: 'jump', Space: 'jump',
   KeyX: 'fire', KeyJ: 'fire',
+  KeyC: 'lock', KeyK: 'lock', ShiftLeft: 'lock', ShiftRight: 'lock',
   Enter: 'start', KeyM: 'mute',
 };
 
@@ -41,6 +42,7 @@ export class Input {
       up: b(12) || gp.axes[1] < -0.5,
       jump: b(0),
       fire: b(2) || b(1),
+      lock: b(4) || b(5) || b(6) || b(7),
       start: b(9),
       mute: false,
     };
@@ -102,6 +104,7 @@ export function initTouch(input) {
   mkBtn('▶', 'right', 'b-right');
   mkBtn('▲', 'up', 'b-up');
   mkBtn('▼', 'down', 'b-down');
+  mkBtn('LOCK', 'lock', 'b-lock');
   mkBtn('FIRE', 'fire', 'b-fire');
   mkBtn('JUMP', 'jump', 'b-jump');
   mkBtn('MENU', 'start', 'b-start');
