@@ -79,7 +79,13 @@ function carFront(body, dark, night) {
   });
 }
 
-function playerCar() {
+function plate(g) {
+  R(g, 18, 16, 8, 4, '#e0e0d0');
+  g.fillStyle = '#333'; g.font = 'bold 4px monospace'; g.textAlign = 'center';
+  g.fillText('MOORE', 22, 19.5);
+}
+
+function roadsterCar() { // red convertible: the balanced ride
   return mk(44, 28, (g) => {
     R(g, 3, 24, 38, 3, 'rgba(0,0,0,0.4)');
     R(g, 3, 17, 10, 9, '#0c0c0c'); R(g, 31, 17, 10, 9, '#0c0c0c'); // tires
@@ -93,10 +99,41 @@ function playerCar() {
     R(g, 19, 2, 6, 5, '#e8b06a');                        // driver head
     R(g, 19, 1, 6, 2, '#57340f');                        // hair
     R(g, 6, 13, 6, 3, '#ff5838'); R(g, 32, 13, 6, 3, '#ff5838');   // taillights
-    R(g, 18, 16, 8, 4, '#e0e0d0');                       // plate
-    g.fillStyle = '#333'; g.font = 'bold 4px monospace'; g.textAlign = 'center';
-    g.fillText('MOORE', 22, 19.5);
+    plate(g);
     R(g, 4, 21, 36, 1, '#7c0c0c');
+  });
+}
+
+function muscleCar() { // yellow muscle: top end, handful in corners
+  return mk(44, 28, (g) => {
+    R(g, 2, 24, 40, 3, 'rgba(0,0,0,0.4)');
+    R(g, 2, 17, 11, 9, '#0c0c0c'); R(g, 31, 17, 11, 9, '#0c0c0c'); // fat tires
+    R(g, 3, 22, 9, 2, '#404040'); R(g, 32, 22, 9, 2, '#404040');
+    R(g, 4, 11, 36, 11, '#e8b820');                      // body
+    R(g, 1, 13, 4, 7, '#b08a10'); R(g, 39, 13, 4, 7, '#b08a10');
+    R(g, 18, 11, 8, 11, '#1c1c1c');                      // center stripe
+    R(g, 8, 4, 28, 8, '#e8b820');                        // roof
+    R(g, 10, 5, 24, 5, '#26202a');                       // rear window
+    R(g, 6, 13, 6, 3, '#ff5838'); R(g, 32, 13, 6, 3, '#ff5838');
+    R(g, 8, 22, 3, 2, '#888'); R(g, 33, 22, 3, 2, '#888');         // dual exhaust
+    plate(g);
+    R(g, 4, 21, 36, 1, '#a07c0c');
+  });
+}
+
+function compactCar() { // teal compact: quick off the line, sticks to the road
+  return mk(44, 28, (g) => {
+    R(g, 4, 24, 36, 3, 'rgba(0,0,0,0.4)');
+    R(g, 4, 17, 9, 9, '#0c0c0c'); R(g, 31, 17, 9, 9, '#0c0c0c');
+    R(g, 5, 22, 7, 2, '#404040'); R(g, 32, 22, 7, 2, '#404040');
+    R(g, 5, 10, 34, 12, '#16b8c8');                      // tall boxy body
+    R(g, 3, 13, 4, 7, '#0e7f8a'); R(g, 37, 13, 4, 7, '#0e7f8a');
+    R(g, 8, 3, 28, 9, '#16b8c8');                        // wagon roof
+    R(g, 10, 4, 24, 6, '#26202a');                       // rear window
+    R(g, 9, 1, 26, 2, '#0e7f8a');                        // roof rack
+    R(g, 7, 13, 6, 3, '#ff5838'); R(g, 31, 13, 6, 3, '#ff5838');
+    plate(g);
+    R(g, 5, 21, 34, 1, '#0a5f68');
   });
 }
 
@@ -124,6 +161,24 @@ function pineBush(dry) {
     R(g, 3, 8, 20, 9, c2);
     R(g, 6, 4, 14, 8, c1);
     R(g, 10, 2, 6, 4, c1);
+  });
+}
+
+function pine() {
+  return mk(36, 52, (g) => {
+    R(g, 16, 42, 4, 10, '#6b4a26');                      // trunk
+    g.fillStyle = '#2a6b3c';
+    const tier = (y, half) => {
+      g.beginPath();
+      g.moveTo(18, y - 12); g.lineTo(18 - half, y); g.lineTo(18 + half, y);
+      g.closePath(); g.fill();
+    };
+    tier(44, 15); tier(34, 12); tier(24, 9); tier(15, 6);
+    g.fillStyle = '#e8f2f8';                             // snow dusting
+    R(g, 10, 42, 6, 2, '#e8f2f8'); R(g, 22, 42, 6, 2, '#e8f2f8');
+    R(g, 12, 32, 5, 2, '#e8f2f8'); R(g, 20, 32, 5, 2, '#e8f2f8');
+    R(g, 14, 22, 8, 2, '#e8f2f8');
+    R(g, 16, 3, 4, 3, '#e8f2f8');
   });
 }
 
@@ -288,6 +343,37 @@ export function buildBackground(course) {
         g.fillRect(x, y - 18, 4, 18); g.fillRect(x - 5, y - 12, 14, 3);
       }
     });
+  } else if (course.bg === 'mountain') {
+    far = layer(W, H, (g) => {
+      // snowy peaks, two ridges
+      for (const [color, base, amp, k, off] of [
+        ['#b9cfdd', 70, 42, 3, 1.2], ['#d7e6ef', 95, 38, 5, 4.1],
+      ]) {
+        g.fillStyle = color;
+        for (let x = 0; x < W; x++) {
+          const t = (x / W) * Math.PI * 2;
+          const y = base - amp * Math.abs(Math.sin(t * k + off)) - 12 * Math.sin(t * 7 + off * 2);
+          g.fillRect(x, y, 1, H - y);
+        }
+      }
+      // snow caps
+      g.fillStyle = '#f3f9fc';
+      for (let x = 0; x < W; x++) {
+        const t = (x / W) * Math.PI * 2;
+        const y = 70 - 42 * Math.abs(Math.sin(t * 3 + 1.2)) - 12 * Math.sin(t * 7 + 2.4);
+        if (y < 52) g.fillRect(x, y, 1, 10);
+      }
+    });
+    near = layer(W, H, (g) => {
+      // dark pine ridge with jagged treetops
+      g.fillStyle = '#2e5b48';
+      const cols = 128, cw = W / cols;
+      for (let i = 0; i < cols; i++) {
+        const y = 150 - 14 * colHash(i, cols, 21) - 10 * Math.abs(Math.sin((i / cols) * Math.PI * 6));
+        g.fillRect(i * cw, y, cw, H - y);
+        g.fillRect(i * cw + cw / 2 - 1, y - 6, 2, 6);    // treetop spike
+      }
+    });
   } else { // city night
     far = layer(W, H, (g) => {
       // stars
@@ -338,6 +424,7 @@ export function buildBackground(course) {
 export function buildSprites(night) {
   return {
     palm:          { img: palm(),                         worldW: 1500 },
+    pine:          { img: pine(),                         worldW: 1300 },
     bush:          { img: pineBush(false),                worldW: 800 },
     bushDry:       { img: pineBush(true),                 worldW: 800 },
     cactus:        { img: cactus(),                       worldW: 900 },
@@ -359,7 +446,7 @@ export function buildSprites(night) {
 
 export function buildVehicles(night) {
   return {
-    player: playerCar(),
+    players: [roadsterCar(), muscleCar(), compactCar()],
     rivals: [
       sportsRear('#2255d4', '#173a92', '#ffffff'),
       sportsRear('#f2b820', '#b1860f', '#111111'),

@@ -172,6 +172,36 @@ function buildDesert() {
   });
 }
 
+function buildRockies() {
+  const b = new Builder(404);
+  b.straight(LEN.MEDIUM);
+  b.hill(LEN.MEDIUM, HILL.HIGH);            // the long climb
+  b.curve(LEN.MEDIUM, -CURVE.MEDIUM, HILL.LOW);
+  b.curve(LEN.SHORT, CURVE.HARD, -HILL.LOW); // switchback
+  b.curve(LEN.SHORT, -CURVE.HARD, HILL.LOW);
+  b.sCurves();
+  b.hill(LEN.LONG, HILL.HIGH);
+  b.curve(LEN.MEDIUM, CURVE.MEDIUM, -HILL.MEDIUM);
+  b.rollingHills();
+  b.curve(LEN.SHORT, -CURVE.HARD, -HILL.LOW); // downhill switchback
+  b.curve(LEN.SHORT, CURVE.HARD, -HILL.LOW);
+  b.straight(LEN.MEDIUM);
+  b.curve(LEN.LONG, CURVE.EASY, -HILL.MEDIUM);
+  b.sCurves();
+  b.straight(LEN.LONG);
+  b.downhillToEnd();
+  b.scatter(['pine', 'pine', 'pine', 'rock', 'bush'], 0.3, 1.25, 4.5);
+  b.billboards(['billboard0', 'billboard1', 'billboard2'], 230);
+  return finalize(b, {
+    id: 'rockies', name: 'ROCKY SUMMIT', bg: 'mountain', laps: 2,
+    timeStart: 70, timeBonus: 26,
+    sky: ['#6db7dd', '#dff0f8'], fog: '#dff0f8',
+    grass: ['#eef4f8', '#e0e9f0'], rumble: ['#d84040', '#ffffff'],
+    road: ['#5c5c66', '#565660'], lane: '#ffffff',
+    night: false,
+  });
+}
+
 function buildCity() {
   const b = new Builder(303);
   b.straight(LEN.MEDIUM);
@@ -202,5 +232,5 @@ function buildCity() {
 }
 
 export function buildCourses() {
-  return [buildCoast(), buildDesert(), buildCity()];
+  return [buildCoast(), buildDesert(), buildRockies(), buildCity()];
 }
