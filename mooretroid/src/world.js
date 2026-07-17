@@ -5,6 +5,7 @@
 //   *  bombable       ^  spikes (hurt)   ~  lava (hurt, not solid)
 //   |  door frame     D  blue door       R  red door (missile)
 //   E  elevator pad   X  hive gate (opens when both titans fall)
+//   F  crumble block  I  slick ice       <  >  conveyor treads
 //
 // Rooms are authored as interior rows (width w-2); the loader wraps them in
 // wall columns and carves doors from the `exits` list, so a door and its
@@ -15,14 +16,14 @@ export const TILE = 16;
 const F = (n) => '#'.repeat(n);
 const pad = (row, w) => (row + '.'.repeat(w)).slice(0, w);
 
-export const SOLID = new Set(['#', '%', '*', 'X', 'E', '|']);
+export const SOLID = new Set(['#', '%', '*', 'X', 'E', '|', 'F', 'I', '<', '>']);
 
 export const ROOMS = {};
 
 function room(id, opts) {
   const {
     theme, music, w, h, rows,
-    exits = [], items = [], spawns = [], elevators = [],
+    exits = [], items = [], spawns = [], elevators = [], movers = [],
     boss = null, gate = null, statues = null, zebs = [], rinkaSpawners = [],
     ship = null, sky = false,
   } = opts;
@@ -38,7 +39,7 @@ function room(id, opts) {
     for (let dy = 0; dy < 3; dy++) set(e.y + dy, e.red ? 'R' : 'D');
   }
   ROOMS[id] = {
-    id, theme, music, w, h, map: grid, exits, items, spawns, elevators,
+    id, theme, music, w, h, map: grid, exits, items, spawns, elevators, movers,
     boss, gate, statues, zebs, rinkaSpawners, ship, sky,
   };
 }
@@ -226,7 +227,8 @@ room('c_gallery', {
       10: '......%%............%%..............%%..**',
       11: '......%%............%%..............%%..**',
     };
-    return corridor(46, feats);
+    const f12 = F(8) + 'I'.repeat(22) + F(16);
+    return corridor(46, feats, [f12, F(46), F(46)]);
   })(),
   exits: [{ side: 'left', y: 9, to: 'c_shaft' }],
   items: [{ id: 'm8', kind: 'mpack', tx: 44, ty: 11 }],
@@ -248,11 +250,15 @@ room('c_maze', {
 
 room('c_deep', {
   theme: 'crystal', music: 'crystal', w: 48, h: 15,
-  rows: corridor(46, {
-    5: '......................#####',
-    9: '.................####.........####',
-    11: '.................^^^^.........^^^^......%%',
-  }),
+  rows: (() => {
+    const feats = {
+      5: '......................#####',
+      11: '.................^^^^.........^^^^......%%',
+    };
+    const f12 = '##' + 'I'.repeat(14) + F(6) + 'I'.repeat(7) + F(6) + 'I'.repeat(6) + F(5);
+    return corridor(46, feats, [f12, F(46), F(46)]);
+  })(),
+  movers: [{ x0: 17 * 16, x1: 33 * 16, y: 9 * 16, w: 32, period: 220 }],
   exits: [{ side: 'left', y: 9, to: 'c_shaft' }],
   items: [
     { id: 'screw', kind: 'screw', tx: 42, ty: 10 },
@@ -313,12 +319,13 @@ room('n_lava', {
   rows: (() => {
     const feats = {
       7: '.'.repeat(44) + '#########',
-      10: '.'.repeat(9) + '###' + '.'.repeat(11) + '###' + '.'.repeat(12) + '###',
+      10: '.'.repeat(9) + '###' + '.'.repeat(24) + 'FFFFFFF',
     };
     for (let y = 3; y <= 6; y++) feats[y] = '.'.repeat(50) + '*';
     const f = F(6) + '~'.repeat(10) + F(4) + '~'.repeat(10) + F(6) + '~'.repeat(8) + F(18);
     return corridor(62, feats, [f, f, f]);
   })(),
+  movers: [{ x0: 20 * 16, x1: 28 * 16, y: 9 * 16 + 8, w: 32, period: 190 }],
   exits: [{ side: 'left', y: 9, to: 'n_shaft' }],
   items: [
     { id: 'm3', kind: 'mpack', tx: 33, ty: 11 },
@@ -356,11 +363,15 @@ room('n_deep', {
 
 room('w_entry', {
   theme: 'wreck', music: 'wreck', w: 48, h: 15,
-  rows: corridor(46, {
-    8: '..........%%%%............%%%%',
-    10: '......%%......%%%%......%%......%%%%',
-    11: '......%%......%%%%......%%......%%%%',
-  }),
+  rows: (() => {
+    const feats = {
+      8: '..........%%%%............%%%%',
+      10: '......%%......%%%%......%%......%%%%',
+      11: '......%%......%%%%......%%......%%%%',
+    };
+    const f12 = F(8) + '>'.repeat(8) + F(8) + '<'.repeat(8) + F(14);
+    return corridor(46, feats, [f12, F(46), F(46)]);
+  })(),
   exits: [
     { side: 'right', y: 9, to: 'n_deep' },
     { side: 'left', y: 9, to: 'w_shaft' },
@@ -383,12 +394,16 @@ room('w_shaft', {
 
 room('w_hold', {
   theme: 'wreck', music: 'wreck', w: 48, h: 15,
-  rows: corridor(46, {
-    5: '..............................#####',
-    9: '......................**............####',
-    10: '......................**',
-    11: '......................**',
-  }),
+  rows: (() => {
+    const feats = {
+      5: '..............................#####',
+      9: '......................**............####',
+      10: '......................**',
+      11: '......................**',
+    };
+    const f12 = F(24) + '<'.repeat(10) + F(12);
+    return corridor(46, feats, [f12, F(46), F(46)]);
+  })(),
   exits: [
     { side: 'right', y: 9, to: 'w_shaft' },
     { side: 'left', y: 9, to: 'w_core', red: true },
@@ -425,7 +440,7 @@ room('k_shaft', {
 room('k_hall', {
   theme: 'kraid', music: 'lair', w: 48, h: 15,
   rows: corridor(46, {
-    9: '.'.repeat(20) + '####',
+    9: '.'.repeat(18) + 'FFFFFFFF',
     11: '.'.repeat(19) + '^^^^^^',
   }),
   exits: [
@@ -472,11 +487,12 @@ room('r_hall', {
   theme: 'ridley', music: 'lair', w: 48, h: 15,
   rows: (() => {
     const feats = {
-      10: '.'.repeat(13) + '###' + '.'.repeat(15) + '###',
+      10: '.'.repeat(13) + '###',
     };
     const f = F(10) + '~'.repeat(10) + F(8) + '~'.repeat(10) + F(8);
     return corridor(46, feats, [f, f, f]);
   })(),
+  movers: [{ x0: 28 * 16, x1: 36 * 16, y: 9 * 16 + 8, w: 32, period: 190 }],
   exits: [
     { side: 'left', y: 9, to: 'r_shaft' },
     { side: 'right', y: 9, to: 'r_boss' },
@@ -520,10 +536,14 @@ room('t_shaft', {
 
 room('t_hall1', {
   theme: 'tourian', music: 'hive', w: 48, h: 15,
-  rows: corridor(46, {
-    5: '..................#####',
-    8: '..........####............####',
-  }),
+  rows: (() => {
+    const feats = {
+      5: '..................#####',
+      8: '..........####............####',
+    };
+    const f12 = F(10) + '>'.repeat(10) + F(26);
+    return corridor(46, feats, [f12, F(46), F(46)]);
+  })(),
   exits: [
     { side: 'right', y: 9, to: 't_shaft' },
     { side: 'left', y: 9, to: 't_hall2' },
@@ -543,6 +563,7 @@ room('t_hall2', {
     { side: 'right', y: 9, to: 't_hall1' },
     { side: 'left', y: 9, to: 't_escape', flag: 'escape' },
   ],
+  movers: [{ x0: 6 * 16, x1: 15 * 16, y: 10 * 16, w: 32, period: 210 }],
   spawns: [['leaper', 56, 11]],
   zebs: [{ tx: 48 }, { tx: 40 }, { tx: 32 }],
   rinkaSpawners: [{ tx: 54, ty: 2 }, { tx: 44, ty: 2 }, { tx: 36, ty: 2 }, { tx: 20, ty: 2 }],
@@ -552,8 +573,8 @@ room('t_hall2', {
 room('t_escape', {
   theme: 'tourian', music: 'escape', w: 16, h: 50,
   rows: shaft(50, [
-    [6, 'R'], [8, 'C'], [11, 'L'], [14, 'C'], [17, 'L'], [20, 'C'],
-    [23, 'R'], [26, 'C'], [29, 'L'], [32, 'C'], [35, 'R'], [38, 'C'],
+    [6, 'R'], [8, 'C'], [11, 'L'], [14, 'C'], [17, 'L'], [20, '....FFFFFF'],
+    [23, 'R'], [26, 'C'], [29, 'L'], [32, '....FFFFFF'], [35, 'R'], [38, 'C'],
     [41, 'L'], [44, 'C'],
   ], { 47: F(14) }),
   exits: [

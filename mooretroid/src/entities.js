@@ -96,7 +96,11 @@ export class Player {
     let mx = 0;
     if (input.down('left')) { mx = -spd; this.face = -1; }
     if (input.down('right')) { mx = spd; this.face = 1; }
-    this.vx = mx;
+    // ground surface effects: slick ice, conveyor treads
+    const footCh = this.onGround ? game.tileAtPx(this.x + this.w / 2, this.y + this.h + 2) : null;
+    if (footCh === 'I') this.vx += (mx - this.vx) * 0.08;
+    else this.vx = mx;
+    this.belt = footCh === '<' ? -0.55 : footCh === '>' ? 0.55 : 0;
 
     // --- jump ---
     if (!this.ball && input.pressed('jump') && this.onGround) {
@@ -113,7 +117,7 @@ export class Player {
 
     // --- gravity & move ---
     this.vy = Math.min(TERM, this.vy + GRAV);
-    moveRect(game, this, this.vx, this.vy);
+    moveRect(game, this, this.vx + (this.belt || 0), this.vy);
     if (this.vy > 0.5) { /* falling */ }
     if (this.onGround) { this.spinning = false; if (this.justLanded) game.sound.land(); }
     if (this.hitHead) this.vy = 0;
@@ -377,13 +381,19 @@ function spawnOvermind(e, tx, ty) {
   return e;
 }
 
+function freezeEnemy(game, e) {
+  e.frozen = 240;
+  e.frozenSolid = !overlap(e, game.player);
+  game.sound.freeze();
+}
+
 export function damageEnemy(game, e, p) {
   const kind = p.kind, dmg = p.dmg;
   const missile = kind === 'missile';
   const bomb = kind === 'bomb';
 
   if (e.type === 'phazoid') {
-    if (p.ice) { e.frozen = 240; e.latched = false; game.sound.freeze(); return; }
+    if (p.ice) { freezeEnemy(game, e); e.latched = false; return; }
     if (missile && e.frozen > 0) { e.hp -= 10; e.flash = 6; game.sound.enemyHit(); }
     else if (bomb && e.latched) { e.latched = false; e.hp -= 3; e.flash = 6; }
     else { game.sound.clink(); return; }
@@ -398,7 +408,7 @@ export function damageEnemy(game, e, p) {
     }
   } else if (e.type === 'gravok' && kind === 'beam' && !p.charged && p.vx && p.vx * e.dir < 0) {
     // armored face: beams bounce off the front (charged shots punch through)
-    if (p.ice) { e.frozen = 240; game.sound.freeze(); }
+    if (p.ice) freezeEnemy(game, e);
     else game.sound.clink();
     return;
   } else if (e.type === 'crusher' && e.phase === 'lurk') {
@@ -407,12 +417,12 @@ export function damageEnemy(game, e, p) {
     return;
   } else if (e.beamProof && !missile && !bomb && kind !== 'screw') {
     // rippers shrug off beams, but ice still freezes them
-    if (p.ice) { e.frozen = 240; game.sound.freeze(); }
+    if (p.ice) freezeEnemy(game, e);
     else game.sound.clink();
     return;
   } else {
     // ice shots deal normal damage and freeze whatever survives
-    if (p.ice && !e.boss) { e.frozen = 240; game.sound.freeze(); }
+    if (p.ice && !e.boss) freezeEnemy(game, e);
     e.hp -= missile ? 10 : bomb ? 3 : dmg;
     e.flash = 6;
     game.sound.enemyHit();

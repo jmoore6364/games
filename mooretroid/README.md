@@ -39,6 +39,10 @@ Or serve the folder with any static file server.
 - **Fifteen enemy species**, including armor-faced gravoks (shoot them from
   behind, or punch through with a charged shot), ceiling crushers (only
   vulnerable mid-slam), proximity mines, spitter plants, and leapers.
+- **Living terrain**: crumble bridges that give way underfoot (and regrow),
+  conveyor treads in the Wreck and Hive, slick ice floors in the Crystal
+  Hollows, moving platforms over lava and spikes — and anything you freeze
+  with the Ice Beam becomes a standable ice statue.
 - **Charge Beam** (behind a red door in the great shaft): hold fire, release
   the storm. **Space Jump** (in the Hive): somersault again in mid-air.
 - **Doors**: blue doors open to any shot; red doors demand a missile; the Hive

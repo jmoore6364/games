@@ -269,6 +269,7 @@ export class Sound {
   missile() { this.noise(0.2, 0.4, 2000); this.tone('sawtooth', 300, 700, 0.18, 0.2); }
   bombLay() { this.tone('square', 500, 350, 0.06, 0.25); }
   boom() { this.noise(0.25, 0.55, 600); this.tone('square', 160, 40, 0.2, 0.35); }
+  crumble() { this.noise(0.14, 0.4, 900); this.tone('square', 300, 80, 0.12, 0.25); }
   door() { this.noise(0.14, 0.35, 1200); this.tone('square', 300, 700, 0.12, 0.25); }
   doorShut() { this.noise(0.1, 0.3, 700); this.tone('square', 500, 250, 0.1, 0.22); }
   hurt() { this.tone('sawtooth', 350, 90, 0.22, 0.5); this.noise(0.13, 0.3, 500); }

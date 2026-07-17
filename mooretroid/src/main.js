@@ -111,6 +111,9 @@ class Game {
     this.booms = [];
     this.zebs = [];
     this.spawnersT = [];
+    this.crumbles = [];
+    this.respawns = [];
+    this.movers = r.movers.map((m) => ({ ...m, px: m.x0, t: 0 }));
 
     // doors (built from exits)
     this.doors = r.exits.map((e) => {
@@ -178,6 +181,15 @@ class Game {
     if (y < 0 || y >= this.room.h * TILE) return true;
     for (const z of this.zebs) {
       if (z.hp > 0 && x >= z.x && x < z.x + z.w && y >= z.y && y < z.y + z.h) return true;
+    }
+    // frozen enemies are standable ice statues (quantized to the tiles
+    // they cover so landing on them is stable)
+    for (const e of this.enemies) {
+      if (e.frozen > 0 && e.frozenSolid && !e.dead) {
+        const tx0 = Math.floor(e.x / TILE) * TILE, ty0 = Math.floor(e.y / TILE) * TILE;
+        const tx1 = Math.ceil((e.x + e.w) / TILE) * TILE, ty1 = Math.ceil((e.y + e.h) / TILE) * TILE;
+        if (x >= tx0 && x < tx1 && y >= ty0 && y < ty1) return true;
+      }
     }
     const tx = Math.floor(x / TILE), ty = Math.floor(y / TILE);
     const ch = this.grid[ty][tx];
@@ -561,6 +573,8 @@ class Game {
     P.update(this, inp);
     if (this.state !== 'play') return;
 
+    this.updateMovers();
+    this.updateCrumbles();
     this.updateDoors();
     this.tryTransition();
     if (this.state !== 'play') return;
@@ -601,6 +615,59 @@ class Game {
     }
 
     this.updateCamera();
+  }
+
+  updateMovers() {
+    const P = this.player;
+    for (const m of this.movers) {
+      m.t++;
+      const ph = (m.t % m.period) / m.period;
+      const tri = ph < 0.5 ? ph * 2 : 2 - ph * 2;
+      const prev = m.px;
+      m.px = m.x0 + (m.x1 - m.x0) * tri;
+      const dx = m.px - prev;
+      // catch and carry the player
+      if (P.state !== 'dead' && P.vy >= 0 &&
+          P.x + P.w > m.px - 2 && P.x < m.px + m.w + 2 &&
+          P.y + P.h >= m.y - 6 && P.y + P.h <= m.y + 8) {
+        P.y = m.y - P.h - 0.1;
+        P.onGround = true;
+        P.vy = 0;
+        P.x += dx;
+      }
+    }
+  }
+
+  updateCrumbles() {
+    const P = this.player;
+    if (P.onGround && P.state !== 'dead') {
+      const fy = Math.floor((P.y + P.h + 2) / TILE);
+      for (const fx of [Math.floor((P.x + 1) / TILE), Math.floor((P.x + P.w - 1) / TILE)]) {
+        if (this.tileAt(fx, fy) === 'F' && !this.crumbles.find((c) => c.tx === fx && c.ty === fy)) {
+          this.crumbles.push({ tx: fx, ty: fy, t: 0 });
+        }
+      }
+    }
+    for (let i = this.crumbles.length - 1; i >= 0; i--) {
+      const c = this.crumbles[i];
+      if (++c.t >= 18) {
+        this.setTile(c.tx, c.ty, '.');
+        this.addBoom(c.tx * TILE + 8, c.ty * TILE + 8);
+        this.sound.crumble();
+        this.respawns.push({ tx: c.tx, ty: c.ty, t: 0 });
+        this.crumbles.splice(i, 1);
+      }
+    }
+    for (let i = this.respawns.length - 1; i >= 0; i--) {
+      const r = this.respawns[i];
+      if (++r.t >= 240) {
+        const rect = { x: r.tx * TILE, y: r.ty * TILE, w: TILE, h: TILE };
+        if (!overlap(rect, P)) {
+          this.setTile(r.tx, r.ty, 'F');
+          this.respawns.splice(i, 1);
+        }
+      }
+    }
   }
 
   updateFx() {
@@ -800,6 +867,20 @@ class Game {
           drawDoor(ctx, px, py, color, d.openT, d.side === 'left' ? 1 : -1);
         }
       }
+    }
+
+    // moving platforms
+    for (const m of this.movers) {
+      const px = Math.round(m.px - camX), py = Math.round(m.y - camY);
+      ctx.fillStyle = '#787888';
+      ctx.fillRect(px, py, m.w, 8);
+      ctx.fillStyle = '#a8a8b8';
+      ctx.fillRect(px, py, m.w, 2);
+      ctx.fillStyle = '#383844';
+      ctx.fillRect(px + 2, py + 5, m.w - 4, 3);
+      ctx.fillStyle = (this.frame & 8) ? '#e8e858' : '#a88820';
+      ctx.fillRect(px + 2, py + 2, 2, 2);
+      ctx.fillRect(px + m.w - 4, py + 2, 2, 2);
     }
 
     // zebetites

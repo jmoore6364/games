@@ -901,6 +901,51 @@ export function drawTile(ctx, ch, px, py, tx, ty, theme, frame) {
       ctx.fillRect(px + 9, py + 9, 3, 3);
       break;
     }
+    case 'F': { // crumble block
+      ctx.fillStyle = theme.rock;
+      ctx.fillRect(px, py, T, T);
+      ctx.fillStyle = theme.hi;
+      ctx.fillRect(px, py, T, 2);
+      ctx.fillStyle = theme.lo;
+      ctx.fillRect(px, py + T - 2, T, 2);
+      // cracks
+      ctx.fillRect(px + 3, py + 3, 2, 5);
+      ctx.fillRect(px + 5, py + 8, 2, 5);
+      ctx.fillRect(px + 10, py + 2, 2, 6);
+      ctx.fillRect(px + 8, py + 10, 5, 2);
+      break;
+    }
+    case 'I': { // slick ice
+      ctx.fillStyle = '#a8d8f0';
+      ctx.fillRect(px, py, T, T);
+      ctx.fillStyle = '#e8f8ff';
+      ctx.fillRect(px, py, T, 3);
+      ctx.fillStyle = '#6898c0';
+      ctx.fillRect(px, py + T - 3, T, 3);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(px + ((tx * 5) % 8), py + 5, 2, 2);
+      ctx.fillRect(px + ((tx * 11) % 10) + 4, py + 9, 2, 2);
+      break;
+    }
+    case '<':
+    case '>': { // conveyor treads
+      ctx.fillStyle = '#32323c';
+      ctx.fillRect(px, py, T, T);
+      ctx.fillStyle = '#585864';
+      ctx.fillRect(px, py, T, 3);
+      const dir = ch === '>' ? 1 : -1;
+      const off = ((Math.floor(frame / 4) * dir) % 8 + 8) % 8;
+      ctx.fillStyle = '#e8c838';
+      for (let i = 0; i < 2; i++) {
+        const bx = (off + i * 8) % 16;
+        ctx.fillRect(px + bx, py + 5, 2, 2);
+        ctx.fillRect(px + bx + (dir > 0 ? -2 : 2), py + 3, 2, 2);
+        ctx.fillRect(px + bx + (dir > 0 ? -2 : 2), py + 7, 2, 2);
+      }
+      ctx.fillStyle = '#181820';
+      ctx.fillRect(px, py + 11, T, 5);
+      break;
+    }
     case 'X': { // hive gate
       ctx.fillStyle = '#383040';
       ctx.fillRect(px, py, T, T);
