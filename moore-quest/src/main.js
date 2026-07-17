@@ -161,6 +161,7 @@ class Game {
     this.justArrived = true;
     this.npcs = (m?.npcs || []).map((n) => ({ ...n, home: { x: n.x, y: n.y }, t: 30 + ((Math.random() * 60) | 0), dir: 'down', hidden: this.npcHidden(n) }));
     this.save.pos = { map: id, x, y, dir };
+    if (id === 'world') this.save.lastWorld = { x, y };
     this.stepsSinceBattle = 0;
     this.sound.playMusic(id === 'world' ? 'over' : m.music);
     if (m?.name) this.showBanner(m.name);
@@ -300,6 +301,13 @@ class Game {
         this.justArrived = false;
         this.save.steps++;
         this.save.pos = { map: this.mapId, x: p.x, y: p.y, dir: p.dir };
+        if (this.mapId === 'world') this.save.lastWorld = { x: p.x, y: p.y };
+        // poison saps the party on the march (never below 1 hp)
+        if (this.save.steps % 3 === 0) {
+          for (const c of this.party) {
+            if (c.psn && c.hp > 1) { c.hp--; if (this.frame % 6 === 0) this.sound.text(); }
+          }
+        }
         this.onStep();
       }
     }
@@ -500,7 +508,7 @@ class Game {
     if (this.goT > 120 && (this.input.pressed('a') || this.input.pressed('start'))) {
       // wake at the last inn, half gold
       this.save.gold = Math.floor(this.save.gold / 2);
-      for (const c of this.party) { c.hp = c.maxhp; c.mp = c.maxmp; }
+      for (const c of this.party) { c.hp = c.maxhp; c.mp = c.maxmp; c.psn = false; }
       const inn = this.save.lastInn;
       this.battle = null;
       this.loadMap(inn.map, inn.x, inn.y, 'down');
@@ -615,6 +623,22 @@ class Game {
           ]);
         }
         return;
+      case 'fisher':
+        if (f.ringDone) {
+          this.say(['FISHER: GRANDDAD ONCE DOVE', 'THE SUNKEN VAULT, OFF THE', 'EASTERN SANDS. NONE WHO', 'SEEK ITS KING COME BACK.']);
+        } else if (this.save.inv.ring) {
+          this.say(['FISHER: MY LUCKY RING! YOU', 'WALKED THE BARROW FOR AN', 'OLD MAN\'S TRINKET?', 'TAKE THIS, AND MY THANKS.'], () => {
+            delete this.save.inv.ring;
+            f.ringDone = true;
+            this.save.gold = Math.min(99999, this.save.gold + 100);
+            this.save.inv.tonic = Math.min(9, (this.save.inv.tonic || 0) + 2);
+            this.sound.itemGet();
+            this.say(['RECEIVED 100 GOLD', 'AND 2 TONICS!'], () => this.writeSave());
+          });
+        } else {
+          this.say(['FISHER: LOST MY LUCKY RING', 'IN THE OLD BARROW WHEN THE', 'BONES CHASED ME OUT.', 'BRING IT BACK AND I\'LL', 'MAKE IT WORTH YOUR WHILE.']);
+        }
+        return;
       case 'keeper':
         if (f.gateOpen) this.say(['GATEKEEPER: THE GATE STANDS', 'OPEN. MAY YOUR LANTERN', 'OUTLAST THE ASH.']);
         else if (this.save.inv.horn) this.say(['GATEKEEPER: THE HORN! SOUND', 'IT AT THE GREAT GATE, NORTH', 'OF TOWN.']);
@@ -626,7 +650,7 @@ class Game {
           if (!yes) return;
           if (this.save.gold < price) { this.sound.deny(); this.say(['INNKEEPER: COME BACK WHEN', 'YOUR PURSE IS HEAVIER.']); return; }
           this.save.gold -= price;
-          for (const c of this.party) { c.hp = c.maxhp; c.mp = c.maxmp; }
+          for (const c of this.party) { c.hp = c.maxhp; c.mp = c.maxmp; c.psn = false; }
           this.save.lastInn = { map: this.mapId, x: this.player.x, y: this.player.y };
           this.sound.innRest();
           this.writeSave();
@@ -690,15 +714,18 @@ class Game {
 
   updateMenu() {
     if (this.dialog) { this.updateDialog(); return; }
-    const root = ['ITEMS', 'STATUS', 'SAVE', 'CLOSE'];
+    const root = ['ITEMS', 'MAP', 'BESTIARY', 'STATUS', 'SAVE', 'CLOSE'];
     if (this.menuMode === 'root') {
-      if (this.input.pressed('up')) { this.menuSel = (this.menuSel + 3) % 4; this.sound.cursor(); }
-      if (this.input.pressed('down')) { this.menuSel = (this.menuSel + 1) % 4; this.sound.cursor(); }
+      const n = root.length;
+      if (this.input.pressed('up')) { this.menuSel = (this.menuSel + n - 1) % n; this.sound.cursor(); }
+      if (this.input.pressed('down')) { this.menuSel = (this.menuSel + 1) % n; this.sound.cursor(); }
       if (this.input.pressed('b') || this.input.pressed('start')) { this.state = 'roam'; this.sound.cancel(); return; }
       if (this.input.pressed('a')) {
         this.sound.confirm();
         const pick = root[this.menuSel];
         if (pick === 'ITEMS') { this.menuMode = 'items'; this.itemSel = 0; }
+        else if (pick === 'MAP') { this.menuMode = 'map'; }
+        else if (pick === 'BESTIARY') { this.menuMode = 'bestiary'; }
         else if (pick === 'STATUS') { this.menuMode = 'status'; }
         else if (pick === 'SAVE') {
           this.writeSave();
@@ -708,7 +735,7 @@ class Game {
       }
       return;
     }
-    if (this.menuMode === 'status') {
+    if (this.menuMode === 'status' || this.menuMode === 'map' || this.menuMode === 'bestiary') {
       if (this.input.pressed('a') || this.input.pressed('b')) { this.menuMode = 'root'; this.sound.cancel(); }
       return;
     }
@@ -736,7 +763,10 @@ class Game {
       if (this.input.pressed('a')) {
         const c = this.party[this.whoSel];
         const def = ITEMS[this.useItem];
-        if (def.revive) {
+        if (def.cure) {
+          if (!c.psn) { this.sound.deny(); return; }
+          c.psn = false;
+        } else if (def.revive) {
           if (c.hp > 0) { this.sound.deny(); return; }
           c.hp = Math.floor(c.maxhp / 2);
         } else {
@@ -856,15 +886,16 @@ class Game {
       const y = 18 + i * 30;
       const sel = this.menuMode === 'itemwho' && this.whoSel === i;
       drawWalker(ctx, c.sprite, 'down', 0, 16, y - 2);
-      text(ctx, `${c.name} LV${c.level}`, 38, y, sel ? '#f8d838' : '#fff');
+      text(ctx, `${c.name} LV${c.level}`, 38, y, sel ? '#f8d838' : c.psn ? '#80d860' : '#fff');
+      if (c.psn) text(ctx, 'PSN', 120, y, '#80d860');
       text(ctx, `HP${String(c.hp).padStart(4)}/${c.maxhp}`, 38, y + 10, c.hp <= 0 ? '#f84020' : '#c8d0d8');
       text(ctx, `MP${String(c.mp).padStart(3)}/${c.maxmp}`, 110, y + 10, '#8890c8');
     });
     text(ctx, `GOLD ${this.save.gold}`, 16, 20 + this.party.length * 30, '#f8d838');
 
     // root menu
-    const root = ['ITEMS', 'STATUS', 'SAVE', 'CLOSE'];
-    drawWindow(ctx, 172, 8, 76, 60);
+    const root = ['ITEMS', 'MAP', 'BESTIARY', 'STATUS', 'SAVE', 'CLOSE'];
+    drawWindow(ctx, 172, 8, 76, 84);
     root.forEach((o, i) => {
       text(ctx, o, 192, 16 + i * 12, this.menuMode === 'root' && i === this.menuSel ? '#f8d838' : '#fff');
       if (this.menuMode === 'root' && i === this.menuSel) drawSprite(ctx, 'cursor', 180, 16 + i * 12);
@@ -891,6 +922,44 @@ class Game {
         text(ctx, `${GEAR[c.weapon].name} / ${GEAR[c.armor].name}`, 36, y + 22, '#8890c8');
       });
     }
+    if (this.menuMode === 'map') this.drawWorldMap();
+    if (this.menuMode === 'bestiary') this.drawBestiary();
+  }
+
+  drawWorldMap() {
+    drawWindow(ctx, 22, 96, 212, 142);
+    const COLORS = {
+      '.': '#58a838', f: '#186010', h: '#3f8828', m: '#8a7a5a', w: '#2858d8',
+      s: '#e8d8a0', S: '#607048', p: '#c8a058', b: '#a87840', B: '#a87840',
+      a: '#787068', A: '#383028', T: '#f84020', C: '#101010', W: '#f88018',
+      G: '#f8d838', M: '#c8d2e6',
+    };
+    const ox = 32, oy = 106;
+    for (let y = 0; y < W_H; y++) {
+      for (let x = 0; x < W_W; x++) {
+        ctx.fillStyle = COLORS[WORLD[y][x]] || '#000';
+        ctx.fillRect(ox + x * 2, oy + y * 2, 2, 2);
+      }
+    }
+    const lw = this.save.lastWorld || { x: START_POS.x, y: START_POS.y };
+    if (this.frame & 16) {
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(ox + lw.x * 2 - 1, oy + lw.y * 2 - 1, 4, 4);
+    }
+    text(ctx, 'MOORULE', 128, 228, '#f8d838', 8, 'center');
+  }
+
+  drawBestiary() {
+    const ids = Object.keys(ENEMIES);
+    const seen = this.save.seen || {};
+    const count = ids.filter((id) => seen[id]).length;
+    drawWindow(ctx, 22, 96, 212, 142);
+    text(ctx, `BESTIARY  ${count}/${ids.length}`, 128, 104, '#f8d838', 8, 'center');
+    ids.forEach((id, i) => {
+      const col = (i / 10) | 0, row = i % 10;
+      const name = seen[id] ? ENEMIES[id].name : '???';
+      text(ctx, name, 36 + col * 100, 118 + row * 11, seen[id] ? (ENEMIES[id].boss ? '#f8a800' : '#fff') : '#556');
+    });
   }
 
   drawShop() {

@@ -103,6 +103,7 @@ export const WORLD = [];
   g[50][72] = 'C';                   // Mire Cave
   g[51][72] = 'S';
   fill(40, 58, 90, 60, 's');         // south-east beach
+  g[59][60] = 'C';                   // the Sunken Vault
   // roads
   path([[24, 53], [24, 46], [30, 46], [30, 39], [30, 38], [35, 38]]);
   g[38][30] = 'T';                   // Fordwell (placed after the road)
@@ -118,7 +119,7 @@ export const WORLD = [];
 export const START_POS = { map: 'world', x: 24, y: 53, dir: 'up' };
 
 export const TOWN_AT = { '24,52': 'emberwick', '30,38': 'fordwell', '56,40': 'sagemoor', '44,20': 'highcairn' };
-export const CAVE_AT = { '10,34': 'barrow1', '72,50': 'mire1', '70,18': 'dusk1', '58,8': 'spire1' };
+export const CAVE_AT = { '10,34': 'barrow1', '72,50': 'mire1', '70,18': 'dusk1', '58,8': 'spire1', '60,59': 'vault1' };
 
 // ============================ TOWNS ============================
 // 24 x 16 maps. Walking off any edge returns to the world map.
@@ -191,6 +192,7 @@ const FORDWELL = town('fordwell', 'FORDWELL', [
   { id: 'vil5', sprite: 'man', x: 8, y: 8, wander: true, say: [
     { text: ['AN OLD BARROW LIES IN THE', 'WESTERN WOODS. FULL OF', 'WALKING BONES, THEY SAY.'] },
   ] },
+  { id: 'fisher', sprite: 'man2', x: 12, y: 12, role: 'fisher' },
 ], { x: 12, y: 13 });
 
 const SAGEMOOR = town('sagemoor', 'SAGEMOOR', [
@@ -291,7 +293,7 @@ const BARROW1 = dungeon('barrow1', 'THE HOLLOW BARROW', [
   'RRRRRRRRRRRRRRRRRRRRRRRR',
 ], {
   links: { '2,14': { map: 'world', x: 10, y: 35 }, '19,14': { map: 'barrow2', x: 2, y: 2 } },
-  chests: { '4,4': { gold: 30 }, '22,1': { item: 'potion' } },
+  chests: { '4,4': { item: 'ring', quest: false }, '22,1': { item: 'potion' } },
   encounters: { rate: 14, groups: [['bonewalker'], ['bonewalker', 'bonewalker'], ['spider', 'wisp'], ['wisp', 'wisp']] },
 });
 
@@ -503,10 +505,63 @@ const SPIRE3 = dungeon('spire3', 'THE GREAT HEARTH', [
   hearth: { x: 11, y: 3 }, // step here with the weaver dead -> relight -> ending
 });
 
+// The Sunken Vault — optional superboss dungeon under the eastern sands.
+const VAULT1 = dungeon('vault1', 'THE SUNKEN VAULT', [
+  'RRRRRRRRRRRRRRRRRRRRRRRR',
+  'R,,,,,,,,,,,,,,,,,,,,,,R',
+  'R,<,RRRRRRRRRRRRRRRRRR,R',
+  'R,,,,,,,,,,,,,,,,,,,,R,R',
+  'RRRRRRRRRRRRRRRRRRRR,R,R',
+  'R,,,,,,,,,,,,,,,,,,,,R,R',
+  'R,R,RRRRRRRRRRRRRRRRRR,R',
+  'R,R,,,,,,,,,,,,,,,,,,,,R',
+  'R,RRRRRRRRRRRRRRRRRRRR,R',
+  'R,,,,,,,,,,,,,,,,,,,,R,R',
+  'RRRRRRRRRRRRRRRRRRRR,R,R',
+  'RXX,,,,,,,,,,,,,,,,,,R,R',
+  'R,RRRRRRRRRRRRRRRRRRRR,R',
+  'R,,,,,,,,,,,,,,,,,,,,,,R',
+  'R,>,RRRRRRRRRRRRRRRRRR,R',
+  'RRRRRRRRRRRRRRRRRRRRRRRR',
+], {
+  links: { '2,2': { map: 'world', x: 60, y: 60 }, '2,14': { map: 'vault2', x: 2, y: 14 } },
+  chests: { '1,11': { gold: 300 }, '2,11': { item: 'ether' } },
+  encounters: { rate: 12, groups: [['drowned'], ['deepshade'], ['drowned', 'drowned'], ['deepshade', 'drowned'], ['shadowknight', 'deepshade']] },
+});
+
+const VAULT2 = dungeon('vault2', 'THE DROWNED THRONE', [
+  'RRRRRRRRRRRRRRRRRRRRRRRR',
+  'RRRRRRRRR,X,X,X,RRRRRRRR',
+  'RRRRRRRR,,,,,,,,RRRRRRRR',
+  'RRRRRRRR,,,,,,,,RRRRRRRR',
+  'RRRRRRRR,O,,,,O,RRRRRRRR',
+  'RRRRRR,,,,,,,,,,,,RRRRRR',
+  'RRRRRR,,,,,,,,,,,,RRRRRR',
+  'RRRRRR,,,,,,,,,,,,RRRRRR',
+  'RRRRRRRR,,,,,,,,RRRRRRRR',
+  'RRRRRRRR,,,,,,,,RRRRRRRR',
+  'RRRRRRRRRR,,,,RRRRRRRRRR',
+  'R,,,,,,,,,,,,,,,,,,,,,,R',
+  'R,RRRRRRRRRRRRRRRRRRRR,R',
+  'R,RRRRRRRRRRRRRRRRRRRR,R',
+  'R,<,RRRRRRRRRRRRRRRR,,,R',
+  'RRRRRRRRRRRRRRRRRRRRRRRR',
+], {
+  music: 'boss',
+  links: { '2,14': { map: 'vault1', x: 2, y: 14 } },
+  chests: { '10,1': { item: 'dawnlantern' }, '12,1': { gold: 500 }, '14,1': { item: 'aegis' } },
+  bosses: Object.fromEntries(
+    ['10,10', '11,10', '12,10', '13,10'].map((k) => [k,
+      { group: ['drownedking'], flag: 'k_king', text: 'THE DROWNED KING RISES FROM HIS SALT THRONE!' }]),
+  ),
+  encounters: null,
+});
+
 export const MAPS = {
   emberwick: EMBERWICK, fordwell: FORDWELL, sagemoor: SAGEMOOR, highcairn: HIGHCAIRN,
   barrow1: BARROW1, barrow2: BARROW2, mire1: MIRE1, mire2: MIRE2,
   dusk1: DUSK1, dusk2: DUSK2, spire1: SPIRE1, spire2: SPIRE2, spire3: SPIRE3,
+  vault1: VAULT1, vault2: VAULT2,
 };
 
 // ============================ ITEMS & GEAR ============================
@@ -517,7 +572,9 @@ export const ITEMS = {
   ether: { name: 'ETHER', price: 70, mp: 25, desc: 'RESTORES 25 MP' },
   tonic: { name: 'TONIC', price: 45, revive: true, desc: 'REVIVES A FALLEN ALLY' },
   smoke: { name: 'SMOKE BOMB', price: 15, flee: true, desc: 'ESCAPE ANY BATTLE' },
+  antidote: { name: 'ANTIDOTE', price: 25, cure: true, desc: 'CURES POISON' },
   iron: { name: 'STAR-IRON', quest: true, desc: 'METAL FROM A FALLEN STAR' },
+  ring: { name: 'LUCKY RING', quest: true, desc: 'A FISHERMAN\'S HEIRLOOM' },
   bloom: { name: 'MOONBLOOM', quest: true, desc: 'A FLOWER THAT DRINKS MOONLIGHT' },
   horn: { name: 'SIGNAL HORN', quest: true, desc: 'OPENS THE GREAT GATE' },
 };
@@ -527,6 +584,7 @@ export const GEAR = {
   lantern: { name: 'LANTERN STAFF', slot: 'weapon', who: 'moore', atk: 2, price: 0 },
   oakstaff: { name: 'OAK STAFF', slot: 'weapon', who: 'moore', atk: 5, price: 60 },
   emberrod: { name: 'EMBER ROD', slot: 'weapon', who: 'moore', atk: 10, price: 240 },
+  dawnlantern: { name: 'DAWN LANTERN', slot: 'weapon', who: 'moore', atk: 15, price: 900 },
   handaxe: { name: 'HAND AXE', slot: 'weapon', who: 'brann', atk: 4, price: 0 },
   broadaxe: { name: 'BROAD AXE', slot: 'weapon', who: 'brann', atk: 9, price: 160 },
   waraxe: { name: 'WAR AXE', slot: 'weapon', who: 'brann', atk: 14, price: 420 },
@@ -538,15 +596,16 @@ export const GEAR = {
   leather: { name: 'LEATHER COAT', slot: 'armor', def: 3, price: 50 },
   chain: { name: 'CHAIN SHIRT', slot: 'armor', def: 6, price: 180 },
   plate: { name: 'FORGE PLATE', slot: 'armor', def: 10, price: 460 },
+  aegis: { name: 'TIDEWORN AEGIS', slot: 'armor', def: 14, price: 990 },
 };
 
 export const SHOPS = {
   ember_items: { name: 'EMBERWICK GOODS', stock: ['potion', 'smoke'] },
-  ford_items: { name: 'FORDWELL GOODS', stock: ['potion', 'tonic', 'smoke'] },
+  ford_items: { name: 'FORDWELL GOODS', stock: ['potion', 'tonic', 'antidote', 'smoke'] },
   ford_gear: { name: 'FORDWELL SMITHY', stock: ['oakstaff', 'broadaxe', 'leather'] },
-  sage_items: { name: 'SAGEMOOR GOODS', stock: ['potion', 'bigpotion', 'tonic', 'smoke'] },
+  sage_items: { name: 'SAGEMOOR GOODS', stock: ['potion', 'bigpotion', 'antidote', 'tonic', 'smoke'] },
   sage_gear: { name: 'SAGEMOOR TRADER', stock: ['willow', 'broadaxe', 'chain'] },
-  high_items: { name: 'HIGHCAIRN GOODS', stock: ['bigpotion', 'ether', 'tonic', 'smoke'] },
+  high_items: { name: 'HIGHCAIRN GOODS', stock: ['bigpotion', 'ether', 'antidote', 'tonic', 'smoke'] },
   high_gear: { name: 'HIGHCAIRN ARMORY', stock: ['emberrod', 'waraxe', 'moonwand', 'plate'] },
 };
 
@@ -601,10 +660,10 @@ export const xpForLevel = (lv) => Math.floor(14 * (lv - 1) * (lv - 1) + 26 * (lv
 export const ENEMIES = {
   ashwolf: { name: 'ASH WOLF', sprite: 'b_ashwolf', hp: 14, atk: 8, def: 3, spd: 8, xp: 5, gold: 4 },
   wisp: { name: 'CINDER WISP', sprite: 'b_wisp', hp: 10, atk: 6, def: 2, spd: 6, xp: 5, gold: 5, cast: { kind: 'fire', pow: 7, chance: 0.5 } },
-  spider: { name: 'THICKET SPIDER', sprite: 'b_spider', hp: 18, atk: 9, def: 4, spd: 5, xp: 7, gold: 6 },
+  spider: { name: 'THICKET SPIDER', sprite: 'b_spider', hp: 18, atk: 9, def: 4, spd: 5, xp: 7, gold: 6, poison: 0.2 },
   bonewalker: { name: 'BONE WALKER', sprite: 'b_bonewalker', hp: 24, atk: 11, def: 5, spd: 4, xp: 10, gold: 9 },
-  crawler: { name: 'MIRE CRAWLER', sprite: 'b_crawler', hp: 28, atk: 12, def: 7, spd: 5, xp: 13, gold: 11 },
-  serpent: { name: 'BOG SERPENT', sprite: 'b_serpent', hp: 32, atk: 14, def: 5, spd: 9, xp: 16, gold: 13 },
+  crawler: { name: 'MIRE CRAWLER', sprite: 'b_crawler', hp: 28, atk: 12, def: 7, spd: 5, xp: 13, gold: 11, poison: 0.25 },
+  serpent: { name: 'BOG SERPENT', sprite: 'b_serpent', hp: 32, atk: 14, def: 5, spd: 9, xp: 16, gold: 13, poison: 0.3 },
   duskbat: { name: 'DUSK BAT', sprite: 'b_duskbat', hp: 22, atk: 11, def: 3, spd: 12, xp: 13, gold: 11 },
   cultist: { name: 'DUSK CULTIST', sprite: 'b_cultist', hp: 36, atk: 15, def: 7, spd: 8, xp: 22, gold: 20, cast: { kind: 'fire', pow: 12, chance: 0.4 } },
   brute: { name: 'DUSK BRUTE', sprite: 'b_brute', hp: 52, atk: 19, def: 8, spd: 5, xp: 28, gold: 26 },
@@ -612,11 +671,14 @@ export const ENEMIES = {
   revenant: { name: 'ASH REVENANT', sprite: 'b_revenant', hp: 58, atk: 21, def: 10, spd: 9, xp: 38, gold: 32 },
   embereater: { name: 'EMBER EATER', sprite: 'b_embereater', hp: 64, atk: 23, def: 12, spd: 7, xp: 42, gold: 36, cast: { kind: 'fire', pow: 18, chance: 0.4 } },
   shadowknight: { name: 'SHADOW KNIGHT', sprite: 'b_shadowknight', hp: 78, atk: 27, def: 14, spd: 10, xp: 58, gold: 50 },
+  drowned: { name: 'DROWNED ONE', sprite: 'b_drowned', hp: 66, atk: 24, def: 12, spd: 8, xp: 60, gold: 55, poison: 0.3 },
+  deepshade: { name: 'DEEP SHADE', sprite: 'b_deepshade', hp: 58, atk: 26, def: 10, spd: 13, xp: 66, gold: 60 },
   // bosses
   stonewarden: { name: 'STONE WARDEN', sprite: 'b_stonewarden', boss: true, hp: 130, atk: 16, def: 11, spd: 4, xp: 90, gold: 120 },
   miremaw: { name: 'MIRE MAW', sprite: 'b_miremaw', boss: true, hp: 210, atk: 21, def: 10, spd: 6, xp: 180, gold: 240, double: true },
   duskpriest: { name: 'DUSKPRIEST', sprite: 'b_duskpriest', boss: true, hp: 290, atk: 25, def: 12, spd: 10, xp: 320, gold: 400, cast: { kind: 'fire', pow: 22, chance: 0.45 } },
   duskweaver: { name: 'THE DUSKWEAVER', sprite: 'b_duskweaver', boss: true, hp: 460, atk: 31, def: 15, spd: 12, xp: 999, gold: 999, cast: { kind: 'fire', pow: 26, chance: 0.35 }, double: true },
+  drownedking: { name: 'THE DROWNED KING', sprite: 'b_drownedking', boss: true, hp: 600, atk: 34, def: 18, spd: 11, xp: 1500, gold: 1500, poison: 0.35, cast: { kind: 'fire', pow: 30, chance: 0.3 }, double: true },
 };
 
 // World encounter zones, checked in order. rate = avg steps per battle.

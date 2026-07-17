@@ -35,16 +35,20 @@ Or serve the folder with any static file server.
 - **Four towns** (Emberwick, Fordwell, Sagemoor, Highcairn) full of
   townsfolk whose gossip changes as the story moves — plus inns that heal
   and save, item shops, and smithies with three tiers of gear.
-- **Four dungeons** — the Hollow Barrow, the Mire Cave, Duskhold Fort, and
-  the three floors of the Worldspire — with chests, gold, and a guardian
-  over every treasure.
+- **Five dungeons** — the Hollow Barrow, the Mire Cave, Duskhold Fort, the
+  three floors of the Worldspire, and (for the brave) the optional Sunken
+  Vault beneath the eastern sands, where the Drowned King guards the best
+  gear in the game.
 - **A party of three**: Moore the lamplighter (fire magic), Brann the
   smith (joins when you bring him star-iron to mend the Fordwell bridge),
   and Lyra the hedge-witch (joins when you cure Sagemoor's marsh fever —
   and she alone can part the mist pass).
 - **Turn-based battles**: Fight / Skill / Item / Run, enemy groups, speed
-  order, crits, 13 monsters and 4 bosses, XP, levels, learned skills,
-  gold, and equipment.
+  order, crits, 15 monsters and 5 bosses, XP, levels, learned skills,
+  gold, and equipment. Swamp things poison — carry antidotes, or let the
+  venom sap you with every step.
+- **A world map and a bestiary** on the pause menu, and a fisherman in
+  Fordwell who lost something in the Barrow and pays well for its return.
 - **A quest chain that opens the map**: fix the bridge, part the mist,
   recover the stolen signal horn to open the Great Gate, then climb the
   Worldspire, face the Duskweaver, and relight the Great Hearth.

@@ -62,6 +62,8 @@ export class Battle {
     this.floaters = [];
     this.result = null;
     this.rewardText = [];
+    game.save.seen = game.save.seen || {};
+    for (const id of group) game.save.seen[id] = true;
     game.sound.encounter();
     if (this.isBoss) game.sound.bossRoar();
   }
@@ -218,7 +220,7 @@ export class Battle {
       const def = ITEMS[id];
       this.pending = { actor: this.currentActor(), type: 'item', item: id };
       this.game.sound.confirm();
-      if (def.heal || def.mp || def.revive) { this.state = 'allymenu'; this.subCursor = 0; }
+      if (def.heal || def.mp || def.revive || def.cure) { this.state = 'allymenu'; this.subCursor = 0; }
       else this.commitAction();
     }
   }
@@ -286,6 +288,13 @@ export class Battle {
     const a = act.actor;
     // skip dead actors
     if ((act.type === 'enemy' && a.dead) || (act.type !== 'enemy' && a.hp <= 0)) { this.actT = 41; return; }
+    // poison saps party members as they act
+    if (act.type !== 'enemy' && a.psn) {
+      const tick = Math.max(1, Math.ceil(a.maxhp * 0.06));
+      a.hp = Math.max(0, a.hp - tick);
+      this.floaters.push({ t: 0, x: 60 + this.game.party.indexOf(a) * 70, y: 168, str: `${tick}`, color: '#80d860' });
+      if (a.hp <= 0) { g.sound.die(); this.say(`${a.name} SUCCUMBS TO POISON!`); return; }
+    }
 
     if (act.type === 'fight') {
       let tgt = act.target;
@@ -350,6 +359,14 @@ export class Battle {
         this.say(`${tgt.name} IS BACK ON THEIR FEET!`);
         return;
       }
+      if (def.cure) {
+        if (!tgt.psn) { this.say('THEY ARE NOT POISONED.'); return; }
+        inv[act.item]--;
+        tgt.psn = false;
+        g.sound.heal();
+        this.say(`THE VENOM LEAVES ${tgt.name}.`);
+        return;
+      }
       if (tgt.hp <= 0) { this.say('IT CANNOT HELP THE FALLEN.'); return; }
       inv[act.item]--;
       if (def.heal) { tgt.hp = Math.min(tgt.maxhp, tgt.hp + def.heal); g.sound.heal(); }
@@ -379,7 +396,12 @@ export class Battle {
         const { dmg, crit } = this.physDamage(a.atk, eDef(tgt));
         this.hitHero(tgt, dmg);
         crit ? g.sound.crit() : g.sound.hurt();
-        this.say(`${this.foeName(a)} ATTACKS ${tgt.name}!`);
+        let msg = `${this.foeName(a)} ATTACKS ${tgt.name}!`;
+        if (a.poison && tgt.hp > 0 && !tgt.psn && Math.random() < a.poison) {
+          tgt.psn = true;
+          msg = `${tgt.name} IS POISONED!`;
+        }
+        this.say(msg);
       }
     }
   }
@@ -539,7 +561,8 @@ export class Battle {
       const x = 14 + i * 82 + sh;
       const active = this.state === 'command' && this.currentActor() === c && !this.msgWait;
       const targeting = this.state === 'allymenu' && (this.subCursor % this.game.party.length) === i;
-      text(ctx, c.name, x, 184, c.hp <= 0 ? '#886' : active || targeting ? '#f8d838' : '#fff');
+      text(ctx, c.name, x, 184, c.hp <= 0 ? '#886' : active || targeting ? '#f8d838' : c.psn ? '#80d860' : '#fff');
+      if (c.psn && c.hp > 0) text(ctx, 'PSN', x + 50, 184, '#80d860');
       text(ctx, `HP${String(c.hp).padStart(4)}`, x, 196, c.hp <= 0 ? '#f84020' : c.hp < c.maxhp / 4 ? '#f8a800' : '#fff');
       text(ctx, `MP${String(c.mp).padStart(4)}`, x, 208, '#8890c8');
       text(ctx, `LV${String(c.level).padStart(3)}`, x, 220, '#667');
