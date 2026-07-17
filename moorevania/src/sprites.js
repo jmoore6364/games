@@ -653,6 +653,163 @@ def('mummy2', [
   '................',
 ]);
 
+def('redskel1', [
+  '.....rrrr.......',
+  '....rrrrrr......',
+  '....rkrrkr......',
+  '....rrrrrr......',
+  '.....r.r.r......',
+  '.....rrrr.......',
+  '....RrrrrR......',
+  '...rRrrrrRr.....',
+  '...r.rrrr.r.....',
+  '...r.RrrR.r.....',
+  '...r.rrrr.r.....',
+  '.....RrrR.......',
+  '.....r..r.......',
+  '.....r..r.......',
+  '....Rr..rR......',
+  '....r....r......',
+  '....r....r......',
+  '...rr....rr.....',
+]);
+
+def('redskel2', [
+  '.....rrrr.......',
+  '....rrrrrr......',
+  '....rkrrkr......',
+  '....rrrrrr......',
+  '.....r.r.r......',
+  '.....rrrr.......',
+  '....RrrrrR......',
+  '...rRrrrrRr.....',
+  '...r.rrrr.r.....',
+  '...r.RrrR.r.....',
+  '.....rrrr.......',
+  '.....RrrR.......',
+  '....rr..rr......',
+  '...rr....rr.....',
+  '...r......r.....',
+  '..rr......rr....',
+  '................',
+  '................',
+]);
+
+def('bonepile', [
+  '....r..rr..r....',
+  '..rrRrrrrRrrr...',
+  '.rRrrrRRrrrRrr..',
+]);
+
+def('wraith', [
+  '.....KKKK.......',
+  '...KKKKKKKK.....',
+  '..KKKKKKKKKK....',
+  '..KKcKKKKcKK....',
+  '..KKKKKKKKKK....',
+  '.KKKKKccKKKKK...',
+  '.KKKKKKKKKKKK...',
+  '.KKKKKKKKKKKK...',
+  '..KKKKKKKKKK....',
+  '..K.KKKK.KKK....',
+  '.....KK...K.....',
+]);
+
+def('gravelord1', [
+  '......y.y.y.y...........',
+  '......yyyyyyy...........',
+  '.....eeeeeeeee..........',
+  '....eeeeeeeeeee.........',
+  '....eekeeeeekee.........',
+  '....eeeeeeeeeee.........',
+  '.....ee.eee.ee..........',
+  '.....eeeeeeeee..........',
+  '....EeeeeeeeeE..........',
+  '...eEeeeeeeeeEe.........',
+  '...e.eeeeeeee.e.........',
+  '...e.EeeeeeE..e.........',
+  '...e.eeeeeee..e.........',
+  '...e.EeeeeeE..e.........',
+  '.....eeeeeee............',
+  '.....EeeeeE.............',
+  '.....ee..ee.............',
+  '.....ee..ee.............',
+  '....Eee..eeE............',
+  '....ee....ee............',
+  '....ee....ee............',
+  '...eee....eee...........',
+]);
+
+def('gravelord2', [
+  '......y.y.y.y...........',
+  '......yyyyyyy...........',
+  '.....eeeeeeeee..........',
+  '....eeeeeeeeeee.........',
+  '....eekeeeeekee.........',
+  '....eeeeeeeeeee.........',
+  '.....ee.eee.ee..........',
+  '.....eeeeeeeee..........',
+  '....EeeeeeeeeE..........',
+  '...eEeeeeeeeeEe.........',
+  '...e.eeeeeeee.e.........',
+  '...e.EeeeeeE..e.........',
+  '...e.eeeeeee..e.........',
+  '.....EeeeeeE............',
+  '.....eeeeeee............',
+  '.....EeeeeE.............',
+  '....eee..eee............',
+  '...eee....eee...........',
+  '...ee......ee...........',
+  '..eee......eee..........',
+  '................',
+  '................',
+]);
+
+def('fairy', [
+  '.c......c.',
+  'ccc....ccc',
+  '.ccWWWWcc.',
+  '..cWWWWc..',
+  '...WkkW...',
+  '...WWWW...',
+  '..cWWWWc..',
+  '.ccWWWWcc.',
+  'ccc.WW.ccc',
+  '.c..WW..c.',
+  '....W.W...',
+]);
+
+def('garlic_i', [
+  '...ee...',
+  '..eWWe..',
+  '.eWWWWe.',
+  '.eWWWWe.',
+  '.eWeWee.',
+  '..eeee..',
+]);
+
+def('amulet_i', [
+  '..yyyyyy..',
+  '.y......y.',
+  'y..cccc..y',
+  'y.ccccc..y',
+  'y.ccc....y',
+  'y.ccccc..y',
+  '...cccc...',
+  '....cc....',
+]);
+
+def('chest', [
+  '.mmmmmmmmmm.',
+  'mMMMMMMMMMMm',
+  'mMmmmmmmmmMm',
+  'mmmmmyymmmmm',
+  'mMmmmyymmmMm',
+  'mMmmmmmmmmMm',
+  'mMMMMMMMMMMm',
+  '.mmmmmmmmmm.',
+]);
+
 // ============================== BOSSES ==============================
 
 def('batlord1', [
@@ -1220,6 +1377,7 @@ const THEME_SOLID = {
   manor2: ['#586078', '#404658', '#68708c'],
   manor3: ['#7a4a4a', '#583232', '#8c5a5a'],
   castle: ['#4a4258', '#332e40', '#5a5069'],
+  catacomb: ['#4e4638', '#383226', '#5e5644'],
 };
 
 export function drawTile(ctx, ch, theme, px, py, t, above) {
@@ -1379,9 +1537,9 @@ const SKY = {
 
 // phase: 0 day, 1 night; blend handles dusk.
 export function drawBG(ctx, theme, camX, camY, t, nightBlend, W, H) {
-  const indoor = theme === 'manor' || theme === 'manor2' || theme === 'manor3' || theme === 'castle';
+  const indoor = theme === 'manor' || theme === 'manor2' || theme === 'manor3' || theme === 'castle' || theme === 'catacomb';
   if (indoor) {
-    const base = { manor: '#241a14', manor2: '#161a26', manor3: '#241416', castle: '#16121e' }[theme];
+    const base = { manor: '#241a14', manor2: '#161a26', manor3: '#241416', castle: '#16121e', catacomb: '#141008' }[theme];
     ctx.fillStyle = base;
     ctx.fillRect(0, 0, W, H);
     // faint arches
