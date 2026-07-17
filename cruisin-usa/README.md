@@ -25,7 +25,14 @@ checkpoints and the lap line add time. Watch for oncoming traffic in the
 left lanes: a head-on hit at speed sends you into the signature Cruis'n
 barrel-roll wipeout, and so does clipping a palm tree, cactus, or
 building while off-road. Rear-ending same-direction traffic just costs
-you speed. Your best finish time per course is saved locally.
+you speed.
+
+Tuck in close behind another car at speed to build a **slipstream** —
+the meter by the speedo fills, your top end climbs, and a full draft
+flashes DRAFT! for a proper slingshot pass. Races roll random **weather**:
+golden-hour skies, or rain that slickens your steering. A top-5
+**leaderboard** per course is saved locally — set a time and punch in
+your three initials, arcade style.
 
 ## Controls
 

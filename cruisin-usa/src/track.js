@@ -135,7 +135,7 @@ function buildCoast() {
   b.scatter(['palm', 'palm', 'bush', 'rock'], 0.28, 1.25, 4.5);
   b.billboards(['billboard0', 'billboard1', 'billboard2'], 220);
   return finalize(b, {
-    id: 'coast', name: 'PACIFIC COAST', bg: 'ocean', laps: 2,
+    id: 'coast', name: 'PACIFIC COAST', bg: 'ocean', laps: 2, music: { bpm: 138, root: 0 },
     timeStart: 70, timeBonus: 26,
     sky: ['#1e8fd8', '#a8e4ff'], fog: '#a8e4ff',
     grass: ['#3fae58', '#37a050'], rumble: ['#ffffff', '#d63a3a'],
@@ -163,7 +163,7 @@ function buildDesert() {
   b.scatter(['cactus', 'cactus', 'rock', 'mesa', 'bushDry'], 0.26, 1.3, 5.0);
   b.billboards(['billboard0', 'billboard1', 'billboard2'], 240);
   return finalize(b, {
-    id: 'desert', name: 'ROUTE 66', bg: 'desert', laps: 2,
+    id: 'desert', name: 'ROUTE 66', bg: 'desert', laps: 2, music: { bpm: 124, root: -2 },
     timeStart: 70, timeBonus: 26,
     sky: ['#ff9d3c', '#ffe29a'], fog: '#ffd98f',
     grass: ['#d8a75c', '#cd9c52'], rumble: ['#ffffff', '#2c2c2c'],
@@ -193,7 +193,7 @@ function buildRockies() {
   b.scatter(['pine', 'pine', 'pine', 'rock', 'bush'], 0.3, 1.25, 4.5);
   b.billboards(['billboard0', 'billboard1', 'billboard2'], 230);
   return finalize(b, {
-    id: 'rockies', name: 'ROCKY SUMMIT', bg: 'mountain', laps: 2,
+    id: 'rockies', name: 'ROCKY SUMMIT', bg: 'mountain', laps: 2, music: { bpm: 132, root: 3 },
     timeStart: 70, timeBonus: 26,
     sky: ['#6db7dd', '#dff0f8'], fog: '#dff0f8',
     grass: ['#eef4f8', '#e0e9f0'], rumble: ['#d84040', '#ffffff'],
@@ -222,7 +222,7 @@ function buildCity() {
   b.scatter(['building0', 'building1', 'building2', 'lamp'], 0.34, 1.35, 3.6);
   b.billboards(['billboardNeon0', 'billboardNeon1'], 200);
   return finalize(b, {
-    id: 'city', name: 'MOORE CITY NIGHTS', bg: 'city', laps: 2,
+    id: 'city', name: 'MOORE CITY NIGHTS', bg: 'city', laps: 2, music: { bpm: 148, root: -4 },
     timeStart: 65, timeBonus: 25,
     sky: ['#07071e', '#2a1450'], fog: '#1a1038',
     grass: ['#20222e', '#1c1e2a'], rumble: ['#c9c9d4', '#5a5a70'],
