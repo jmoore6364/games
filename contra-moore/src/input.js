@@ -65,6 +65,60 @@ export class Input {
   endFrame() { this.pressedNow = {}; }
 }
 
+// Virtual joystick: one thumb, all 8 directions (diagonals included).
+function initStick(input, root) {
+  const zone = document.createElement('div');
+  zone.className = 'stick-zone';
+  const knob = document.createElement('div');
+  knob.className = 'stick-knob';
+  zone.appendChild(knob);
+  root.appendChild(zone);
+
+  let pid = null;
+  const clear = () => {
+    pid = null;
+    knob.style.transform = 'translate(-50%,-50%)';
+    for (const a of ['left', 'right', 'up', 'down']) input.setTouch(a, false);
+  };
+  const update = (e) => {
+    const r = zone.getBoundingClientRect();
+    let dx = e.clientX - (r.left + r.width / 2);
+    let dy = e.clientY - (r.top + r.height / 2);
+    const d = Math.hypot(dx, dy);
+    const max = r.width / 2;
+    if (d > max) { dx *= max / d; dy *= max / d; }
+    knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+    const dirs = { left: false, right: false, up: false, down: false };
+    if (d > 14) {
+      // octants: every 45° slice, so diagonals get an equal share
+      const oct = Math.round(Math.atan2(dy, dx) / (Math.PI / 4));
+      if (oct === 0) dirs.right = true;
+      else if (oct === 1) { dirs.right = true; dirs.down = true; }
+      else if (oct === 2) dirs.down = true;
+      else if (oct === 3) { dirs.left = true; dirs.down = true; }
+      else if (oct === 4 || oct === -4) dirs.left = true;
+      else if (oct === -3) { dirs.left = true; dirs.up = true; }
+      else if (oct === -2) dirs.up = true;
+      else if (oct === -1) { dirs.right = true; dirs.up = true; }
+    }
+    for (const k of Object.keys(dirs)) input.setTouch(k, dirs[k]);
+  };
+  zone.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    pid = e.pointerId;
+    if (zone.setPointerCapture) zone.setPointerCapture(pid);
+    update(e);
+  });
+  zone.addEventListener('pointermove', (e) => {
+    if (e.pointerId !== pid) return;
+    e.preventDefault();
+    update(e);
+  });
+  zone.addEventListener('pointerup', (e) => { if (e.pointerId === pid) clear(); });
+  zone.addEventListener('pointercancel', clear);
+  zone.addEventListener('contextmenu', (e) => e.preventDefault());
+}
+
 // On-screen controls for touch devices (force with ?touch=1 for testing).
 export function initTouch(input) {
   const force = location.search.includes('touch=1');
@@ -100,11 +154,22 @@ export function initTouch(input) {
     return el;
   };
 
-  mkBtn('◀', 'left', 'b-left');
-  mkBtn('▶', 'right', 'b-right');
-  mkBtn('▲', 'up', 'b-up');
-  mkBtn('▼', 'down', 'b-down');
-  mkBtn('LOCK', 'lock', 'b-lock');
+  initStick(input, root);
+
+  // LOCK is a toggle on touch — holding it would need a third finger.
+  const lock = document.createElement('div');
+  lock.className = 'tbtn b-lock';
+  lock.textContent = 'LOCK';
+  let lockOn = false;
+  lock.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    lockOn = !lockOn;
+    input.setTouch('lock', lockOn);
+    lock.classList.toggle('on', lockOn);
+  });
+  lock.addEventListener('contextmenu', (e) => e.preventDefault());
+  root.appendChild(lock);
+
   mkBtn('FIRE', 'fire', 'b-fire');
   mkBtn('JUMP', 'jump', 'b-jump');
   mkBtn('MENU', 'start', 'b-start');
