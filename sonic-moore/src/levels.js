@@ -166,8 +166,8 @@ class Builder {
     this.flatPx(2 * (R + pad));
     this.loops.push({ cx, cy, R, gy, top, x0: cx - R - pad, x1: cx + R + pad });
     // path swappers: crossing rightward -> layer 1, leftward -> layer 2
-    this.swappers.push({ x: cx - R - pad - 10, y0: top - 64, y1: gy + 12 });
-    this.swappers.push({ x: cx + R + pad + 10, y0: top - 64, y1: gy + 12 });
+    this.swappers.push({ x: cx - R - pad - 40, y0: top - 64, y1: gy + 12 });
+    this.swappers.push({ x: cx + R + pad + 40, y0: top - 64, y1: gy + 12 });
     this.swappers.push({ x: cx, y0: top - 64, y1: cy });
     return { cx, cy, R, gy };
   }
@@ -427,7 +427,7 @@ function buildBoss() {
   ]);
   b.bossTrigger = 620;
   b.bossZone = { x0: 620, x1: 620 + 320 };
-  b.e('boss', 620 + 240, b.curY - 140);
+  b.e('boss', 620 + 240, b.curY - 104);
   b.flat(14);
   return new Level(b, {});
 }

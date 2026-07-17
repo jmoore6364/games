@@ -520,9 +520,10 @@ const TYPES = {
       if (e.squash > 0) e.squash--;
       const p = g.player;
       if (p.dead) return;
-      const top = e.y - 16;
+      const top = e.y - 8;   // e.y sits half-buried at ground level
+      const base = e.y + 8;
       const feet = p.y + p.hr;
-      if (Math.abs(p.x - e.x) < 20 && p.ysp >= -0.1 && feet >= top - 6 && feet <= top + 14 && p.y < e.y) {
+      if (Math.abs(p.x - e.x) < 22 && p.ysp >= -0.5 && feet >= top - 6 && p.y < base) {
         const str = e.color === 'red' ? 16 : 10;
         p.springLaunch(str);
         p.y = top - PHYS.hr; // standing radius after launch pose
@@ -697,18 +698,18 @@ const TYPES = {
       if (e.flash > 0) e.flash--;
       const z = g.level.bossZone;
       const cxm = (z.x0 + z.x1) / 2;
-      const ph = e.tm % 320;
-      if (ph < 140) {
+      const ph = e.tm % 220;
+      if (ph < 90) {
         // hover, drifting side to side
         e.tx = cxm + Math.sin(e.tm * 0.02) * 110;
         e.ty = e.y0;
-      } else if (ph === 140) {
+      } else if (ph === 90) {
         // aim a swoop through the player's position
         e.swx0 = e.x;
         e.swx1 = p.x < cxm ? z.x1 - 60 : z.x0 + 60;
         e.dip = g.level.groundAt(cxm) - 34;
-      } else if (ph < 240) {
-        const s = (ph - 140) / 100;
+      } else if (ph < 190) {
+        const s = (ph - 90) / 100;
         e.tx = e.swx0 + (e.swx1 - e.swx0) * s;
         e.ty = e.y0 + (e.dip - e.y0) * Math.sin(Math.PI * s);
       } else {
