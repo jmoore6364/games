@@ -1,0 +1,9 @@
+{
+  "name": "moore-out",
+  "version": "0.1.0",
+  "description": "Moore-Out!! — an NES Punch-Out!! style pattern boxing game, vanilla JS + canvas",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
