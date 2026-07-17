@@ -138,10 +138,43 @@ export class Game {
         speed: MAX_SPEED * rnd(0.25, 0.35),
       });
     }
+    // highway patrol parked on the shoulders — speed past one and it lights up
+    for (const frac of [0.3, 0.65]) {
+      this.cars.push({
+        kind: 'cop', img: this.vehicles.police[0],
+        dist: 0, z: Math.floor(this.segments.length * frac) * SEGMENT_LENGTH,
+        offset: frac < 0.5 ? 1.25 : -1.25, w: 0.34,
+        speed: 0, cop: 'parked', chaseT: 0,
+      });
+    }
     for (const c of this.cars) c.z = wrap(c.z, this.trackLength);
+
+    // ghost: replay of your record run (single races only)
+    this.busted = null;
+    this.ghost = null;
+    this.ghostRec = null;
+    if (this.mode === 'single') {
+      try { this.ghost = JSON.parse(localStorage.getItem(`cruisin-moore-ghost-${this.course.id}`)); }
+      catch { this.ghost = null; }
+      this.ghostRec = { next: 0, samples: [] };
+    }
+  }
+
+  ghostState() {
+    const g = this.ghost;
+    if (!g || !g.samples || !g.samples.length) return null;
+    const idx = this.raceTime / (g.step || 0.05);
+    const i = Math.min(Math.floor(idx), g.samples.length - 1);
+    const j = Math.min(i + 1, g.samples.length - 1);
+    const f = clamp(idx - i, 0, 1);
+    return {
+      dist: g.samples[i][0] + (g.samples[j][0] - g.samples[i][0]) * f,
+      x: (g.samples[i][1] + (g.samples[j][1] - g.samples[i][1]) * f) / 1000,
+    };
   }
 
   startRace() {
+    this.sound.stopSiren();
     this.resetRace();
     this.particles = [];
     this.draft = 0;
@@ -278,6 +311,7 @@ export class Game {
   leaveRaceEnd() {
     this.sound.stopEngine();
     this.sound.stopMusic();
+    this.sound.stopSiren();
     if (this.mode === 'tour') {
       this.applyTourPoints(this.state === 'finish');
       if (this.state === 'gameover') this.tourOver = true;
@@ -294,6 +328,7 @@ export class Game {
   goTitle() {
     this.mode = 'single';
     this.weather = null;
+    this.ghost = null;
     this.state = 'title';
   }
 
@@ -369,6 +404,14 @@ export class Game {
         this.mercy = 2;
       }
       this.steer = 0;
+    } else if (this.busted) {
+      this.busted.t += dt;
+      this.speed = Math.max(0, this.speed - MAX_SPEED * 2 * dt);
+      this.steer = 0;
+      if (this.busted.t >= this.busted.dur) {
+        this.busted = null;
+        this.mercy = 1.5;
+      }
     } else {
       const grip = this.weather?.kind === 'rain' ? 0.88 : 1;
       const sdx = dx * this.stats.steer * grip;
@@ -399,7 +442,7 @@ export class Game {
       this.shake = Math.max(this.shake, 0.25);
       if (this.speed > 1500) this.spawnDust();
       // scenery collisions
-      if (!this.flip && this.mercy <= 0) {
+      if (!this.flip && !this.busted && this.mercy <= 0) {
         for (const s of playerSeg.sprites) {
           const spr = this.sprites[s.name];
           if (spr.arch) continue;
@@ -420,9 +463,33 @@ export class Game {
     this.totalDist += this.speed * dt;
     this.position = wrap(this.position + this.speed * dt, this.trackLength);
 
+    // ghost recording (20 Hz)
+    if (this.ghostRec && this.raceTime >= this.ghostRec.next && this.ghostRec.samples.length < 4800) {
+      this.ghostRec.next += 0.05;
+      this.ghostRec.samples.push([Math.round(this.totalDist), Math.round(this.playerX * 1000)]);
+    }
+
+    // radar: blow past a parked cop at speed and it lights up
+    if (!this.flip && !this.busted) {
+      const pz = wrap(this.position + PLAYER_Z, this.trackLength);
+      for (const cop of this.cars) {
+        if (cop.kind !== 'cop' || cop.cop !== 'parked') continue;
+        let rel = cop.z - pz;
+        if (rel > this.trackLength / 2) rel -= this.trackLength;
+        if (rel < -this.trackLength / 2) rel += this.trackLength;
+        if (rel < 0 && rel > -SEGMENT_LENGTH * 2 && this.speed > MAX_SPEED * 0.75) {
+          cop.cop = 'chase';
+          cop.chaseT = 10;
+          cop.speed = this.speed * 0.55;
+          this.sound.startSiren();
+          this.flash = { text: 'COPS!', sub: 'OUTRUN THE HEAT!', t: 1.6 };
+        }
+      }
+    }
+
     this.mercy = Math.max(0, this.mercy - dt);
     this.updateCars(dt);
-    if (!this.flip && this.mercy <= 0) this.carCollisions();
+    if (!this.flip && !this.busted && this.mercy <= 0) this.carCollisions();
 
     // time gates
     if (this.nextGate < this.gates.length &&
@@ -448,11 +515,22 @@ export class Game {
       this.flash = null;
       this.finPos = this.playerRank();
       this.sound.finishFanfare();
+      this.sound.stopSiren();
+      // save the ghost if this run is the new course record
+      const board = this.getBoard(this.course.id);
+      if (this.mode === 'single' && this.ghostRec && (!board.length || this.raceTime < board[0].time)) {
+        try {
+          localStorage.setItem(`cruisin-moore-ghost-${this.course.id}`, JSON.stringify({
+            time: parseFloat(this.raceTime.toFixed(2)), step: 0.05, samples: this.ghostRec.samples,
+          }));
+        } catch { /* private mode */ }
+      }
     } else if (this.timeLeft <= 0) {
       this.timeLeft = 0;
       this.state = 'gameover';
       this.flash = null;
       this.sound.stopEngine();
+      this.sound.stopSiren();
       this.sound.gameOver();
     }
   }
@@ -463,7 +541,7 @@ export class Game {
     if (this.speed > MAX_SPEED * 0.62) {
       const pz = wrap(this.position + PLAYER_Z, this.trackLength);
       for (const car of this.cars) {
-        if (car.kind === 'oncoming') continue;
+        if (car.kind === 'oncoming' || car.kind === 'cop') continue;
         let rel = car.z - pz;
         if (rel > this.trackLength / 2) rel -= this.trackLength;
         if (rel < -this.trackLength / 2) rel += this.trackLength;
@@ -558,6 +636,17 @@ export class Game {
     }
   }
 
+  bust(cop) {
+    this.busted = { t: 0, dur: 2.5 };
+    cop.cop = 'done';
+    cop.speed = 0;
+    this.shake = 0.6;
+    this.sound.stopSiren();
+    this.sound.bump();
+    [500, 400, 300].forEach((f, i) => this.sound.blip(f, 0.2, 'square', 0.25, i * 0.15));
+    this.flash = { text: 'BUSTED!', sub: 'THE CLOCK IS STILL RUNNING', t: 2.4 };
+  }
+
   crashIntoScenery() {
     if (this.speed > MAX_SPEED * 0.6) {
       this.flip = { t: 0, dur: 1.1 };
@@ -587,6 +676,24 @@ export class Game {
         car.dist += car.speed * dt;
         car.z = wrap(car.dist, this.trackLength);
         this.rivalSteer(car, dt);
+      } else if (car.kind === 'cop') {
+        if (car.cop === 'chase') {
+          car.chaseT -= dt;
+          const target = Math.min(MAX_SPEED * 1.05, this.speed + 1500);
+          car.speed += clamp(target - car.speed, -ACCEL * dt, ACCEL * 1.4 * dt);
+          car.z = wrap(car.z + car.speed * dt, this.trackLength);
+          car.offset += clamp(this.playerX - car.offset, -1, 1) * dt * 1.6;
+          car.offset = clamp(car.offset, -0.9, 0.9);
+          if (car.chaseT <= 0) {
+            car.cop = 'done';
+            car.speed = 0;
+            this.sound.stopSiren();
+            this.flash = { text: 'LOST THE HEAT!', sub: '', t: 1.5 };
+          }
+        } else if (car.cop === 'done') {
+          car.offset += (1.3 - car.offset) * dt * 2; // pull over to the shoulder
+        }
+        car.img = this.vehicles.police[car.cop === 'done' ? 0 : Math.floor(performance.now() / 125) % 2];
       } else if (car.kind === 'traffic') {
         car.z = wrap(car.z + car.speed * dt, this.trackLength);
       } else { // oncoming
@@ -634,6 +741,17 @@ export class Game {
       if (Math.abs(rel) > CAR_LENGTH) continue;
       if (!overlap(this.playerX, PLAYER_W, car.offset, car.w)) continue;
 
+      if (car.kind === 'cop') {
+        if (car.cop === 'chase') {
+          this.bust(car);
+        } else {
+          this.speed = Math.min(this.speed, MAX_SPEED * 0.15);
+          this.playerX += this.playerX > car.offset ? 0.1 : -0.1;
+          this.shake = Math.max(this.shake, 0.35);
+          this.sound.bump();
+        }
+        continue;
+      }
       if (car.kind === 'oncoming') {
         // head-on: the famous Cruis'n wipeout
         if (this.speed + car.speed > MAX_SPEED * 0.7) {
@@ -782,6 +900,15 @@ export class Game {
 
     // sprites & cars, far to near
     this.assignCarsToSegments();
+    if (this.ghost && (this.state === 'race' || this.state === 'countdown')) {
+      const gs = this.ghostState();
+      if (gs) {
+        this.segmentAt(gs.dist).carsDraw.push({
+          kind: 'ghost', img: this.vehicles.ghost,
+          z: wrap(gs.dist, this.trackLength), offset: gs.x, w: 0.34, alpha: 0.65,
+        });
+      }
+    }
     for (let n = DRAW_DISTANCE - 1; n >= 0; n--) {
       const seg = this.segments[(baseIndex + n) % this.segments.length];
       if (!seg.onScreen) continue;
@@ -884,7 +1011,7 @@ export class Game {
     const worldW = car.w * ROAD_WIDTH * 1.1;
     const destW = scale * worldW * W / 2;
     const destH = destW * (car.img.height / car.img.width);
-    this.drawClipped(car.img, x - destW / 2, y - destH, destW, destH, seg.clip, seg.fog);
+    this.drawClipped(car.img, x - destW / 2, y - destH, destW, destH, seg.clip, seg.fog * (car.alpha || 1));
   }
 
   drawClipped(img, x, y, w, h, clipY, fog) {
@@ -990,6 +1117,26 @@ export class Game {
     ctx.fillRect(bx + pp * bw - 3, by - 3, 6, bh + 6);
     if (this.mode === 'tour') {
       this.text(`TOUR RACE ${this.tourIndex + 1}/${this.courses.length}`, W / 2, by + 34, 13, '#ff8ad8');
+    }
+
+    // ghost gap
+    if (this.ghost && this.state === 'race' && this.speed > 500) {
+      const gs = this.ghostState();
+      if (gs) {
+        const gap = (this.totalDist - gs.dist) / Math.max(this.speed, 2000);
+        this.text(`GHOST ${gap >= 0 ? '+' : ''}${gap.toFixed(1)}s`, W / 2, by + 34, 13,
+          gap >= 0 ? '#7dff6a' : '#9fd8e8');
+      }
+    }
+
+    // police lights wash
+    const chase = this.cars.some((c) => c.kind === 'cop' && c.cop === 'chase');
+    if (chase || this.busted) {
+      const phase = Math.floor(performance.now() / 125) % 2;
+      const a = this.busted ? 0.25 : 0.1;
+      ctx.fillStyle = phase ? `rgba(255,50,50,${a})` : `rgba(60,90,255,${a})`;
+      ctx.fillRect(0, 0, W, 54);
+      if (this.busted) ctx.fillRect(0, H - 54, W, 54);
     }
 
     // center flash

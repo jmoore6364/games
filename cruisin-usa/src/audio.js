@@ -66,6 +66,32 @@ export class Sound {
     this.engine = null;
   }
 
+  // --- siren -------------------------------------------------------------------
+
+  startSiren() {
+    if (!this.ensure() || this.siren) return;
+    const osc = this.ctx.createOscillator();
+    osc.type = 'sawtooth';
+    const gain = this.ctx.createGain();
+    gain.gain.value = 0.06;
+    osc.connect(gain); gain.connect(this.master);
+    osc.start();
+    let hi = false;
+    const timer = setInterval(() => {
+      hi = !hi;
+      osc.frequency.setTargetAtTime(hi ? 880 : 660, this.ctx.currentTime, 0.03);
+    }, 350);
+    this.siren = { osc, gain, timer };
+  }
+
+  stopSiren() {
+    if (!this.siren) return;
+    clearInterval(this.siren.timer);
+    try { this.siren.osc.stop(); } catch { /* already stopped */ }
+    this.siren.gain.disconnect();
+    this.siren = null;
+  }
+
   // --- one-shots --------------------------------------------------------------
 
   blip(freq, dur, type = 'square', vol = 0.2, when = 0) {
