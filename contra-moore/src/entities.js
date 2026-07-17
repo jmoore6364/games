@@ -49,6 +49,13 @@ export class Player {
   aim(inp) {
     const lr = (inp.down('right') ? 1 : 0) - (inp.down('left') ? 1 : 0);
     if (lr) this.face = lr;
+    // aim lock: feet planted, d-pad picks any of the 8 directions
+    if (this.locked) {
+      const ud = (inp.down('down') ? 1 : 0) - (inp.down('up') ? 1 : 0);
+      if (lr && ud) return [this.face * 0.75, ud * 0.75];
+      if (ud) return [0, ud];
+      return [this.face, 0];
+    }
     if (this.prone) return [this.face, 0];
     if (inp.down('up')) return lr ? [this.face * 0.75, -0.75] : [0, -1];
     if (inp.down('down')) {
@@ -72,11 +79,12 @@ export class Player {
     if (this.dropT > 0) this.dropT--;
 
     const lr = (inp.down('right') ? 1 : 0) - (inp.down('left') ? 1 : 0);
-    this.prone = this.onGround && !this.wading && inp.down('down') && !lr;
-    this.diving = this.wading && inp.down('down');
+    this.locked = inp.down('lock');
+    this.prone = this.onGround && !this.wading && inp.down('down') && !lr && !this.locked;
+    this.diving = this.wading && inp.down('down') && !this.locked;
 
     // ---- horizontal ----
-    this.vx = (this.prone || this.diving) ? 0 : lr * SPEED;
+    this.vx = (this.prone || this.diving || this.locked) ? 0 : lr * SPEED;
     if (this.vx) {
       const nx = this.x + this.vx;
       const box = this.hitbox();

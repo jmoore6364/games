@@ -16,7 +16,8 @@ down into the hive to burn the Moorlord Heart.
   rivers), a vertically scrolling waterfall climb, the Dreadnought machine
   base, and the organic Moorlord hive.
 - **Run-and-gun controls**: 8-way aiming, somersault jumps, prone, drop-through
-  platforms, and diving under water to slip past fire.
+  platforms, and diving under water to slip past fire. Hold the aim-lock
+  button to plant your feet and aim in all 8 directions without moving.
 - **Weapons**: rifle, M machine gun, S five-way spread, L piercing laser, and
   the B barrier — carried by winged falcon capsules. Die and you're back to
   the rifle, as tradition demands.
@@ -38,6 +39,7 @@ down into the hive to burn the Moorlord Heart.
 | Move / aim | arrows or WASD | d-pad / stick |
 | Jump | Z or Space | A |
 | Fire | X or J | X / B |
+| Aim lock (stand still, aim 8-way) | C, K, or Shift | shoulder buttons |
 | Prone | Down | Down |
 | Drop through platform | Down + Jump | Down + A |
 | Dive (in water) | Down | Down |
