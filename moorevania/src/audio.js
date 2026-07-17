@@ -96,6 +96,19 @@ const M_END = [
 ];
 const B_END = [48, 48, 53, 53, 55, 55, 48, 48, 53, 53, 55, 55, 60, 55, 48, 48];
 
+// "Below the Quiet Ones" — the catacombs, deep and slow.
+const M_CATA = [
+  45, 0, 52, 0, 57, 0, 52, 0,
+  45, 0, 52, 0, 58, 57, 0, 0,
+  43, 0, 50, 0, 55, 0, 50, 0,
+  45, 0, 52, 0, 45, 0, 0, 0,
+  41, 0, 48, 0, 53, 0, 48, 0,
+  43, 0, 50, 0, 55, 53, 0, 0,
+  40, 0, 47, 0, 52, 0, 55, 0,
+  45, 0, 0, 0, 33, 0, 0, 0,
+];
+const B_CATA = [33, 33, 31, 31, 29, 29, 28, 31, 33, 33, 31, 31, 28, 28, 33, 33];
+
 const TRACKS = {
   day: { melody: M_DAY, bass: B_DAY, stepDur: 0.125, lead: 'square', drums: true },
   night: { melody: M_NIGHT, bass: B_NIGHT, stepDur: 0.185, lead: 'triangle', drums: false },
@@ -103,6 +116,7 @@ const TRACKS = {
   manor: { melody: M_MANOR, bass: B_MANOR, stepDur: 0.135, lead: 'square', drums: true },
   boss: { melody: M_BOSS, bass: B_BOSS, stepDur: 0.105, lead: 'square', drums: true },
   title: { melody: M_TITLE, bass: B_TITLE, stepDur: 0.21, lead: 'triangle', drums: false },
+  cata: { melody: M_CATA, bass: B_CATA, stepDur: 0.2, lead: 'triangle', drums: false },
   ending: { melody: M_END, bass: B_END, stepDur: 0.16, lead: 'square', drums: false },
 };
 

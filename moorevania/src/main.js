@@ -62,7 +62,7 @@ class Game {
       lvl: 1, exp: 0, hearts: 30,
       hp: maxHpFor(1),
       whip: 0, subs: [], sub: null,
-      items: { stake: 0, tonic: 0, laurel: 0 },
+      items: { stake: 0, tonic: 0, laurel: 0, garlic: 0 },
       relics: [],
       flags: {},
     };
@@ -74,7 +74,8 @@ class Game {
 
   startGame(fromSave) {
     this.save = fromSave ? JSON.parse(localStorage.getItem(SAVE_KEY)) : this.freshSave();
-    if (!this.save.items) this.save.items = { stake: 0, tonic: 0, laurel: 0 };
+    if (!this.save.items) this.save.items = { stake: 0, tonic: 0, laurel: 0, garlic: 0 };
+    if (this.save.items.garlic === undefined) this.save.items.garlic = 0; // pre-1.1 saves
     this.player = new Player();
     this.clock = 0;
     this.nightBlend = 0;
@@ -111,11 +112,24 @@ class Game {
       const gy = findGround(z, d.x);
       return { ...d, px: d.x * TILE, py: gy * TILE };
     });
-    // boss orb persists after the boss dies until the relic is claimed
+    // boss loot persists after the boss dies until it is claimed
     const b = z.boss;
-    if (b && this.save.flags['boss_' + z.id] && b.relic && !this.save.relics.includes(b.relic)) {
-      this.pickups.push({ kind: 'orb', x: b.orbX * TILE + 2, y: b.orbY * TILE + 4, vy: 0, ttl: 1e9, relic: b.relic });
+    if (b && this.save.flags['boss_' + z.id]) {
+      if (b.relic && !this.save.relics.includes(b.relic)) {
+        this.pickups.push({ kind: 'orb', x: b.orbX * TILE + 2, y: b.orbY * TILE + 4, vy: 0, ttl: 1e9, relic: b.relic });
+      }
+      if (b.drop === 'amulet' && !this.save.flags.amulet) {
+        this.pickups.push({ kind: 'amulet', x: b.orbX * TILE + 3, y: b.orbY * TILE + 6, vy: 0, ttl: 1e9 });
+      }
     }
+    // treasure chests
+    (z.chests || []).forEach((c, i) => {
+      if (!this.save.flags[`chest_${z.id}_${i}`]) {
+        this.pickups.push({ kind: 'chest', x: c.x * TILE + 2, y: c.y * TILE + 7, vy: 0, ttl: 1e9, contents: c.contents, flag: `chest_${z.id}_${i}` });
+      }
+    });
+    this.fairy = null;
+    this.garlicSpot = null;
 
     if (tx !== undefined) {
       const gy = ty !== undefined ? ty : findGround(z, tx);
@@ -238,6 +252,12 @@ class Game {
     }
     this.bossActive = null;
     this.save.flags['boss_' + z.id] = true;
+    if (z.boss && z.boss.drop === 'amulet') {
+      this.pickups.push({ kind: 'amulet', x: z.boss.orbX * TILE + 3, y: z.boss.orbY * TILE + 6, vy: 0, ttl: 1e9 });
+      this.showBanner('SOMETHING GLITTERS AMONG THE BONES...');
+      this.writeSave();
+      return;
+    }
     if (e.type === 'demon') {
       this.save.flags.won = true;
       this.endTimer = 200;
@@ -266,6 +286,7 @@ class Game {
       case 'story': this.updateStory(inp); break;
       case 'play': this.updatePlay(inp); break;
       case 'pause': this.updatePause(inp); break;
+      case 'map': this.updateMap(inp); break;
       case 'shop': this.updateShop(inp); break;
       case 'dialog': this.updateDialog(inp); break;
       case 'church': this.updateChurch(inp); break;
@@ -281,7 +302,7 @@ class Game {
     else if (this.state === 'gameover') s.stopMusic();
     else if (this.zone) {
       if (this.bossActive) s.playMusic('boss');
-      else if (this.zone.indoor) s.playMusic('manor');
+      else if (this.zone.indoor) s.playMusic(this.zone.music === 'cata' ? 'cata' : 'manor');
       else if (this.night) s.playMusic('night');
       else s.playMusic(this.zone.music === 'town' ? 'town' : 'day');
     }
@@ -450,8 +471,8 @@ class Game {
       if (e.dead) continue;
       if (!e.clampRoom) e.clampRoom = () => {};
       updateEnemy(this, e);
-      // contact damage
-      if (rects({ x: e.x, y: e.y, w: e.w, h: e.h }, p.hurtbox())) {
+      // contact damage (collapsed bone piles are harmless)
+      if (!e.collapsed && rects({ x: e.x, y: e.y, w: e.w, h: e.h }, p.hurtbox())) {
         p.hurt(this, e.dmg, e.x + e.w / 2);
       }
       // despawn far-away ambient enemies
@@ -496,7 +517,7 @@ class Game {
     // pickups
     for (const pk of this.pickups) {
       pk.ttl--;
-      if (pk.kind !== 'orb') {
+      if (pk.kind !== 'orb' && pk.kind !== 'chest') {
         pk.vy = Math.min((pk.vy || 0) + 0.15, 3);
         pk.y += pk.vy;
         const ty = Math.floor((pk.y + 8) / TILE);
@@ -514,6 +535,24 @@ class Game {
     }
     this.parts = this.parts.filter((x) => x.ttl > 0);
 
+    // the graveyard fairy, drawn to laid garlic
+    if (this.fairy && this.garlicSpot) {
+      const f = this.fairy;
+      f.t++;
+      f.x = this.garlicSpot.x + Math.sin(f.t / 12) * 8;
+      f.y = this.garlicSpot.y - 130 + Math.min(112, f.t * 0.9);
+      if ((this.frame & 3) === 0) this.spark(f.x, f.y + 8, '#c8f8f8');
+      if (f.t > 210) {
+        this.save.hearts = Math.min(999, this.save.hearts + 20);
+        if (this.save.items.laurel < ITEMS.laurel.max) this.save.items.laurel++;
+        this.sound.relic();
+        this.burst(f.x, f.y, 16, '#c8f8f8');
+        this.showBanner('A FAIRY! WEE INGA WAS RIGHT AFTER ALL!');
+        this.fairy = null;
+        this.garlicSpot = null;
+      }
+    }
+
     for (const b of this.banner) b.ttl--;
     this.banner = this.banner.filter((b) => b.ttl > 0);
 
@@ -523,7 +562,7 @@ class Game {
   applyWhip(wb) {
     const dmg = WHIPS[this.save.whip].dmg * atkMult(this.save.lvl);
     for (const e of this.enemies) {
-      if (e.dead || e.hitT > 0) continue;
+      if (e.dead || e.hitT > 0 || e.collapsed > 0) continue;
       if (rects(wb, { x: e.x, y: e.y, w: e.w, h: e.h })) damageEnemy(this, e, dmg);
     }
     // candles & breakables
@@ -560,6 +599,28 @@ class Game {
         if (s.items.laurel >= ITEMS.laurel.max) { s.hearts += 5; } else s.items.laurel++;
         this.sound.pickup();
         break;
+      case 'amulet':
+        s.flags.amulet = true;
+        this.sound.relic();
+        this.burst(pk.x + 5, pk.y + 4, 16, '#48c8d8');
+        this.showBanner('THE MOON AMULET! THE NIGHT\'S TEETH ARE DULLED.');
+        this.writeSave();
+        break;
+      case 'chest': {
+        this.sound.relic();
+        this.burst(pk.x + 6, pk.y + 4, 12, '#f8d048');
+        if (pk.contents === 'cross' && !s.subs.includes('cross')) {
+          s.subs.push('cross');
+          if (!s.sub) s.sub = 'cross';
+          this.showBanner('THE GOLDEN CROSS SLEEPS HERE NO MORE!');
+        } else {
+          s.hearts = Math.min(999, s.hearts + 30);
+          this.showBanner('A HOARD OF HEARTS!');
+        }
+        s.flags[pk.flag] = true;
+        this.writeSave();
+        break;
+      }
       case 'orb': {
         if (s.items.stake > 0) {
           s.items.stake--;
@@ -751,6 +812,8 @@ class Game {
     rows.push({ label: `SUB-WEAPON < ${subName} >`, act: 'cycle' });
     rows.push({ label: `USE MOOR TONIC  x${s.items.tonic}`, act: 'tonic' });
     rows.push({ label: `USE LAUREL      x${s.items.laurel}`, act: 'laurel' });
+    rows.push({ label: `USE GARLIC      x${s.items.garlic}`, act: 'garlic' });
+    rows.push({ label: 'VIEW MAP', act: 'map' });
     rows.push({ label: 'RESUME', act: 'resume' });
     return rows;
   }
@@ -780,8 +843,32 @@ class Game {
           this.state = 'play';
         } else this.sound.deny();
       }
+      if (act === 'garlic') {
+        if (s.items.garlic <= 0) this.sound.deny();
+        else if (this.zone.id !== 'graveyard' || !this.player.grounded) {
+          this.sound.deny();
+          this.state = 'play';
+          this.showBanner('YOU SNIFF THE GARLIC. NOTHING HAPPENS HERE.');
+          s.items.garlic--;
+        } else {
+          s.items.garlic--;
+          this.sound.pickup();
+          this.state = 'play';
+          this.garlicSpot = { x: this.player.x + this.player.w / 2, y: this.player.y + this.player.h - 6 };
+          this.fairy = { t: 0 };
+          this.showBanner('YOU LAY THE GARLIC ON THE GRAVES...');
+        }
+      }
+      if (act === 'map') { this.state = 'map'; this.sound.text(); }
     }
     if (inp.pressed('start')) { this.state = 'play'; this.sound.text(); }
+  }
+
+  updateMap(inp) {
+    if (inp.pressed('start') || inp.pressed('jump') || inp.pressed('whip')) {
+      this.state = 'play';
+      this.sound.text();
+    }
   }
 
   cycleSub(dir) {
@@ -852,11 +939,16 @@ class Game {
     // pickups
     for (const pk of this.pickups) {
       const bob = pk.kind === 'orb' ? Math.sin(this.frame / 16) * 2 : 0;
-      const name = { heart: 'heart_s', bigheart: 'heart_b', tonic: 'tonic', laurel: 'laurel_i', orb: 'orb' }[pk.kind];
+      const name = { heart: 'heart_s', bigheart: 'heart_b', tonic: 'tonic', laurel: 'laurel_i', orb: 'orb', amulet: 'amulet_i', chest: 'chest' }[pk.kind];
       if (pk.kind === 'orb' && (this.frame & 15) === 0) this.spark(pk.x + 6, pk.y + 4, '#e8d8f8');
+      if (pk.kind === 'amulet' && (this.frame & 15) === 0) this.spark(pk.x + 5, pk.y + 3, '#48c8d8');
       if (pk.ttl < 120 && (this.frame & 3) < 2 && pk.kind !== 'orb') continue;
       drawSprite(ctx, name, pk.x, pk.y + bob, false);
     }
+
+    // garlic offering + fairy
+    if (this.garlicSpot) drawSprite(ctx, 'garlic_i', this.garlicSpot.x - 4, this.garlicSpot.y, false);
+    if (this.fairy && this.fairy.x !== undefined) drawSprite(ctx, 'fairy', this.fairy.x - 5, this.fairy.y, false);
 
     // entities
     for (const e of this.enemies) drawEnemy(this, ctx, e);
@@ -888,6 +980,7 @@ class Game {
     if (this.state === 'dialog') this.renderDialog();
     if (this.state === 'church') this.renderChurch();
     if (this.state === 'pause') this.renderPause();
+    if (this.state === 'map') this.renderMap();
     if (this.state === 'gameover') this.renderGameOver();
 
     // banners
@@ -1087,23 +1180,74 @@ class Game {
 
   renderPause() {
     const s = this.save;
-    this.panel(60, 44, VIEW_W - 120, 156, '— GEAR —');
+    this.panel(52, 36, VIEW_W - 104, 176, '— GEAR —');
     const rows = this.pauseRows();
     rows.forEach((r, i) => {
-      if (i === this.pauseSel) text(ctx, '►', 76, 64 + i * 14, '#f8d048', 8);
-      text(ctx, r.label, 88, 64 + i * 14, i === this.pauseSel ? '#fff' : '#8a8a99', 8);
+      if (i === this.pauseSel) text(ctx, '►', 66, 54 + i * 13, '#f8d048', 8);
+      text(ctx, r.label, 78, 54 + i * 13, i === this.pauseSel ? '#fff' : '#8a8a99', 8);
     });
-    // stats
-    text(ctx, `WHIP: ${WHIPS[s.whip].name}`, 88, 128, '#c8a870', 8);
-    text(ctx, `LEVEL ${s.lvl}   HP ${s.hp}/${maxHpFor(s.lvl)}`, 88, 140, '#c8a870', 8);
-    text(ctx, `OAK STAKES x${s.items.stake}`, 88, 152, '#c8a870', 8);
-    text(ctx, 'RELICS:', 88, 166, '#c8a870', 8);
+    // stats column
+    const sx = 232;
+    text(ctx, WHIPS[s.whip].name, sx, 54, '#c8a870', 8);
+    text(ctx, `LEVEL ${s.lvl}`, sx, 66, '#c8a870', 8);
+    text(ctx, `HP ${s.hp}/${maxHpFor(s.lvl)}`, sx, 78, '#c8a870', 8);
+    text(ctx, `STAKES x${s.items.stake}`, sx, 90, '#c8a870', 8);
+    if (s.flags.amulet) {
+      drawSprite(ctx, 'amulet_i', sx, 103, false);
+      text(ctx, 'MOON AMULET', sx + 13, 104, '#48c8d8', 7);
+    }
+    text(ctx, 'RELICS:', sx, 118, '#c8a870', 8);
     RELICS.forEach((r, i) => {
       ctx.globalAlpha = s.relics.includes(r.id) ? 1 : 0.18;
-      drawSprite(ctx, r.icon, 134 + i * 16, 165, false);
+      drawSprite(ctx, r.icon, sx + (i * 16), 129, false);
       ctx.globalAlpha = 1;
     });
-    text(ctx, 'SUBS OWNED: ' + (s.subs.length ? s.subs.map((x) => SUBS[x].name).join(', ') : 'NONE'), 88, 182, '#556', 7);
+    text(ctx, 'SUBS: ' + (s.subs.length ? s.subs.map((x) => SUBS[x].name).join(', ') : 'NONE'), 66, 186, '#556', 7);
+    text(ctx, 'GARLIC WORKS BEST WHERE THE DEAD SLEEP.', 66, 197, '#445', 7);
+  }
+
+  renderMap() {
+    this.panel(24, 34, VIEW_W - 48, 180, '— THE LAND OF MOORLACH —');
+    const nodes = {
+      graveyard: [74, 132, 'CEMETERY'], westwood: [122, 132, 'WOODS'], hollow: [170, 132, 'HOLLOW'],
+      marsh: [218, 132, 'MARSH'], bridge: [266, 132, 'BRIDGE'], cliffs: [314, 132, 'CLIFFS'],
+      castle: [340, 62, 'CASTLE'], manor1: [74, 98, 'BRAMBLEWICK'], catacombs: [74, 170, 'CATACOMBS'],
+      manor2: [266, 98, 'GRIMHOLLOW'], manor3: [314, 98, 'RAVENMOOR'],
+    };
+    ctx.strokeStyle = '#5a5a68';
+    const line = (a, b) => {
+      ctx.beginPath();
+      ctx.moveTo(nodes[a][0], nodes[a][1]);
+      ctx.lineTo(nodes[b][0], nodes[b][1]);
+      ctx.stroke();
+    };
+    line('graveyard', 'westwood'); line('westwood', 'hollow'); line('hollow', 'marsh');
+    line('marsh', 'bridge'); line('bridge', 'cliffs');
+    line('graveyard', 'manor1'); line('graveyard', 'catacombs');
+    line('bridge', 'manor2'); line('cliffs', 'manor3'); line('cliffs', 'castle');
+    const relicAt = { manor1: 'fang', manor2: 'eye', manor3: 'chalice' };
+    for (const [id, [x, y, label]] of Object.entries(nodes)) {
+      const here = this.zone.id === id;
+      ctx.fillStyle = here && (this.frame & 16) ? '#7a5a20' : '#26262f';
+      ctx.fillRect(x - 10, y - 7, 20, 14);
+      ctx.strokeStyle = here ? '#f8d048' : '#8a8a99';
+      ctx.strokeRect(x - 10.5, y - 7.5, 21, 15);
+      text(ctx, label, x, y + 10, here ? '#f8d048' : '#8a8a99', 7, 'center');
+      const r = relicAt[id];
+      if (r) {
+        ctx.globalAlpha = this.save.relics.includes(r) ? 1 : 0.25;
+        drawSprite(ctx, RELICS.find((z) => z.id === r).icon, x - 5, y - 4, false);
+        ctx.globalAlpha = 1;
+      }
+      if (id === 'catacombs') {
+        ctx.globalAlpha = this.save.flags.amulet ? 1 : 0.25;
+        drawSprite(ctx, 'amulet_i', x - 5, y - 5, false);
+        ctx.globalAlpha = 1;
+      }
+      if (id === 'hollow') text(ctx, '+', x, y - 5, '#f8d048', 9, 'center');
+      if (id === 'castle') text(ctx, this.save.relics.length >= 3 ? '!' : '?', x, y - 5, '#c03028', 9, 'center');
+    }
+    text(ctx, 'YOU ARE IN: ' + this.zone.name, VIEW_W / 2, 196, '#48c8d8', 7, 'center');
   }
 
   renderGameOver() {
@@ -1133,6 +1277,7 @@ class Game {
     drawSprite(ctx, 'zombie1', VIEW_W / 2 + 44, 178, true);
     text(ctx, 'A SIMON\'S QUEST STYLE ADVENTURE · ORIGINAL ART & MUSIC', VIEW_W / 2, 216, '#556', 7, 'center');
     text(ctx, 'M: MUTE', VIEW_W / 2, 228, '#445', 7, 'center');
+    text(ctx, 'v1.1 SECRETS OF MOORLACH', 6, 228, '#445', 7);
   }
 
   renderStory(pages, title) {

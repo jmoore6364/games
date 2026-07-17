@@ -104,6 +104,7 @@ export class Player {
 
   hurt(g, dmg, fromX) {
     if (this.invuln > 0 || this.laurelT > 0 || this.state === 'dead' || g.state !== 'play') return;
+    if (g.night && g.save.flags.amulet) dmg = Math.ceil(dmg / 2); // the Moon Amulet wards the night
     g.save.hp -= dmg;
     g.sound.hurt();
     g.shake = 6;
@@ -333,6 +334,9 @@ const STATS = {
   fireskull: { hp: 3, dmg: 6, exp: 9, hearts: 2, w: 11, h: 12 },
   knight:    { hp: 12, dmg: 8, exp: 20, hearts: 4, w: 11, h: 20 },
   mummy:     { hp: 8, dmg: 7, exp: 15, hearts: 3, w: 10, h: 18 },
+  redskeleton: { hp: 5, dmg: 6, exp: 12, hearts: 2, w: 10, h: 18 },
+  wraith:    { hp: 4, dmg: 6, exp: 10, hearts: 2, w: 12, h: 11 },
+  gravelord: { hp: 55, dmg: 9, exp: 150, hearts: 0, w: 18, h: 22, boss: true },
   batlord:   { hp: 42, dmg: 8, exp: 120, hearts: 15, w: 26, h: 15, boss: true },
   reaper:    { hp: 70, dmg: 10, exp: 220, hearts: 20, w: 18, h: 26, boss: true },
   bonedragon:{ hp: 100, dmg: 10, exp: 350, hearts: 25, w: 17, h: 12, boss: true },
@@ -359,6 +363,7 @@ export function spawnEnemy(g, type, tx, ty, opts = {}) {
   }
   if (type === 'zombie' && opts.ambient) e.emerge = 40;
   if (type === 'bat' || type === 'crow') { e.perch = true; e.swoopT = 0; }
+  if (type === 'redskeleton') { e.revives = 2; e.collapsed = 0; }
   if (type === 'spider') { e.anchorY = e.y; e.thread = 0; }
   if (type === 'batlord') { e.ax = e.x; e.ay = e.y; }
   if (type === 'bonedragon') { e.ax = e.x; e.ay = e.y; e.hist = []; }
@@ -378,9 +383,18 @@ function dropLoot(g, e) {
 }
 
 export function damageEnemy(g, e, dmg) {
-  if (e.dead || e.spawnGrace > 0) return false;
+  if (e.dead || e.spawnGrace > 0 || e.collapsed > 0) return false;
   e.hp -= dmg;
   e.hitT = 8;
+  // red skeletons collapse into bones and rise again
+  if (e.hp <= 0 && e.type === 'redskeleton' && e.revives > 0) {
+    e.revives--;
+    e.collapsed = 220;
+    e.vx = 0;
+    g.sound.breakBlock();
+    g.burst(e.x + e.w / 2, e.y + e.h / 2, 6, '#c03028');
+    return true;
+  }
   if (e.hp <= 0) {
     e.dead = true;
     g.sound[e.boss ? 'bossDie' : 'enemyDie']();
@@ -483,12 +497,55 @@ export function updateEnemy(g, e) {
       }
       break;
     }
-    case 'ghost': {
+    case 'ghost': case 'wraith': {
       // drifts through walls, always toward the player
-      const sp = 0.55;
+      const sp = e.type === 'wraith' ? 1.0 : 0.55;
       const len = Math.hypot(dx, dy) || 1;
-      e.x += (dx / len) * sp;
+      e.x += (dx / len) * sp + (e.type === 'wraith' ? Math.sin(e.t / 9) * 0.5 : 0);
       e.y += (dy / len) * sp + Math.sin(e.t / 20) * 0.3;
+      break;
+    }
+    case 'redskeleton': {
+      if (e.collapsed > 0) {
+        e.collapsed--;
+        if (e.collapsed === 0) {
+          e.hp = e.maxhp;
+          g.burst(ecx, ecy, 6, '#e8e0c8');
+          g.sound.breakBlock();
+        }
+        physics(g, e);
+        return;
+      }
+      e.dir = Math.sign(dx) || e.dir;
+      if (e.state === 0) {
+        e.vx = Math.sign(dx) * 0.55;
+        if (!ledgeAhead(g, e) || e.hitWall) { e.vx = 0; e.hitWall = false; }
+        if (e.t % 100 === 0 && Math.abs(dx) < 180) { e.state = 1; e.stateT = 0; }
+      } else {
+        e.vx = 0;
+        if (++e.stateT === 10) {
+          g.addProj({ kind: 'bone', owner: 'enemy', x: ecx, y: e.y, vx: Math.sign(dx) * (1.2 + Math.random()), vy: -3.8, dmg: e.dmg, grav: true });
+          g.sound.throwSub();
+        }
+        if (e.stateT > 22) e.state = 0;
+      }
+      physics(g, e);
+      break;
+    }
+    case 'gravelord': {
+      if (e.grounded && e.t % 75 === 0) {
+        e.vy = -4.6;
+        e.vx = Math.sign(dx) * 1.3;
+        g.sound.throwSub();
+      }
+      if (e.grounded && e.vx !== 0 && e.t % 75 === 20) {
+        e.vx = 0;
+        g.shake = 6;
+        for (const spread of [-0.5, 0, 0.5]) {
+          g.addProj({ kind: 'bone', owner: 'enemy', x: ecx, y: e.y + 2, vx: Math.sign(dx) * 1.4 + spread, vy: -4.2, dmg: e.dmg, grav: true });
+        }
+      }
+      physics(g, e, 0.26);
       break;
     }
     case 'merman': {
@@ -668,6 +725,18 @@ export function drawEnemy(g, ctx, e) {
       put('ghost', 14, 12);
       ctx.globalAlpha = 1;
       break;
+    case 'wraith':
+      ctx.globalAlpha = 0.75 + Math.sin(e.t / 8) * 0.15;
+      put('wraith', 14, 11);
+      ctx.globalAlpha = 1;
+      break;
+    case 'redskeleton':
+      if (e.collapsed > 0) {
+        if (e.collapsed < 60 && (e.t & 3) < 2) put(f2 ? 'redskel1' : 'redskel2', 16, 18);
+        else put('bonepile', 16, 3);
+      } else put(f2 ? 'redskel1' : 'redskel2', 16, 18);
+      break;
+    case 'gravelord': put((Math.floor(e.t / 10) & 1) ? 'gravelord1' : 'gravelord2', 24, 22); break;
     case 'merman': put('merman', 16, 16); break;
     case 'mudman': put(f2 ? 'mudman1' : 'mudman2', 16, 12); break;
     case 'spider': {

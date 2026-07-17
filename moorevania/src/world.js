@@ -45,6 +45,7 @@ export const ITEMS = {
   stake: { name: 'OAK STAKE', price: 15, desc: 'CRACKS A RELIC ORB. ONE USE.', kind: 'consumable', icon: 'stake_i', max: 9 },
   tonic: { name: 'MOOR TONIC', price: 30, desc: 'DRINK TO MEND HALF YOUR WOUNDS.', kind: 'consumable', icon: 'tonic', max: 9 },
   laurel: { name: 'LAUREL', price: 40, desc: 'FIVE SECONDS OF PROTECTION.', kind: 'consumable', icon: 'laurel_i', max: 9 },
+  garlic: { name: 'GARLIC', price: 25, desc: 'THE OLD WIVES SWEAR BY IT.', kind: 'consumable', icon: 'garlic_i', max: 3 },
   dagger: { name: 'DAGGER', price: 20, desc: 'FLIES STRAIGHT AND FAST. 1 HEART.', kind: 'sub', icon: 'dagger_i' },
   axe: { name: 'BATTLE AXE', price: 60, desc: 'ARCS OVERHEAD. 2 HEARTS.', kind: 'sub', icon: 'axe_i' },
   holywater: { name: 'HOLY WATER', price: 50, desc: 'BURNS WHERE IT LANDS. 2 HEARTS.', kind: 'sub', icon: 'holy_i' },
@@ -58,7 +59,7 @@ export const SHOPS = {
   item: {
     name: "LENA'S APOTHECARY", keeper: 'merchant',
     greet: 'HERBS, TONICS, AND SHARP THINGS. WHAT DO YOU NEED, HUNTER?',
-    stock: ['stake', 'tonic', 'laurel', 'dagger', 'holywater'],
+    stock: ['stake', 'tonic', 'laurel', 'garlic', 'dagger', 'holywater'],
   },
   weapon: {
     name: 'BORIS THE SMITH', keeper: 'smith',
@@ -195,20 +196,22 @@ function zGraveyard() {
   b.ground(0, 99, 12);
   b.fill(0, 4, 1, 11, '%');
   b.deco('g', 11, 8, 14, 22, 30, 48, 56, 66, 74);
-  // crypt
+  // crypt (with step blocks so its roof candles are reachable)
   b.fill(36, 9, 43, 11, '%');
+  b.put(35, 11, '%').put(44, 11, '%');
   b.candles(8, 37, 42).candles(11, 18, 62, 80);
   return {
     id: 'graveyard', name: 'GRAVEMIST CEMETERY', theme: 'grave', music: 'day',
     map: b.rows(), right: 'westwood',
     doors: [
+      { x: 46, kind: 'zone', to: 'catacombs', tox: 3, label: 'CRYPT STAIRS' },
       { x: 88, kind: 'zone', to: 'manor1', tox: 3, label: 'BRAMBLEWICK MANOR' },
     ],
     npcs: [
-      { x: 55, sprite: 'villager_m', name: 'GRAVEDIGGER HUGO', lines: ['I DIG THEM DOWN, THE NIGHT DIGS THEM UP.', 'I SAW THE MARSH HERMIT BUYING BONES.', '"FOR SOUP," HE SAYS. SOUP!'] },
+      { x: 55, sprite: 'villager_m', name: 'GRAVEDIGGER HUGO', lines: ['I DIG THEM DOWN, THE NIGHT DIGS THEM UP.', 'THE CRYPT STAIRS GO DOWN A LONG WAY.', 'AN OLD BONE-KING SLEEPS AT THE BOTTOM.', 'ME? I STAY UP HERE WITH THE QUIET ONES.'] },
     ],
     spawns: [['skeleton', 25], ['skeleton', 60], ['ghost', 40, 5], ['ghost', 72, 7]],
-    ambient: { day: ['zombie'], night: ['zombie', 'zombie', 'ghost'], max: 4, rate: 140 },
+    ambient: { day: ['zombie'], night: ['zombie', 'zombie', 'ghost', 'wraith'], max: 4, rate: 140 },
   };
 }
 
@@ -368,6 +371,32 @@ function zManor3() {
   };
 }
 
+function zCatacombs() {
+  const b = shell(mk(100, 18));
+  b.fill(1, 10, 40, 10, '#').fill(52, 10, 98, 10, '#');
+  b.fill(20, 5, 80, 5, '#');
+  b.ladder(8, 11, 14).put(8, 10, 'H');
+  b.ladder(60, 11, 14).put(60, 10, 'H');
+  b.ladder(30, 6, 9).put(30, 5, 'H');
+  b.fill(24, 14, 25, 14, '^').fill(45, 14, 47, 14, '^');
+  // treasure vault sealed behind a breakable wall
+  b.fill(93, 13, 93, 14, '*');
+  b.candles(14, 5, 14, 34, 55, 66, 76, 96);
+  b.candles(9, 12, 24, 36, 56, 70, 90);
+  b.candles(4, 24, 36, 48, 60, 72);
+  b.deco('g', 14, 10, 30, 52).deco('g', 9, 18, 46, 76);
+  b.deco('c', 14, 40, 68).deco('c', 13, 40, 68).deco('c', 12, 40, 68);
+  return {
+    id: 'catacombs', name: 'THE CATACOMBS', theme: 'catacomb', music: 'cata', indoor: true,
+    map: b.rows(),
+    doors: [{ x: 3, kind: 'zone', to: 'graveyard', tox: 48, label: 'LEAVE' }],
+    npcs: [],
+    spawns: [['redskeleton', 20], ['redskeleton', 65, 9], ['spider', 28, 1], ['spider', 58, 1], ['wraith', 40, 12], ['wraith', 75, 7], ['bat', 50, 8]],
+    boss: { type: 'gravelord', x: 85, y: 12, trigger: { x0: 70, x1: 98, y0: 11, y1: 14 }, orbX: 86, orbY: 14, relic: null, drop: 'amulet' },
+    chests: [{ x: 96, y: 14, contents: 'cross' }],
+  };
+}
+
 function zCastle() {
   const b = shell(mk(120, 24));
   b.fill(15, 15, 70, 15, '#');
@@ -398,7 +427,7 @@ function zCastle() {
 }
 
 export const ZONES = {};
-for (const z of [zHollow(), zWestwood(), zGraveyard(), zMarsh(), zBridge(), zCliffs(), zManor1(), zManor2(), zManor3(), zCastle()]) {
+for (const z of [zHollow(), zWestwood(), zGraveyard(), zMarsh(), zBridge(), zCliffs(), zManor1(), zManor2(), zManor3(), zCatacombs(), zCastle()]) {
   z.w = z.map[0].length;
   z.h = z.map.length;
   ZONES[z.id] = z;

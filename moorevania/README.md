@@ -30,6 +30,18 @@ Count forever.
 - **Saving**: rest at the church to record your deeds (localStorage).
   Death returns you to the church with everything you've earned.
 
+### v1.1 — Secrets of Moorlach
+
+- **The Catacombs**: a hidden dungeon beneath the cemetery crypt, home to
+  reviving red skeletons, wraiths, and the Gravelord — who guards the
+  **Moon Amulet** (halves damage taken at night) and a sealed treasure
+  vault holding the Golden Cross.
+- **The garlic secret**: buy garlic at the apothecary, lay it on the
+  graves, and see whether Wee Inga was lying.
+- **World map**: view the land of Moorlach (and your relic progress) from
+  the gear menu.
+- Wraiths now haunt the cemetery at night. Old saves keep working.
+
 ## Controls
 
 | Action | Keys |
