@@ -390,6 +390,113 @@ def('rio2', [
   '.....p....p.....',
 ]);
 
+def('leaper1', [
+  '....mppppppm....',
+  '..mpxppppppxpm..',
+  '.mppppppppppppm.',
+  '.mpppmmmmmmpppm.',
+  '..mppm....mppm..',
+  '..mpm......mpm..',
+  '.mpm........mpm.',
+  '.mm..........mm.',
+]);
+def('leaper2', [
+  '....mppppppm....',
+  '..mpxppppppxpm..',
+  '.mppppppppppppm.',
+  '.mpppmmmmmmpppm.',
+  '...mppm..mppm...',
+  '....mpm..mpm....',
+  '....mpm..mpm....',
+  '....mm....mm....',
+]);
+
+// Gravok — armor-plated beetle; its face turns beams.
+def('gravok1', [
+  '...QQQQQQQQQQ...',
+  '.QQqqqqqqqqqqQQ.',
+  'QqqQQqqQQqqQQqQx',
+  'QqqqqqqqqqqqqqQx',
+  'QqqQQqqQQqqQQqQ.',
+  '.QQqqqqqqqqqqQQ.',
+  '..dd..dd..dd....',
+]);
+def('gravok2', [
+  '...QQQQQQQQQQ...',
+  '.QQqqqqqqqqqqQQ.',
+  'QqqQQqqQQqqQQqQx',
+  'QqqqqqqqqqqqqqQx',
+  'QqqQQqqQQqqQQqQ.',
+  '.QQqqqqqqqqqqQQ.',
+  '....dd..dd..dd..',
+]);
+
+// Spitter — rooted gullet-plant.
+def('spitter1', [
+  '....GxxG........',
+  '...GxGGxG.......',
+  '...GGGGGG.......',
+  '....DGGD........',
+  '.....DD.........',
+  '.....DD.........',
+  '....DDDD........',
+  '...DDGGDD.......',
+]);
+def('spitter2', [
+  '....Gxx.........',
+  '...GxGxxG.......',
+  '...GGGGGG.......',
+  '....DGGD........',
+  '.....DD.........',
+  '.....DD.........',
+  '....DDDD........',
+  '...DDGGDD.......',
+]);
+
+// Drifter — floating proximity mine.
+def('drifter', [
+  '...q..q..q..',
+  '..qqqqqqqq..',
+  '.qqQQqqQQqq.',
+  'q.qQqqqqQq.q',
+  '..qqqxxqqq..',
+  '..qqqxxqqq..',
+  'q.qQqqqqQq.q',
+  '.qqQQqqQQqq.',
+  '..qqqqqqqq..',
+  '...q..q..q..',
+]);
+
+def('stinger', [
+  '..yyyy..',
+  '.yxxxxy.',
+  'yxxxxxxy',
+  '.yxxxxy.',
+  '..yyyy..',
+]);
+
+// Crusher — ceiling piston beast.
+def('crusher1', [
+  '.QQQQQQQQQQQQQQQQQQQQQQ.',
+  'QqqqqqqqqqqqqqqqqqqqqqqQ',
+  'QqQQQQQQQQQQQQQQQQQQQQqQ',
+  'QqQqqqqqqqqqqqqqqqqqQqQ.',
+  'QqQqqqqqqxxqqqqqqqqqQqQ.',
+  'QqQqqqqqqxxqqqqqqqqqQqQ.',
+  'QqQQQQQQQQQQQQQQQQQQQQqQ',
+  '.QQQQQQQQQQQQQQQQQQQQQQ.',
+]);
+def('crusher2', [
+  '.QQQQQQQQQQQQQQQQQQQQQQ.',
+  'QqqqqqqqqqqqqqqqqqqqqqqQ',
+  'Qqqxxqqqqqqqqqqqqqxxqqq.',
+  'QqxxxxqqqqqqqqqqqxxxxqQ.',
+  'QqqxxqqqqxxqqqqqqqxxqqQ.',
+  'QqqqqqqqxxxxqqqqqqqqqqQ.',
+  'QQQQQQQQQQQQQQQQQQQQQQQ.',
+  'dd.dd.dd.dd.dd.dd.dd.dd.',
+]);
+
 // Phazoid — the energy leech (metroid analog).
 def('phazoid1', [
   '.....cccccc.....',
@@ -568,6 +675,40 @@ def('i_missile', [
   '..qqqqqq........',
 ]);
 
+def('i_charge', [
+  '.....yyyy.......',
+  '...yyxxxxyy.....',
+  '..yxxwwwwxxy....',
+  '..yxwwyywwxy....',
+  '..yxwwyywwxy....',
+  '..yxxwwwwxxy....',
+  '...yyxxxxyy.....',
+  '.....yyyy.......',
+]);
+def('i_space', [
+  '......cc........',
+  '....ccwwcc......',
+  '..ccww..wwcc....',
+  '.cww..cc..wwc...',
+  '.cw..cwwc..wc...',
+  '.cww..cc..wwc...',
+  '..ccww..wwcc....',
+  '....ccwwcc......',
+  '......cc........',
+]);
+
+def('i_wave', [
+  'p......pp......p',
+  'pp....p..p....pp',
+  '.p...p....p...p.',
+  '..p.p......p.p..',
+  '...p........p...',
+  '..p.p......p.p..',
+  '.p...p....p...p.',
+  'pp....p..p....pp',
+  'p......pp......p',
+]);
+
 def('i_screw', [
   '.......cc.......',
   '..c....cc....c..',
@@ -685,6 +826,7 @@ export const THEMES = {
   ridley: { rock: '#883058', hi: '#b85080', lo: '#401028', alt: '#a04830', althi: '#c87048', spike: '#e8b8c8', name: 'SKYRAX\'S ROOST' },
   tourian: { rock: '#606878', hi: '#8890a0', lo: '#282c38', alt: '#385858', althi: '#588080', spike: '#c8d0d8', name: 'THE HIVE' },
   crystal: { rock: '#2878a0', hi: '#50b8d8', lo: '#103850', alt: '#7898c0', althi: '#a8c8e8', spike: '#e0f4fc', name: 'THE CRYSTAL HOLLOWS' },
+  wreck: { rock: '#48645c', hi: '#70968a', lo: '#1c2c28', alt: '#5c7086', althi: '#8298b0', spike: '#c8d8d0', name: 'THE SUNKEN WRECK' },
 };
 
 // Deterministic per-tile speckle.
@@ -757,6 +899,51 @@ export function drawTile(ctx, ch, px, py, tx, ty, theme, frame) {
       ctx.fillRect(px + T - 2, py, 2, T);
       ctx.fillRect(px + 4, py + 4, 3, 3);
       ctx.fillRect(px + 9, py + 9, 3, 3);
+      break;
+    }
+    case 'F': { // crumble block
+      ctx.fillStyle = theme.rock;
+      ctx.fillRect(px, py, T, T);
+      ctx.fillStyle = theme.hi;
+      ctx.fillRect(px, py, T, 2);
+      ctx.fillStyle = theme.lo;
+      ctx.fillRect(px, py + T - 2, T, 2);
+      // cracks
+      ctx.fillRect(px + 3, py + 3, 2, 5);
+      ctx.fillRect(px + 5, py + 8, 2, 5);
+      ctx.fillRect(px + 10, py + 2, 2, 6);
+      ctx.fillRect(px + 8, py + 10, 5, 2);
+      break;
+    }
+    case 'I': { // slick ice
+      ctx.fillStyle = '#a8d8f0';
+      ctx.fillRect(px, py, T, T);
+      ctx.fillStyle = '#e8f8ff';
+      ctx.fillRect(px, py, T, 3);
+      ctx.fillStyle = '#6898c0';
+      ctx.fillRect(px, py + T - 3, T, 3);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(px + ((tx * 5) % 8), py + 5, 2, 2);
+      ctx.fillRect(px + ((tx * 11) % 10) + 4, py + 9, 2, 2);
+      break;
+    }
+    case '<':
+    case '>': { // conveyor treads
+      ctx.fillStyle = '#32323c';
+      ctx.fillRect(px, py, T, T);
+      ctx.fillStyle = '#585864';
+      ctx.fillRect(px, py, T, 3);
+      const dir = ch === '>' ? 1 : -1;
+      const off = ((Math.floor(frame / 4) * dir) % 8 + 8) % 8;
+      ctx.fillStyle = '#e8c838';
+      for (let i = 0; i < 2; i++) {
+        const bx = (off + i * 8) % 16;
+        ctx.fillRect(px + bx, py + 5, 2, 2);
+        ctx.fillRect(px + bx + (dir > 0 ? -2 : 2), py + 3, 2, 2);
+        ctx.fillRect(px + bx + (dir > 0 ? -2 : 2), py + 7, 2, 2);
+      }
+      ctx.fillStyle = '#181820';
+      ctx.fillRect(px, py + 11, T, 5);
       break;
     }
     case 'X': { // hive gate

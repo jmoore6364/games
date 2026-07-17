@@ -16,7 +16,7 @@ import {
 const VIEW_W = 256, VIEW_H = 240;
 const SAVE_KEY = 'mooretroid-save';
 const ESCAPE_FRAMES = 150 * 60;
-const TOTAL_ITEMS = 21;
+const TOTAL_ITEMS = 29;
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -111,6 +111,9 @@ class Game {
     this.booms = [];
     this.zebs = [];
     this.spawnersT = [];
+    this.crumbles = [];
+    this.respawns = [];
+    this.movers = r.movers.map((m) => ({ ...m, px: m.x0, t: 0 }));
 
     // doors (built from exits)
     this.doors = r.exits.map((e) => {
@@ -149,6 +152,10 @@ class Game {
     }
 
     this.items = r.items.filter((it) => !this.save.items[it.id]);
+
+    if (!this.save.visited) this.save.visited = {};
+    if (!this.save.visited[r.id]) { this.save.visited[r.id] = true; this.writeSave(); }
+
     this.updateCamera(true);
     this.setMusic();
   }
@@ -174,6 +181,15 @@ class Game {
     if (y < 0 || y >= this.room.h * TILE) return true;
     for (const z of this.zebs) {
       if (z.hp > 0 && x >= z.x && x < z.x + z.w && y >= z.y && y < z.y + z.h) return true;
+    }
+    // frozen enemies are standable ice statues (quantized to the tiles
+    // they cover so landing on them is stable)
+    for (const e of this.enemies) {
+      if (e.frozen > 0 && e.frozenSolid && !e.dead) {
+        const tx0 = Math.floor(e.x / TILE) * TILE, ty0 = Math.floor(e.y / TILE) * TILE;
+        const tx1 = Math.ceil((e.x + e.w) / TILE) * TILE, ty1 = Math.ceil((e.y + e.h) / TILE) * TILE;
+        if (x >= tx0 && x < tx1 && y >= ty0 && y < ty1) return true;
+      }
     }
     const tx = Math.floor(x / TILE), ty = Math.floor(y / TILE);
     const ch = this.grid[ty][tx];
@@ -221,6 +237,16 @@ class Game {
     }
     if (SOLID.has(ch)) return true;
     return false;
+  }
+
+  // Wave shots pierce the world but still trip doors they pass through.
+  waveTouchWorld(p) {
+    const tx = Math.floor((p.x + p.w / 2) / TILE), ty = Math.floor((p.y + p.h / 2) / TILE);
+    const ch = this.tileAt(tx, ty);
+    if (ch === 'D' || ch === 'R') {
+      const d = this.doorMap[`${tx},${ty}`];
+      if (d && d.openT <= 0) this.tryOpenDoor(d, 'beam');
+    }
   }
 
   breakStar(tx, ty) {
@@ -463,6 +489,15 @@ class Game {
       case 'play': this.updatePlay(inp); break;
       case 'pause':
         if (inp.pressed('start')) { this.state = 'play'; }
+        if (inp.pressed('fire') || inp.pressed('left') || inp.pressed('right')) {
+          this.pauseView = this.pauseView === 'map' ? 'status' : 'map';
+          this.sound.text();
+        }
+        if (inp.pressed('sel') && this.save.items.ice && this.save.items.wave) {
+          this.save.beam = this.save.beam === 'wave' ? 'ice' : 'wave';
+          this.writeSave();
+          this.sound.refill();
+        }
         break;
       case 'item': this.updateItemGet(inp); break;
       case 'doorfade':
@@ -515,7 +550,7 @@ class Game {
       return;
     }
 
-    if (inp.pressed('start')) { this.state = 'pause'; this.sound.text(); return; }
+    if (inp.pressed('start')) { this.state = 'pause'; this.pauseView = 'status'; this.sound.text(); return; }
     if (inp.pressed('sel') && this.save.maxMissiles > 0) {
       this.missileMode = !this.missileMode;
       this.sound.refill();
@@ -538,6 +573,8 @@ class Game {
     P.update(this, inp);
     if (this.state !== 'play') return;
 
+    this.updateMovers();
+    this.updateCrumbles();
     this.updateDoors();
     this.tryTransition();
     if (this.state !== 'play') return;
@@ -578,6 +615,59 @@ class Game {
     }
 
     this.updateCamera();
+  }
+
+  updateMovers() {
+    const P = this.player;
+    for (const m of this.movers) {
+      m.t++;
+      const ph = (m.t % m.period) / m.period;
+      const tri = ph < 0.5 ? ph * 2 : 2 - ph * 2;
+      const prev = m.px;
+      m.px = m.x0 + (m.x1 - m.x0) * tri;
+      const dx = m.px - prev;
+      // catch and carry the player
+      if (P.state !== 'dead' && P.vy >= 0 &&
+          P.x + P.w > m.px - 2 && P.x < m.px + m.w + 2 &&
+          P.y + P.h >= m.y - 6 && P.y + P.h <= m.y + 8) {
+        P.y = m.y - P.h - 0.1;
+        P.onGround = true;
+        P.vy = 0;
+        P.x += dx;
+      }
+    }
+  }
+
+  updateCrumbles() {
+    const P = this.player;
+    if (P.onGround && P.state !== 'dead') {
+      const fy = Math.floor((P.y + P.h + 2) / TILE);
+      for (const fx of [Math.floor((P.x + 1) / TILE), Math.floor((P.x + P.w - 1) / TILE)]) {
+        if (this.tileAt(fx, fy) === 'F' && !this.crumbles.find((c) => c.tx === fx && c.ty === fy)) {
+          this.crumbles.push({ tx: fx, ty: fy, t: 0 });
+        }
+      }
+    }
+    for (let i = this.crumbles.length - 1; i >= 0; i--) {
+      const c = this.crumbles[i];
+      if (++c.t >= 18) {
+        this.setTile(c.tx, c.ty, '.');
+        this.addBoom(c.tx * TILE + 8, c.ty * TILE + 8);
+        this.sound.crumble();
+        this.respawns.push({ tx: c.tx, ty: c.ty, t: 0 });
+        this.crumbles.splice(i, 1);
+      }
+    }
+    for (let i = this.respawns.length - 1; i >= 0; i--) {
+      const r = this.respawns[i];
+      if (++r.t >= 240) {
+        const rect = { x: r.tx * TILE, y: r.ty * TILE, w: TILE, h: TILE };
+        if (!overlap(rect, P)) {
+          this.setTile(r.tx, r.ty, 'F');
+          this.respawns.splice(i, 1);
+        }
+      }
+    }
   }
 
   updateFx() {
@@ -624,6 +714,9 @@ class Game {
         this.save.energy = this.maxEnergy;
       } else {
         this.save.items[it.kind] = true;
+        // last-collected beam becomes active; swap any time on the pause screen
+        if (it.kind === 'ice') this.save.beam = 'ice';
+        if (it.kind === 'wave') this.save.beam = 'wave';
       }
       this.writeSave();
       this.itemGot = it;
@@ -776,6 +869,20 @@ class Game {
       }
     }
 
+    // moving platforms
+    for (const m of this.movers) {
+      const px = Math.round(m.px - camX), py = Math.round(m.y - camY);
+      ctx.fillStyle = '#787888';
+      ctx.fillRect(px, py, m.w, 8);
+      ctx.fillStyle = '#a8a8b8';
+      ctx.fillRect(px, py, m.w, 2);
+      ctx.fillStyle = '#383844';
+      ctx.fillRect(px + 2, py + 5, m.w - 4, 3);
+      ctx.fillStyle = (this.frame & 8) ? '#e8e858' : '#a88820';
+      ctx.fillRect(px + 2, py + 2, 2, 2);
+      ctx.fillRect(px + m.w - 4, py + 2, 2, 2);
+    }
+
     // zebetites
     for (const z of this.zebs) {
       if (z.hp <= 0) continue;
@@ -808,7 +915,7 @@ class Game {
     // items
     for (const it of this.items) {
       const bob = Math.sin(this.frame * 0.08 + it.tx) * 2;
-      const name = { morph: 'i_morph', mpack: 'i_missile', bombs: 'i_bombs', long: 'i_long', ice: 'i_ice', hijump: 'i_hijump', varia: 'i_varia', etank: 'i_etank', screw: 'i_screw' }[it.kind];
+      const name = { morph: 'i_morph', mpack: 'i_missile', bombs: 'i_bombs', long: 'i_long', ice: 'i_ice', hijump: 'i_hijump', varia: 'i_varia', etank: 'i_etank', screw: 'i_screw', wave: 'i_wave', charge: 'i_charge', space: 'i_space' }[it.kind];
       if ((this.frame >> 3) % 4 !== 3) drawSprite(ctx, name, it.tx * TILE - camX, it.ty * TILE + bob - camY);
     }
 
@@ -876,30 +983,75 @@ class Game {
   drawPause() {
     ctx.fillStyle = 'rgba(4,4,12,0.88)';
     ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    if (this.pauseView === 'map') { this.drawMapPage(); return; }
     const s = this.save;
     text(ctx, '- STATUS -', 128, 20, '#f8a800', 12, 'center');
 
+    const both = s.items.ice && s.items.wave;
+    const mark = (b) => (both ? (b ? ' *' : '') : '');
     const gear = [
       ['MORPH BALL', s.items.morph], ['BOMBS', s.items.bombs],
-      ['LONG BEAM', s.items.long], ['ICE BEAM', s.items.ice],
+      ['LONG BEAM', s.items.long], ['ICE BEAM' + mark(s.beam !== 'wave'), s.items.ice],
       ['HI-JUMP', s.items.hijump], ['VARIA SUIT', s.items.varia],
-      ['SCREW ATTACK', s.items.screw],
+      ['SCREW ATTACK', s.items.screw], ['WAVE BEAM' + mark(s.beam === 'wave'), s.items.wave],
+      ['CHARGE BEAM', s.items.charge], ['SPACE JUMP', s.items.space],
     ];
     gear.forEach(([name, got], i) => {
       const x = i % 2 === 0 ? 40 : 140;
-      const y = 44 + Math.floor(i / 2) * 13;
+      const y = 40 + Math.floor(i / 2) * 12;
       text(ctx, (got ? '+ ' : '- ') + name, x, y, got ? '#48c848' : '#484858', 8);
     });
     text(ctx, `ENERGY TANKS ${s.tanks}`, 40, 100, '#f86868', 8);
     text(ctx, `MISSILES ${s.missiles}/${s.maxMissiles}`, 140, 100, '#c8d0d8', 8);
+    if (both) text(ctx, '* ACTIVE BEAM - PRESS C TO SWAP', 128, 112, '#40d8d8', 7, 'center');
 
     const time = Math.floor(s.time / 3600);
-    text(ctx, `AREA: ${THEMES[this.room.theme].name}`, 128, 120, '#8890a0', 8, 'center');
-    text(ctx, `TIME ${time} MIN   DEATHS ${s.deaths}`, 128, 132, '#8890a0', 8, 'center');
+    text(ctx, `AREA: ${THEMES[this.room.theme].name}`, 128, 126, '#8890a0', 8, 'center');
+    text(ctx, `TIME ${time} MIN   DEATHS ${s.deaths}`, 128, 138, '#8890a0', 8, 'center');
 
     text(ctx, 'INTEL:', 128, 158, '#40d8d8', 8, 'center');
     this.wrapText(hintFor(s), 128, 170, '#c8d0d8', 8, 30);
-    text(ctx, 'START TO RESUME', 128, 214, '#f8a800', 8, 'center');
+    text(ctx, 'FIRE: MAP   START: RESUME', 128, 214, '#f8a800', 8, 'center');
+  }
+
+  drawMapPage() {
+    const area = this.room.mapArea || this.room.theme;
+    const theme = THEMES[area];
+    text(ctx, `- MAP: ${theme.name} -`, 128, 20, '#f8a800', 10, 'center');
+
+    const rooms = Object.values(ROOMS).filter((r) => (r.mapArea || r.theme) === area && r.mapPos);
+    const seen = rooms.filter((r) => this.save.visited?.[r.id]);
+    if (!seen.length) { text(ctx, 'NO DATA', 128, 110, '#484858', 10, 'center'); return; }
+
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    for (const r of rooms) {
+      x0 = Math.min(x0, r.mapPos[0]); y0 = Math.min(y0, r.mapPos[1]);
+      x1 = Math.max(x1, r.mapPos[0] + r.mapW); y1 = Math.max(y1, r.mapPos[1] + r.mapH);
+    }
+    const cw = Math.min(20, Math.floor(216 / (x1 - x0)));
+    const chh = Math.min(16, Math.floor(150 / (y1 - y0)));
+    const ox = Math.round(128 - ((x1 - x0) * cw) / 2);
+    const oy = Math.round(118 - ((y1 - y0) * chh) / 2);
+
+    for (const r of seen) {
+      const px = ox + (r.mapPos[0] - x0) * cw;
+      const py = oy + (r.mapPos[1] - y0) * chh;
+      const w = r.mapW * cw, h = r.mapH * chh;
+      ctx.fillStyle = theme.lo;
+      ctx.fillRect(px + 1, py + 1, w - 2, h - 2);
+      ctx.strokeStyle = theme.hi;
+      ctx.strokeRect(px + 1.5, py + 1.5, w - 3, h - 3);
+      if (r.elevators.length) {
+        ctx.fillStyle = '#e8e858';
+        ctx.fillRect(px + w / 2 - 2, py + h / 2 - 2, 4, 4);
+      }
+      if (r.id === this.room.id && (this.frame >> 4) & 1) {
+        ctx.strokeStyle = '#fff';
+        ctx.strokeRect(px + 1.5, py + 1.5, w - 3, h - 3);
+      }
+    }
+    text(ctx, '▪ ELEVATOR   ▯ YOU ARE HERE', 128, 196, '#8890a0', 7, 'center');
+    text(ctx, 'FIRE: STATUS   START: RESUME', 128, 214, '#f8a800', 8, 'center');
   }
 
   wrapText(str, cx, y, color, size, maxChars) {
@@ -955,9 +1107,15 @@ class Game {
     }
     if (t > 420) {
       const s = this.save;
-      const got = Object.keys(s.items).length;
-      const pct = Math.round(100 * got / TOTAL_ITEMS);
-      text(ctx, `CLEAR TIME ${Math.floor(s.time / 3600)} MIN  -  ITEMS ${pct}%`, 128, 178, '#f8a800', 8, 'center');
+      const got = Object.keys(s.items).filter((k) => ITEM_INFO[k] || k.match(/^(m\d|etank\d)/)).length;
+      const pct = Math.min(100, Math.round(100 * got / TOTAL_ITEMS));
+      const mins = Math.floor(s.time / 3600);
+      let rank = 'ROOKIE HUNTER';
+      if (pct >= 100) rank = mins <= 75 ? 'LEGEND OF ZEMOOR' : 'PERFECT HUNTER';
+      else if (pct >= 75) rank = 'VETERAN HUNTER';
+      else if (mins <= 45) rank = 'SPEED DEMON';
+      text(ctx, `CLEAR TIME ${mins} MIN  -  ITEMS ${pct}%`, 128, 172, '#f8a800', 8, 'center');
+      text(ctx, `RANK: ${rank}`, 128, 186, '#40d8d8', 9, 'center');
       if ((this.frame >> 5) & 1) text(ctx, 'PRESS START', 128, 224, '#fff', 8, 'center');
     }
   }
