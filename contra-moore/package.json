@@ -1,0 +1,9 @@
+{
+  "name": "contra-moore",
+  "version": "0.1.0",
+  "description": "Contra: Moore Force — an NES Contra style run-and-gun, vanilla JS + canvas",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
