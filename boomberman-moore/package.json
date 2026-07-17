@@ -1,0 +1,9 @@
+{
+  "name": "boomberman-moore",
+  "version": "0.1.0",
+  "description": "Boomberman Moore — an NES/TurboGrafx style Bomberman arcade game, vanilla JS + canvas",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
