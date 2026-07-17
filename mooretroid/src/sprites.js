@@ -390,6 +390,113 @@ def('rio2', [
   '.....p....p.....',
 ]);
 
+def('leaper1', [
+  '....mppppppm....',
+  '..mpxppppppxpm..',
+  '.mppppppppppppm.',
+  '.mpppmmmmmmpppm.',
+  '..mppm....mppm..',
+  '..mpm......mpm..',
+  '.mpm........mpm.',
+  '.mm..........mm.',
+]);
+def('leaper2', [
+  '....mppppppm....',
+  '..mpxppppppxpm..',
+  '.mppppppppppppm.',
+  '.mpppmmmmmmpppm.',
+  '...mppm..mppm...',
+  '....mpm..mpm....',
+  '....mpm..mpm....',
+  '....mm....mm....',
+]);
+
+// Gravok — armor-plated beetle; its face turns beams.
+def('gravok1', [
+  '...QQQQQQQQQQ...',
+  '.QQqqqqqqqqqqQQ.',
+  'QqqQQqqQQqqQQqQx',
+  'QqqqqqqqqqqqqqQx',
+  'QqqQQqqQQqqQQqQ.',
+  '.QQqqqqqqqqqqQQ.',
+  '..dd..dd..dd....',
+]);
+def('gravok2', [
+  '...QQQQQQQQQQ...',
+  '.QQqqqqqqqqqqQQ.',
+  'QqqQQqqQQqqQQqQx',
+  'QqqqqqqqqqqqqqQx',
+  'QqqQQqqQQqqQQqQ.',
+  '.QQqqqqqqqqqqQQ.',
+  '....dd..dd..dd..',
+]);
+
+// Spitter — rooted gullet-plant.
+def('spitter1', [
+  '....GxxG........',
+  '...GxGGxG.......',
+  '...GGGGGG.......',
+  '....DGGD........',
+  '.....DD.........',
+  '.....DD.........',
+  '....DDDD........',
+  '...DDGGDD.......',
+]);
+def('spitter2', [
+  '....Gxx.........',
+  '...GxGxxG.......',
+  '...GGGGGG.......',
+  '....DGGD........',
+  '.....DD.........',
+  '.....DD.........',
+  '....DDDD........',
+  '...DDGGDD.......',
+]);
+
+// Drifter — floating proximity mine.
+def('drifter', [
+  '...q..q..q..',
+  '..qqqqqqqq..',
+  '.qqQQqqQQqq.',
+  'q.qQqqqqQq.q',
+  '..qqqxxqqq..',
+  '..qqqxxqqq..',
+  'q.qQqqqqQq.q',
+  '.qqQQqqQQqq.',
+  '..qqqqqqqq..',
+  '...q..q..q..',
+]);
+
+def('stinger', [
+  '..yyyy..',
+  '.yxxxxy.',
+  'yxxxxxxy',
+  '.yxxxxy.',
+  '..yyyy..',
+]);
+
+// Crusher — ceiling piston beast.
+def('crusher1', [
+  '.QQQQQQQQQQQQQQQQQQQQQQ.',
+  'QqqqqqqqqqqqqqqqqqqqqqqQ',
+  'QqQQQQQQQQQQQQQQQQQQQQqQ',
+  'QqQqqqqqqqqqqqqqqqqqQqQ.',
+  'QqQqqqqqqxxqqqqqqqqqQqQ.',
+  'QqQqqqqqqxxqqqqqqqqqQqQ.',
+  'QqQQQQQQQQQQQQQQQQQQQQqQ',
+  '.QQQQQQQQQQQQQQQQQQQQQQ.',
+]);
+def('crusher2', [
+  '.QQQQQQQQQQQQQQQQQQQQQQ.',
+  'QqqqqqqqqqqqqqqqqqqqqqqQ',
+  'Qqqxxqqqqqqqqqqqqqxxqqq.',
+  'QqxxxxqqqqqqqqqqqxxxxqQ.',
+  'QqqxxqqqqxxqqqqqqqxxqqQ.',
+  'QqqqqqqqxxxxqqqqqqqqqqQ.',
+  'QQQQQQQQQQQQQQQQQQQQQQQ.',
+  'dd.dd.dd.dd.dd.dd.dd.dd.',
+]);
+
 // Phazoid — the energy leech (metroid analog).
 def('phazoid1', [
   '.....cccccc.....',
@@ -566,6 +673,28 @@ def('i_missile', [
   '...qqqq.........',
   '..q.qq.q........',
   '..qqqqqq........',
+]);
+
+def('i_charge', [
+  '.....yyyy.......',
+  '...yyxxxxyy.....',
+  '..yxxwwwwxxy....',
+  '..yxwwyywwxy....',
+  '..yxwwyywwxy....',
+  '..yxxwwwwxxy....',
+  '...yyxxxxyy.....',
+  '.....yyyy.......',
+]);
+def('i_space', [
+  '......cc........',
+  '....ccwwcc......',
+  '..ccww..wwcc....',
+  '.cww..cc..wwc...',
+  '.cw..cwwc..wc...',
+  '.cww..cc..wwc...',
+  '..ccww..wwcc....',
+  '....ccwwcc......',
+  '......cc........',
 ]);
 
 def('i_wave', [

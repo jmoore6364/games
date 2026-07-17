@@ -263,6 +263,9 @@ export class Sound {
   shoot() { this.tone('square', 900, 300, 0.06, 0.25); }
   shootIce() { this.tone('square', 1300, 500, 0.08, 0.25); this.tone('square', 1600, 700, 0.06, 0.15, 0.02); }
   shootWave() { this.tone('square', 700, 250, 0.09, 0.22); this.tone('square', 500, 900, 0.07, 0.15, 0.03); }
+  shootCharged() { this.tone('square', 400, 1200, 0.16, 0.4); this.noise(0.12, 0.3, 3000); }
+  chargeFull() { this.tone('square', 1400, 1800, 0.06, 0.2); }
+  spit() { this.tone('square', 300, 150, 0.1, 0.25); this.noise(0.06, 0.2, 1000); }
   missile() { this.noise(0.2, 0.4, 2000); this.tone('sawtooth', 300, 700, 0.18, 0.2); }
   bombLay() { this.tone('square', 500, 350, 0.06, 0.25); }
   boom() { this.noise(0.25, 0.55, 600); this.tone('square', 160, 40, 0.2, 0.35); }

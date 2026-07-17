@@ -90,6 +90,7 @@ room('b_shaft1', {
     { side: 'left', y: 15, to: 'c_entry', red: true },
     { side: 'right', y: 21, to: 'b_missile' },
     { side: 'left', y: 27, to: 'b_tank', red: true },
+    { side: 'right', y: 33, to: 'b_vault', red: true },
     { side: 'left', y: 40, to: 'b_low' },
     { side: 'right', y: 40, to: 'b_bomb', red: true },
   ],
@@ -104,7 +105,7 @@ room('b_long', {
   }),
   exits: [{ side: 'left', y: 9, to: 'b_shaft1' }],
   items: [{ id: 'long', kind: 'long', tx: 28, ty: 10 }],
-  spawns: [['waver', 12, 5], ['waver', 22, 6], ['skree', 16, 2]],
+  spawns: [['waver', 12, 5], ['waver', 22, 6], ['skree', 16, 2], ['stinger', 26, 4]],
 });
 
 room('b_missile', {
@@ -136,6 +137,14 @@ room('b_bomb', {
   spawns: [['skree', 10, 2]],
 });
 
+room('b_vault', {
+  theme: 'brinstar', music: 'cavern', w: 16, h: 15,
+  rows: corridor(14, { 11: '.....%%' }),
+  exits: [{ side: 'left', y: 9, to: 'b_shaft1', red: true }],
+  items: [{ id: 'charge', kind: 'charge', tx: 6, ty: 10 }],
+  spawns: [['stinger', 4, 5], ['stinger', 11, 7]],
+});
+
 room('b_low', {
   theme: 'brinstar', music: 'cavern', w: 64, h: 15,
   rows: (() => {
@@ -153,7 +162,7 @@ room('b_low', {
     { side: 'left', y: 9, to: 'b_gate' },
   ],
   items: [{ id: 'm2', kind: 'mpack', tx: 22, ty: 11 }],
-  spawns: [['rio', 34, 5], ['rio', 52, 6], ['zoomer', 56, 11], ['zoomer', 8, 9]],
+  spawns: [['rio', 34, 5], ['rio', 52, 6], ['zoomer', 56, 11], ['zoomer', 8, 9], ['gravok', 48, 11]],
   elevators: [
     { tx: 42, tw: 4, ty: 12, to: 'n_shaft' },
     { tx: 14, tw: 4, ty: 12, to: 'k_shaft' },
@@ -221,7 +230,7 @@ room('c_gallery', {
   })(),
   exits: [{ side: 'left', y: 9, to: 'c_shaft' }],
   items: [{ id: 'm8', kind: 'mpack', tx: 44, ty: 11 }],
-  spawns: [['skree', 14, 2], ['skree', 30, 2], ['zoomer', 26, 11], ['zoomer', 34, 9]],
+  spawns: [['skree', 14, 2], ['skree', 30, 2], ['zoomer', 26, 11], ['zoomer', 34, 9], ['stinger', 20, 5], ['drifter', 38, 5]],
 });
 
 room('c_maze', {
@@ -249,7 +258,7 @@ room('c_deep', {
     { id: 'screw', kind: 'screw', tx: 42, ty: 10 },
     { id: 'm9', kind: 'mpack', tx: 25, ty: 4 },
   ],
-  spawns: [['hopper', 12, 11], ['rio', 22, 3], ['rio', 34, 4]],
+  spawns: [['hopper', 12, 11], ['rio', 22, 3], ['rio', 34, 4], ['drifter', 30, 6]],
 });
 
 // ============================ THE MOLTEN VEIN ============================
@@ -285,7 +294,7 @@ room('n_hijump', {
   })(),
   exits: [{ side: 'left', y: 9, to: 'n_shaft' }],
   items: [{ id: 'hijump', kind: 'hijump', tx: 44, ty: 10 }],
-  spawns: [['squeept', 10, 13], ['squeept', 22, 13], ['rio', 28, 4]],
+  spawns: [['squeept', 10, 13], ['squeept', 22, 13], ['rio', 28, 4], ['spitter', 18, 11]],
 });
 
 room('n_ice', {
@@ -295,7 +304,7 @@ room('n_ice', {
     11: '...%%',
   }),
   exits: [{ side: 'right', y: 9, to: 'n_shaft', red: true }],
-  items: [{ id: 'ice', kind: 'ice', tx: 4, ty: 10 }],
+  items: [{ id: 'ice', kind: 'ice', tx: 4, ty: 10 }, { id: 'm12', kind: 'mpack', tx: 9, ty: 7 }],
   spawns: [['ripper', 12, 6], ['ripper', 22, 10]],
 });
 
@@ -319,7 +328,7 @@ room('n_lava', {
   ],
   spawns: [
     ['squeept', 10, 13], ['squeept', 24, 13], ['squeept', 39, 13],
-    ['rio', 20, 4], ['rio', 36, 5],
+    ['rio', 20, 4], ['rio', 36, 5], ['spitter', 33, 11],
   ],
 });
 
@@ -337,7 +346,7 @@ room('n_deep', {
     { side: 'right', y: 9, to: 'n_shaft' },
     { side: 'left', y: 9, to: 'w_entry' },
   ],
-  spawns: [['squeept', 13, 13], ['squeept', 28, 13], ['waver', 20, 6], ['waver', 38, 7]],
+  spawns: [['squeept', 13, 13], ['squeept', 28, 13], ['waver', 20, 6], ['waver', 38, 7], ['gravok', 40, 11]],
   elevators: [{ tx: 3, tw: 4, ty: 12, to: 'r_shaft' }],
 });
 
@@ -356,7 +365,8 @@ room('w_entry', {
     { side: 'right', y: 9, to: 'n_deep' },
     { side: 'left', y: 9, to: 'w_shaft' },
   ],
-  spawns: [['ripper', 14, 6], ['ripper', 30, 4], ['skree', 22, 2]],
+  items: [{ id: 'etank7', kind: 'etank', tx: 12, ty: 7 }],
+  spawns: [['ripper', 14, 6], ['ripper', 30, 4], ['skree', 22, 2], ['drifter', 26, 5], ['gravok', 20, 11]],
 });
 
 room('w_shaft', {
@@ -384,7 +394,7 @@ room('w_hold', {
     { side: 'left', y: 9, to: 'w_core', red: true },
   ],
   items: [{ id: 'etank6', kind: 'etank', tx: 32, ty: 4 }],
-  spawns: [['hopper', 12, 11], ['hopper', 34, 11], ['zoomer', 28, 11]],
+  spawns: [['hopper', 12, 11], ['hopper', 34, 11], ['zoomer', 28, 11], ['crusher', 16, 2], ['stinger', 40, 6]],
 });
 
 room('w_core', {
@@ -397,7 +407,7 @@ room('w_core', {
     { id: 'wave', kind: 'wave', tx: 4, ty: 10 },
     { id: 'm10', kind: 'mpack', tx: 7, ty: 11 },
   ],
-  spawns: [['skree', 14, 2], ['waver', 16, 7]],
+  spawns: [['skree', 14, 2], ['waver', 16, 7], ['drifter', 12, 5]],
 });
 
 // ============================ GORLUK'S DEN ============================
@@ -408,7 +418,7 @@ room('k_shaft', {
     [6, '#####EEEE'], [9, 'R'], [12, 'C'], [15, 'R'], [18, 'C'], [21, 'R'], [24, 'C'],
   ], { 27: F(14) }),
   exits: [{ side: 'left', y: 24, to: 'k_hall' }],
-  spawns: [['zoomer', 8, 26]],
+  spawns: [['zoomer', 8, 26], ['stinger', 7, 14]],
   elevators: [{ tx: 6, tw: 4, ty: 6, to: 'b_low' }],
 });
 
@@ -422,7 +432,8 @@ room('k_hall', {
     { side: 'right', y: 9, to: 'k_shaft' },
     { side: 'left', y: 9, to: 'k_boss' },
   ],
-  spawns: [['hopper', 12, 11], ['hopper', 32, 11], ['zoomer', 40, 11]],
+  items: [{ id: 'm11', kind: 'mpack', tx: 22, ty: 7 }],
+  spawns: [['hopper', 12, 11], ['leaper', 32, 11], ['zoomer', 40, 11], ['crusher', 27, 2], ['gravok', 16, 11]],
 });
 
 room('k_boss', {
@@ -453,7 +464,7 @@ room('r_shaft', {
     [6, '.....EEEE#####'], [9, 'L'], [12, 'C'], [15, 'L'], [18, 'C'], [21, 'L'], [24, 'C'],
   ], { 27: F(14) }),
   exits: [{ side: 'right', y: 24, to: 'r_hall' }],
-  spawns: [['waver', 7, 15]],
+  spawns: [['waver', 7, 15], ['drifter', 7, 12]],
   elevators: [{ tx: 6, tw: 4, ty: 6, to: 'n_deep' }],
 });
 
@@ -470,7 +481,7 @@ room('r_hall', {
     { side: 'left', y: 9, to: 'r_shaft' },
     { side: 'right', y: 9, to: 'r_boss' },
   ],
-  spawns: [['rio', 16, 4], ['rio', 30, 5], ['squeept', 14, 13], ['squeept', 32, 13]],
+  spawns: [['rio', 16, 4], ['rio', 30, 5], ['squeept', 14, 13], ['squeept', 32, 13], ['leaper', 24, 11], ['spitter', 42, 11]],
 });
 
 room('r_boss', {
@@ -503,20 +514,22 @@ room('t_shaft', {
     [25, 'C'], [29, 'R'], [33, 'C'],
   ], { 37: F(14) }),
   exits: [{ side: 'left', y: 34, to: 't_hall1' }],
-  spawns: [['phazoid', 8, 20]],
+  spawns: [['phazoid', 8, 20], ['stinger', 8, 26]],
   elevators: [{ tx: 6, tw: 4, ty: 6, to: 'b_gate' }],
 });
 
 room('t_hall1', {
   theme: 'tourian', music: 'hive', w: 48, h: 15,
   rows: corridor(46, {
+    5: '..................#####',
     8: '..........####............####',
   }),
   exits: [
     { side: 'right', y: 9, to: 't_shaft' },
     { side: 'left', y: 9, to: 't_hall2' },
   ],
-  spawns: [['phazoid', 12, 5], ['phazoid', 24, 7], ['phazoid', 36, 4]],
+  items: [{ id: 'space', kind: 'space', tx: 21, ty: 4 }],
+  spawns: [['phazoid', 12, 5], ['phazoid', 24, 7], ['phazoid', 36, 4], ['leaper', 30, 11], ['crusher', 40, 2]],
 });
 
 room('t_hall2', {
@@ -530,6 +543,7 @@ room('t_hall2', {
     { side: 'right', y: 9, to: 't_hall1' },
     { side: 'left', y: 9, to: 't_escape', flag: 'escape' },
   ],
+  spawns: [['leaper', 56, 11]],
   zebs: [{ tx: 48 }, { tx: 40 }, { tx: 32 }],
   rinkaSpawners: [{ tx: 54, ty: 2 }, { tx: 44, ty: 2 }, { tx: 36, ty: 2 }, { tx: 20, ty: 2 }],
   boss: { kind: 'overmind', tx: 10 },
@@ -569,6 +583,8 @@ export const ITEM_INFO = {
   etank: { name: 'ENERGY TANK', desc: 'MAXIMUM ENERGY +100.' },
   screw: { name: 'SCREW ATTACK', desc: 'YOUR SOMERSAULT TEARS THROUGH FOES.' },
   wave: { name: 'WAVE BEAM', desc: 'YOUR SHOTS PASS THROUGH WALLS.' },
+  charge: { name: 'CHARGE BEAM', desc: 'HOLD FIRE, THEN RELEASE THE STORM.' },
+  space: { name: 'SPACE JUMP', desc: 'SOMERSAULT AGAIN IN MID-AIR.' },
 };
 
 // ---- automap: room positions in screen units, grouped by area ----
@@ -577,7 +593,7 @@ export const ITEM_INFO = {
 // brinstar tile theme).
 const MAP_POS = {
   b_start: [0, 0], b_shaft1: [3, 0], b_long: [4, 0], b_missile: [4, 1],
-  b_tank: [2, 1], b_bomb: [4, 2], b_low: [-1, 2], b_gate: [-3, 2],
+  b_tank: [2, 1], b_bomb: [4, 3], b_vault: [4, 2], b_low: [-1, 2], b_gate: [-3, 2],
   c_entry: [0, 0], c_shaft: [0, 1], c_gallery: [1, 1], c_maze: [-2, 2], c_deep: [1, 3],
   n_shaft: [0, 0], n_hijump: [1, 0], n_ice: [-2, 1], n_lava: [1, 1], n_deep: [-3, 2],
   w_entry: [0, 0], w_shaft: [-1, 0], w_hold: [-4, 1], w_core: [-6, 1],

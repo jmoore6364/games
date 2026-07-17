@@ -55,6 +55,7 @@ export class Player {
     this.inv = 0;
     this.cool = 0;
     this.anim = 0;
+    this.charge = 0;
     this.spinning = false;
     this.aimUp = false;
     this.state = 'normal'; // normal | dead
@@ -103,6 +104,10 @@ export class Player {
       this.spinning = Math.abs(mx) > 0.1;
       if (this.spinning && s.items.screw) game.sound.screw();
       else game.sound.jump();
+    } else if (!this.ball && input.pressed('jump') && !this.onGround && this.spinning && s.items.space) {
+      // space jump: somersault again in mid-air
+      this.vy = s.items.hijump ? -6.6 : -5.8;
+      if (s.items.screw) game.sound.screw(); else game.sound.jump();
     }
     if (!input.down('jump') && this.vy < -1.5) this.vy = -1.5;
 
@@ -117,17 +122,28 @@ export class Player {
 
     // --- fire ---
     if (this.cool > 0) this.cool--;
-    if (input.down('fire') && this.cool <= 0) {
+    const fireHeld = input.down('fire');
+    if (fireHeld && this.cool <= 0) {
       if (this.ball) {
         if (s.items.bombs && game.projs.filter((p) => p.kind === 'bomb').length < 2 && input.pressed('fire')) {
           game.projs.push({ kind: 'bomb', x: this.x + this.w / 2 - 3, y: this.y + this.h / 2 - 3, w: 6, h: 6, fuse: 45 });
           game.sound.bombLay();
           this.cool = 10;
         }
-      } else if (input.pressed('fire') || !game.missileMode) {
+      } else if (input.pressed('fire') || (!game.missileMode && !s.items.charge)) {
         this.shoot(game);
       }
     }
+    // holding fire builds a charge (once you have the Charge Beam)
+    if (s.items.charge && !this.ball && !game.missileMode) {
+      if (fireHeld) {
+        this.charge++;
+        if (this.charge === 46) game.sound.chargeFull();
+      } else {
+        if (this.charge >= 46) this.shoot(game, true);
+        this.charge = 0;
+      }
+    } else this.charge = 0;
 
     // --- tile hazards ---
     this.tileHazards(game);
@@ -136,11 +152,11 @@ export class Player {
     if (this.inv > 0) this.inv--;
   }
 
-  shoot(game) {
+  shoot(game, charged = false) {
     const s = game.save;
-    const missile = game.missileMode && s.missiles > 0;
-    if (game.missileMode && s.missiles <= 0) { game.sound.deny(); this.cool = 14; return; }
-    if (!missile && game.projs.filter((p) => p.kind === 'beam').length >= 3) return;
+    const missile = !charged && game.missileMode && s.missiles > 0;
+    if (!charged && game.missileMode && s.missiles <= 0) { game.sound.deny(); this.cool = 14; return; }
+    if (!missile && !charged && game.projs.filter((p) => p.kind === 'beam').length >= 3) return;
 
     let px, py, vx = 0, vy = 0;
     if (this.aimUp) {
@@ -160,9 +176,16 @@ export class Player {
     } else {
       const wave = !!s.items.wave && s.beam === 'wave';
       const ice = !!s.items.ice && !wave;
-      const life = wave ? 50 : s.items.long ? 70 : 13;
-      game.projs.push({ kind: 'beam', ice, wave, x: px, y: py, w: 4, h: 4, vx, vy, life, dmg: wave ? 2 : 1 });
-      if (wave) game.sound.shootWave();
+      const life = charged ? 60 : wave ? 50 : s.items.long ? 70 : 13;
+      const size = charged ? 7 : 4;
+      const spd = charged ? 1.15 : 1;
+      game.projs.push({
+        kind: 'beam', ice, wave, charged,
+        x: px - (charged ? 2 : 0), y: py - (charged ? 2 : 0), w: size, h: size,
+        vx: vx * spd, vy: vy * spd, life, dmg: charged ? 4 : wave ? 2 : 1,
+      });
+      if (charged) game.sound.shootCharged();
+      else if (wave) game.sound.shootWave();
       else if (ice) game.sound.shootIce();
       else game.sound.shoot();
       this.cool = 8;
@@ -215,6 +238,14 @@ export class Player {
       y = this.y - (this.aimUp ? 4 : 0) - camY;
     }
     drawSprite(ctx, name, x, y, this.face === -1);
+    // charge glow at the cannon
+    if (this.charge > 45 && (game.frame & 2)) {
+      ctx.fillStyle = '#f8e858';
+      const gx = this.x + (this.face === 1 ? 12 : -8) - camX;
+      ctx.fillRect(gx, this.y + 6 - camY, 6, 6);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(gx + 2, this.y + 8 - camY, 2, 2);
+    }
   }
 }
 
@@ -276,15 +307,15 @@ export function drawProjs(ctx, game, camX, camY) {
       const off = Math.sin((p.life + game.frame) * 0.9) * 3;
       const vert = p.vx === 0;
       ctx.fillStyle = '#c060e0';
-      ctx.fillRect(x + (vert ? off : 0), y + (vert ? 0 : off), 4, 4);
-      ctx.fillRect(x - (vert ? off : 0), y - (vert ? 0 : off), 4, 4);
+      ctx.fillRect(x + (vert ? off : 0), y + (vert ? 0 : off), p.w, p.h);
+      ctx.fillRect(x - (vert ? off : 0), y - (vert ? 0 : off), p.w, p.h);
       ctx.fillStyle = '#fff';
-      ctx.fillRect(x + 1, y + 1, 2, 2);
+      ctx.fillRect(x + 1, y + 1, p.w - 2, p.h - 2);
     } else {
-      ctx.fillStyle = p.ice ? '#40d8d8' : '#f8d838';
-      ctx.fillRect(x, y, 4, 4);
+      ctx.fillStyle = p.ice ? '#40d8d8' : p.charged ? '#f8f8a0' : '#f8d838';
+      ctx.fillRect(x, y, p.w, p.h);
       ctx.fillStyle = '#fff';
-      ctx.fillRect(x + 1, y + 1, 2, 2);
+      ctx.fillRect(x + 1, y + 1, p.w - 2, p.h - 2);
     }
   }
 }
@@ -308,6 +339,15 @@ export function spawnEnemy(game, type, tx, ty) {
     case 'ripper': e.hp = 1; e.dmg = 8; e.vx = 0.8; e.w = 14; e.h = 6; e.beamProof = true; break;
     case 'waver': e.hp = 2; e.dmg = 8; e.vx = 0.6; e.w = 14; e.h = 8; break;
     case 'hopper': e.hp = 4; e.dmg = 12; e.w = 14; e.h = 12; e.wait = 30; break;
+    case 'leaper': e.hp = 6; e.dmg = 16; e.w = 14; e.h = 14; e.wait = 20; break;
+    case 'gravok': e.hp = 4; e.dmg = 12; e.w = 14; e.h = 11; e.dir = -1; break;
+    case 'spitter': e.hp = 3; e.dmg = 8; e.w = 12; e.h = 15;
+      // root to the floor below
+      while (!game.solid(e.x + 6, e.y + e.h + 1) && e.y < game.room.h * TILE) e.y += 4;
+      break;
+    case 'drifter': e.hp = 1; e.dmg = 0; e.w = 11; e.h = 11; break;
+    case 'stinger': e.hp = 1; e.dmg = 5; e.w = 8; e.h = 6; break;
+    case 'crusher': e.hp = 8; e.dmg = 20; e.w = 24; e.h = 15; e.homeY = e.y; e.phase = 'lurk'; break;
     case 'squeept': e.hp = 3; e.dmg = 10; e.baseY = e.y; e.w = 12; e.h = 10; e.vy = 0; e.wait = 60 + (tx % 40); break;
     case 'rio': e.hp = 3; e.dmg = 10; e.homeY = e.y; e.phase = 'hover'; e.w = 14; e.h = 8; break;
     case 'phazoid': e.hp = 20; e.dmg = 0; e.w = 14; e.h = 14; e.latched = false; e.missileOnly = true; break;
@@ -356,6 +396,15 @@ export function damageEnemy(game, e, p) {
       game.sound.boom();
       return;
     }
+  } else if (e.type === 'gravok' && kind === 'beam' && !p.charged && p.vx && p.vx * e.dir < 0) {
+    // armored face: beams bounce off the front (charged shots punch through)
+    if (p.ice) { e.frozen = 240; game.sound.freeze(); }
+    else game.sound.clink();
+    return;
+  } else if (e.type === 'crusher' && e.phase === 'lurk') {
+    // safe in its ceiling housing; hit it while it slams
+    game.sound.clink();
+    return;
   } else if (e.beamProof && !missile && !bomb && kind !== 'screw') {
     // rippers shrug off beams, but ice still freezes them
     if (p.ice) { e.frozen = 240; game.sound.freeze(); }
@@ -375,6 +424,13 @@ export function damageEnemy(game, e, p) {
 export function killEnemy(game, e) {
   e.dead = true;
   if (e.boss) { game.bossDied(e); return; }
+  if (e.type === 'drifter') {
+    // mines burst into shrapnel
+    for (const [vx, vy] of [[-1.4, -1.2], [1.4, -1.2], [-1.2, 1.0], [1.2, 1.0]]) {
+      game.eprojs.push({ kind: 'shrap', x: e.x + 4, y: e.y + 4, w: 4, h: 4, vx, vy, g: 0.06, dmg: 8, life: 60 });
+    }
+    game.sound.boom();
+  }
   game.addBoom(e.x + e.w / 2, e.y + e.h / 2);
   game.sound.enemyDie();
   game.addDrop(e.x + e.w / 2, e.y + e.h / 2);
@@ -439,14 +495,74 @@ export function updateEnemy(game, e) {
       if (e.hitWall) e.vx = -e.vx;
       break;
     }
-    case 'hopper': {
+    case 'hopper':
+    case 'leaper': {
+      const leap = e.type === 'leaper';
       e.vy = Math.min(TERM, e.vy + GRAV);
       moveRect(game, e, e.onGround ? 0 : e.vx, e.vy);
       if (e.hitWall) e.vx = -e.vx;
       if (e.onGround && --e.wait <= 0) {
-        e.vx = (Math.sign(P.x - e.x) || 1) * 1.3;
-        e.vy = -4.2;
-        e.wait = 34 + (e.t % 20);
+        e.vx = (Math.sign(P.x - e.x) || 1) * (leap ? 1.9 : 1.3);
+        e.vy = leap ? -5.4 : -4.2;
+        e.wait = (leap ? 16 : 34) + (e.t % 20);
+      }
+      break;
+    }
+    case 'gravok': {
+      e.vy = Math.min(TERM, (e.vy || 0) + GRAV);
+      moveRect(game, e, 0.5 * e.dir, e.vy);
+      if (e.hitWall) e.dir = -e.dir;
+      else if (e.onGround) {
+        // turn at ledge edges
+        const ahead = e.x + (e.dir > 0 ? e.w + 2 : -2);
+        if (!game.solid(ahead, e.y + e.h + 4)) e.dir = -e.dir;
+      }
+      break;
+    }
+    case 'spitter': {
+      const dx = P.x + P.w / 2 - (e.x + 6), dy = P.y + P.h / 2 - (e.y + 4);
+      if (Math.abs(dx) < 130 && e.t % 115 === 0) {
+        const d = Math.hypot(dx, dy) || 1;
+        for (const sp of [-0.25, 0.25]) {
+          const a = Math.atan2(dy, dx) + sp;
+          game.eprojs.push({ kind: 'glob', x: e.x + 4, y: e.y + 2, w: 5, h: 5, vx: Math.cos(a) * 1.7, vy: Math.sin(a) * 1.7 - 0.6, g: 0.05, dmg: 10, life: 120 });
+        }
+        game.sound.spit();
+      }
+      void dy;
+      break;
+    }
+    case 'drifter': {
+      const dx = P.x + P.w / 2 - (e.x + 5), dy = P.y + P.h / 2 - (e.y + 5);
+      const d = Math.hypot(dx, dy) || 1;
+      e.x += (dx / d) * 0.35 + Math.sin(e.t * 0.06) * 0.25;
+      e.y += (dy / d) * 0.35 + Math.cos(e.t * 0.08) * 0.25;
+      if (d < 22) { killEnemy(game, e); return; } // proximity burst
+      break;
+    }
+    case 'stinger': {
+      e.vx = (e.vx || 0) + Math.sign(P.x + P.w / 2 - (e.x + 4)) * 0.07;
+      e.vy = (e.vy || 0) + Math.sign(P.y + P.h / 2 - (e.y + 3)) * 0.05;
+      e.vx = Math.max(-1.8, Math.min(1.8, e.vx));
+      e.vy = Math.max(-1.4, Math.min(1.4, e.vy));
+      e.x += e.vx + Math.sin(e.t * 0.2) * 0.4;
+      e.y += e.vy;
+      if (game.solid(e.x + 4, e.y + 3)) { e.vx = -e.vx; e.vy = -e.vy; e.x += e.vx * 3; e.y += e.vy * 3; }
+      break;
+    }
+    case 'crusher': {
+      if (e.phase === 'lurk') {
+        const px = P.x + P.w / 2;
+        if (px > e.x - 6 && px < e.x + e.w + 6 && P.y > e.y) { e.phase = 'slam'; e.vy = 0.5; }
+      } else if (e.phase === 'slam') {
+        e.vy = Math.min(6.5, e.vy + 0.5);
+        moveRect(game, e, 0, e.vy);
+        if (e.onGround) { e.phase = 'rest'; e.rt = 34; game.sound.land(); game.shake = 4; }
+      } else if (e.phase === 'rest') {
+        if (--e.rt <= 0) e.phase = 'rise';
+      } else {
+        e.y -= 0.8;
+        if (e.y <= e.homeY) { e.y = e.homeY; e.phase = 'lurk'; }
       }
       break;
     }
@@ -611,6 +727,27 @@ export function drawEnemy(ctx, game, e, camX, camY) {
     case 'hopper':
       drawSprite(ctx, e.onGround ? 'hopper1' : 'hopper2', x - 1, y - 2);
       break;
+    case 'leaper':
+      drawSprite(ctx, e.onGround ? 'leaper1' : 'leaper2', x - 1, y - 1);
+      break;
+    case 'gravok':
+      drawSprite(ctx, f2 ? 'gravok1' : 'gravok2', x - 1, y - 1, e.dir > 0);
+      break;
+    case 'spitter':
+      drawSprite(ctx, f2 ? 'spitter1' : 'spitter2', x - 2, y - 1);
+      break;
+    case 'drifter': {
+      const near = Math.hypot(game.player.x - e.x, game.player.y - e.y) < 60;
+      if (!near || (game.frame & 4)) drawSprite(ctx, 'drifter', x - 2, y - 2);
+      else { ctx.fillStyle = '#f84020'; ctx.fillRect(x, y, 11, 11); }
+      break;
+    }
+    case 'stinger':
+      drawSprite(ctx, 'stinger', x, y, e.vx < 0);
+      break;
+    case 'crusher':
+      drawSprite(ctx, e.phase === 'lurk' ? 'crusher1' : 'crusher2', x, y);
+      break;
     case 'squeept':
       drawSprite(ctx, 'squeept', x, y, false);
       break;
@@ -673,6 +810,11 @@ export function drawEprojs(ctx, game, camX, camY) {
     if (p.kind === 'fire') {
       ctx.fillStyle = (game.frame & 4) ? '#f86818' : '#f8d030';
       ctx.fillRect(x, y, 6, 6);
+    } else if (p.kind === 'glob') {
+      ctx.fillStyle = (game.frame & 4) ? '#68c838' : '#a8e858';
+      ctx.fillRect(x, y, 5, 5);
+      ctx.fillStyle = '#d8f8a8';
+      ctx.fillRect(x + 1, y + 1, 2, 2);
     } else if (p.kind === 'spike') {
       ctx.fillStyle = '#e8e8e8';
       ctx.fillRect(x, y, 6, 4);

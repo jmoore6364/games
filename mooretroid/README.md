@@ -31,10 +31,16 @@ Or serve the folder with any static file server.
 ## The mission
 
 - **Seven areas**: the Blue Caverns, the Crystal Hollows, the Molten Vein,
-  the Sunken Wreck, Gorluk's Den, Skyrax's Roost, and the Hive — 35 rooms
+  the Sunken Wreck, Gorluk's Den, Skyrax's Roost, and the Hive — 36 rooms
   of shafts, corridors, and lava.
 - **Powerups**: Morph Ball, Missiles, Bombs, Long Beam, Ice Beam, Wave Beam,
-  Hi-Jump Boots, Varia Suit, Screw Attack, 6 Energy Tanks, 10 missile packs.
+  Charge Beam, Hi-Jump Boots, Varia Suit, Screw Attack, Space Jump,
+  7 Energy Tanks, 12 missile packs.
+- **Fifteen enemy species**, including armor-faced gravoks (shoot them from
+  behind, or punch through with a charged shot), ceiling crushers (only
+  vulnerable mid-slam), proximity mines, spitter plants, and leapers.
+- **Charge Beam** (behind a red door in the great shaft): hold fire, release
+  the storm. **Space Jump** (in the Hive): somersault again in mid-air.
 - **Doors**: blue doors open to any shot; red doors demand a missile; the Hive
   gate opens only when both titans have fallen.
 - **Ice Beam** shots deal normal damage and freeze anything that survives the

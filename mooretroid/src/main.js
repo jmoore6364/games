@@ -16,7 +16,7 @@ import {
 const VIEW_W = 256, VIEW_H = 240;
 const SAVE_KEY = 'mooretroid-save';
 const ESCAPE_FRAMES = 150 * 60;
-const TOTAL_ITEMS = 24;
+const TOTAL_ITEMS = 29;
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -834,7 +834,7 @@ class Game {
     // items
     for (const it of this.items) {
       const bob = Math.sin(this.frame * 0.08 + it.tx) * 2;
-      const name = { morph: 'i_morph', mpack: 'i_missile', bombs: 'i_bombs', long: 'i_long', ice: 'i_ice', hijump: 'i_hijump', varia: 'i_varia', etank: 'i_etank', screw: 'i_screw', wave: 'i_wave' }[it.kind];
+      const name = { morph: 'i_morph', mpack: 'i_missile', bombs: 'i_bombs', long: 'i_long', ice: 'i_ice', hijump: 'i_hijump', varia: 'i_varia', etank: 'i_etank', screw: 'i_screw', wave: 'i_wave', charge: 'i_charge', space: 'i_space' }[it.kind];
       if ((this.frame >> 3) % 4 !== 3) drawSprite(ctx, name, it.tx * TILE - camX, it.ty * TILE + bob - camY);
     }
 
@@ -913,10 +913,11 @@ class Game {
       ['LONG BEAM', s.items.long], ['ICE BEAM' + mark(s.beam !== 'wave'), s.items.ice],
       ['HI-JUMP', s.items.hijump], ['VARIA SUIT', s.items.varia],
       ['SCREW ATTACK', s.items.screw], ['WAVE BEAM' + mark(s.beam === 'wave'), s.items.wave],
+      ['CHARGE BEAM', s.items.charge], ['SPACE JUMP', s.items.space],
     ];
     gear.forEach(([name, got], i) => {
       const x = i % 2 === 0 ? 40 : 140;
-      const y = 44 + Math.floor(i / 2) * 13;
+      const y = 40 + Math.floor(i / 2) * 12;
       text(ctx, (got ? '+ ' : '- ') + name, x, y, got ? '#48c848' : '#484858', 8);
     });
     text(ctx, `ENERGY TANKS ${s.tanks}`, 40, 100, '#f86868', 8);
