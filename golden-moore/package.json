@@ -1,0 +1,9 @@
+{
+  "name": "golden-moore",
+  "version": "0.1.0",
+  "description": "Golden Moore — a Golden Axe style side-scrolling beat-'em-up, vanilla JS + canvas",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
