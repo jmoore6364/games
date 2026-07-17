@@ -87,6 +87,7 @@ room('b_shaft1', {
   exits: [
     { side: 'left', y: 3, to: 'b_start' },
     { side: 'right', y: 9, to: 'b_long' },
+    { side: 'left', y: 15, to: 'c_entry', red: true },
     { side: 'right', y: 21, to: 'b_missile' },
     { side: 'left', y: 27, to: 'b_tank', red: true },
     { side: 'left', y: 40, to: 'b_low' },
@@ -171,6 +172,84 @@ room('b_gate', {
   statues: [{ tx: 19, boss: 'boss_gorluk' }, { tx: 23, boss: 'boss_skyrax' }],
   gate: { tx: 14, y0: 2, y1: 11 },
   elevators: [{ tx: 4, tw: 4, ty: 12, to: 't_shaft' }],
+});
+
+// ============================ THE CRYSTAL HOLLOWS ============================
+// Optional late-game area west of the great shaft, behind a red door.
+// Holds the Screw Attack, a fifth Energy Tank, and two missile packs.
+
+room('c_entry', {
+  theme: 'crystal', music: 'crystal', w: 32, h: 15,
+  rows: (() => {
+    const feats = {
+      10: '.............%%....%%',
+      11: '.............%%....%%',
+    };
+    const f12 = F(4) + 'EEEE' + F(22);
+    return corridor(30, feats, [f12, F(30), F(30)]);
+  })(),
+  exits: [{ side: 'right', y: 9, to: 'b_shaft1', red: true }],
+  spawns: [['hopper', 17, 11], ['waver', 24, 6]],
+  elevators: [{ tx: 5, tw: 4, ty: 12, to: 'c_shaft' }],
+});
+
+room('c_shaft', {
+  theme: 'crystal', music: 'crystal', w: 16, h: 45,
+  rows: shaft(45, [
+    [6, '#####EEEE'], [9, 'C'], [12, 'R'], [15, 'C'], [18, 'L'], [21, 'C'],
+    [24, 'R'], [27, 'C'], [30, 'L'], [33, 'C'], [36, 'R'], [39, 'C'],
+  ]),
+  exits: [
+    { side: 'right', y: 9, to: 'c_gallery' },
+    { side: 'left', y: 15, to: 'c_maze', red: true },
+    { side: 'right', y: 33, to: 'c_deep' },
+  ],
+  spawns: [['ripper', 7, 23], ['waver', 7, 31]],
+  elevators: [{ tx: 6, tw: 4, ty: 6, to: 'c_entry' }],
+});
+
+room('c_gallery', {
+  theme: 'crystal', music: 'crystal', w: 48, h: 15,
+  rows: (() => {
+    const feats = {
+      8: '......####..........####',
+      9: '.'.repeat(40) + '**',
+      10: '......%%............%%..............%%..**',
+      11: '......%%............%%..............%%..**',
+    };
+    return corridor(46, feats);
+  })(),
+  exits: [{ side: 'left', y: 9, to: 'c_shaft' }],
+  items: [{ id: 'm8', kind: 'mpack', tx: 44, ty: 11 }],
+  spawns: [['skree', 14, 2], ['skree', 30, 2], ['zoomer', 26, 11], ['zoomer', 34, 9]],
+});
+
+room('c_maze', {
+  theme: 'crystal', music: 'crystal', w: 32, h: 15,
+  rows: (() => {
+    const wall = '.........%%%%%%%%%%%%%%%%%';
+    const feats = { 11: '...%%' };
+    for (let y = 2; y <= 10; y++) feats[y] = wall;
+    return corridor(30, feats);
+  })(),
+  exits: [{ side: 'right', y: 9, to: 'c_shaft', red: true }],
+  items: [{ id: 'etank5', kind: 'etank', tx: 4, ty: 10 }],
+  spawns: [['hopper', 7, 11]],
+});
+
+room('c_deep', {
+  theme: 'crystal', music: 'crystal', w: 48, h: 15,
+  rows: corridor(46, {
+    5: '......................#####',
+    9: '.................####.........####',
+    11: '.................^^^^.........^^^^......%%',
+  }),
+  exits: [{ side: 'left', y: 9, to: 'c_shaft' }],
+  items: [
+    { id: 'screw', kind: 'screw', tx: 42, ty: 10 },
+    { id: 'm9', kind: 'mpack', tx: 25, ty: 4 },
+  ],
+  spawns: [['hopper', 12, 11], ['rio', 22, 3], ['rio', 34, 4]],
 });
 
 // ============================ THE MOLTEN VEIN ============================
@@ -426,6 +505,7 @@ export const ITEM_INFO = {
   hijump: { name: 'HI-JUMP BOOTS', desc: 'LEAP HALF AGAIN AS HIGH.' },
   varia: { name: 'VARIA SUIT', desc: 'ALL DAMAGE IS HALVED.' },
   etank: { name: 'ENERGY TANK', desc: 'MAXIMUM ENERGY +100.' },
+  screw: { name: 'SCREW ATTACK', desc: 'YOUR SOMERSAULT TEARS THROUGH FOES.' },
 };
 
 // ============================ STORY ============================

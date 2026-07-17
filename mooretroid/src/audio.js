@@ -109,12 +109,26 @@ const M_END = [
 ];
 const B_END = [48, 48, 52, 52, 53, 53, 55, 55, 48, 48, 53, 53, 55, 53, 48, 48];
 
+// "Glasslight" — the crystal hollows, chiming and still. E minor.
+const M_CRYSTAL = [
+  64, 0, 71, 0, 76, 0, 71, 0,
+  74, 0, 71, 0, 67, 0, 64, 0,
+  62, 0, 69, 0, 74, 0, 69, 0,
+  71, 0, 67, 0, 64, 0, 62, 0,
+  64, 0, 71, 0, 79, 0, 76, 0,
+  74, 0, 76, 0, 71, 0, 67, 0,
+  62, 0, 69, 0, 76, 0, 74, 0,
+  64, 0, 0, 0, 64, 0, 0, 0,
+];
+const B_CRYSTAL = [40, 40, 45, 45, 43, 43, 38, 38, 40, 40, 45, 45, 43, 38, 40, 40];
+
 const TRACKS = {
   title: { melody: M_TITLE, bass: B_TITLE, stepDur: 0.22, lead: 'triangle', drums: false },
   cavern: { melody: M_CAVERN, bass: B_CAVERN, stepDur: 0.13, lead: 'square', drums: true },
   depths: { melody: M_DEPTHS, bass: B_DEPTHS, stepDur: 0.16, lead: 'square', drums: true },
   lair: { melody: M_LAIR, bass: B_LAIR, stepDur: 0.19, lead: 'triangle', drums: true },
   hive: { melody: M_HIVE, bass: B_HIVE, stepDur: 0.115, lead: 'square', drums: true },
+  crystal: { melody: M_CRYSTAL, bass: B_CRYSTAL, stepDur: 0.17, lead: 'triangle', drums: false },
   boss: { melody: M_BOSS, bass: B_BOSS, stepDur: 0.105, lead: 'square', drums: true },
   escape: { melody: M_ESCAPE, bass: B_ESCAPE, stepDur: 0.1, lead: 'square', drums: true },
   ending: { melody: M_END, bass: B_END, stepDur: 0.15, lead: 'square', drums: false },
@@ -248,6 +262,7 @@ export class Sound {
   morph() { this.tone('square', 700, 250, 0.12, 0.3); }
   unmorph() { this.tone('square', 250, 700, 0.12, 0.3); }
   jump() { this.tone('square', 220, 440, 0.08, 0.12); }
+  screw() { this.tone('square', 500, 1400, 0.22, 0.18); this.tone('square', 700, 1800, 0.2, 0.12, 0.05); }
   land() { this.noise(0.04, 0.2, 400); }
   freeze() { this.tone('square', 2000, 2600, 0.12, 0.3); this.tone('square', 2600, 3100, 0.1, 0.2, 0.1); }
   latch() { this.tone('sawtooth', 200, 400, 0.15, 0.3); }

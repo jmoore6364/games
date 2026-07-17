@@ -568,6 +568,18 @@ def('i_missile', [
   '..qqqqqq........',
 ]);
 
+def('i_screw', [
+  '.......cc.......',
+  '..c....cc....c..',
+  '...cc..cc..cc...',
+  '....cc.cc.cc....',
+  '.cccccccccccccc.',
+  '....cc.cc.cc....',
+  '...cc..cc..cc...',
+  '..c....cc....c..',
+  '.......cc.......',
+]);
+
 // Pickups dropped by enemies.
 def('pu_energy', [
   '..xx..',
@@ -672,6 +684,7 @@ export const THEMES = {
   kraid: { rock: '#287838', hi: '#48a858', lo: '#0c3818', alt: '#588048', althi: '#80a868', spike: '#c8e0b8', name: 'GORLUK\'S DEN' },
   ridley: { rock: '#883058', hi: '#b85080', lo: '#401028', alt: '#a04830', althi: '#c87048', spike: '#e8b8c8', name: 'SKYRAX\'S ROOST' },
   tourian: { rock: '#606878', hi: '#8890a0', lo: '#282c38', alt: '#385858', althi: '#588080', spike: '#c8d0d8', name: 'THE HIVE' },
+  crystal: { rock: '#2878a0', hi: '#50b8d8', lo: '#103850', alt: '#7898c0', althi: '#a8c8e8', spike: '#e0f4fc', name: 'THE CRYSTAL HOLLOWS' },
 };
 
 // Deterministic per-tile speckle.

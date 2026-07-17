@@ -101,7 +101,8 @@ export class Player {
     if (!this.ball && input.pressed('jump') && this.onGround) {
       this.vy = s.items.hijump ? -6.6 : -5.8;
       this.spinning = Math.abs(mx) > 0.1;
-      game.sound.jump();
+      if (this.spinning && s.items.screw) game.sound.screw();
+      else game.sound.jump();
     }
     if (!input.down('jump') && this.vy < -1.5) this.vy = -1.5;
 
@@ -190,6 +191,12 @@ export class Player {
     } else if (!this.onGround && this.spinning) {
       name = pre + (Math.floor(game.frame / 4) % 2 ? 'spin1' : 'spin2');
       y = this.y + 6 - camY;
+      if (game.save.items.screw) {
+        ctx.strokeStyle = `rgba(160,240,255,${0.35 + 0.25 * ((game.frame >> 2) & 1)})`;
+        ctx.beginPath();
+        ctx.arc(x + 8, y + 6, 10, 0, Math.PI * 2);
+        ctx.stroke();
+      }
     } else if (!this.onGround) {
       name = pre + (this.aimUp ? 'up' : 'jump');
       y = this.y - (this.aimUp ? 4 : 0) - camY;
@@ -335,11 +342,14 @@ export function damageEnemy(game, e, p) {
       game.sound.boom();
       return;
     }
-  } else if (e.beamProof && !missile && !bomb) {
-    game.sound.clink();
+  } else if (e.beamProof && !missile && !bomb && kind !== 'screw') {
+    // rippers shrug off beams, but ice still freezes them
+    if (p.ice) { e.frozen = 240; game.sound.freeze(); }
+    else game.sound.clink();
     return;
   } else {
-    if (p.ice && !e.boss) { e.frozen = 240; game.sound.freeze(); if (!missile) return; }
+    // ice shots deal normal damage and freeze whatever survives
+    if (p.ice && !e.boss) { e.frozen = 240; game.sound.freeze(); }
     e.hp -= missile ? 10 : bomb ? 3 : dmg;
     e.flash = 6;
     game.sound.enemyHit();
@@ -489,10 +499,15 @@ export function updateEnemy(game, e) {
     case 'overmind': updateOvermind(game, e); break;
   }
 
-  // contact damage
+  // contact: screw attack tears through regular enemies, otherwise it hurts
   if (!e.dead && e.dmg > 0 && !e.latched && overlap(e, game.player)) {
-    game.hurtPlayer(e.dmg, e.x + e.w / 2);
-    if (e.type === 'rinka') e.dead = true;
+    const P2 = game.player;
+    if (game.save.items.screw && P2.spinning && !P2.onGround && !e.boss && e.type !== 'phazoid') {
+      damageEnemy(game, e, { kind: 'screw', dmg: 5 });
+    } else {
+      game.hurtPlayer(e.dmg, e.x + e.w / 2);
+      if (e.type === 'rinka') e.dead = true;
+    }
   }
 
   // safety: cull anything that slipped out of the room
