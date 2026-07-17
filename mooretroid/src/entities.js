@@ -158,10 +158,13 @@ export class Player {
       game.sound.missile();
       this.cool = 14;
     } else {
-      const ice = !!s.items.ice;
-      const life = s.items.long ? 70 : 13;
-      game.projs.push({ kind: 'beam', ice, x: px, y: py, w: 4, h: 4, vx, vy, life, dmg: 1 });
-      if (ice) game.sound.shootIce(); else game.sound.shoot();
+      const wave = !!s.items.wave && s.beam === 'wave';
+      const ice = !!s.items.ice && !wave;
+      const life = wave ? 50 : s.items.long ? 70 : 13;
+      game.projs.push({ kind: 'beam', ice, wave, x: px, y: py, w: 4, h: 4, vx, vy, life, dmg: wave ? 2 : 1 });
+      if (wave) game.sound.shootWave();
+      else if (ice) game.sound.shootIce();
+      else game.sound.shoot();
       this.cool = 8;
     }
   }
@@ -235,7 +238,10 @@ export function updateProjs(game) {
     p.life--;
 
     let dead = p.life <= 0;
-    if (!dead && game.shotHitsWorld(p)) dead = true;
+    if (!dead) {
+      if (p.wave) game.waveTouchWorld(p); // pierces walls, still trips doors
+      else if (game.shotHitsWorld(p)) dead = true;
+    }
 
     if (!dead) {
       // enemies
@@ -266,6 +272,14 @@ export function drawProjs(ctx, game, camX, camY) {
       ctx.fillRect(x, y, 5, 5);
       ctx.fillStyle = '#a8a8b8';
       ctx.fillRect(x - Math.sign(p.vx) * 3, y + 1, 3, 3);
+    } else if (p.wave) {
+      const off = Math.sin((p.life + game.frame) * 0.9) * 3;
+      const vert = p.vx === 0;
+      ctx.fillStyle = '#c060e0';
+      ctx.fillRect(x + (vert ? off : 0), y + (vert ? 0 : off), 4, 4);
+      ctx.fillRect(x - (vert ? off : 0), y - (vert ? 0 : off), 4, 4);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(x + 1, y + 1, 2, 2);
     } else {
       ctx.fillStyle = p.ice ? '#40d8d8' : '#f8d838';
       ctx.fillRect(x, y, 4, 4);
@@ -518,6 +532,10 @@ export function updateEnemy(game, e) {
 function updateGorluk(game, e) {
   const P = game.player;
   e.y = e.homeY + Math.sin(e.t * 0.03) * 3;
+  // enraged below a third health: much faster volleys
+  if (e.hp <= 24 && e.t % 55 === 20) {
+    game.eprojs.push({ kind: 'spike', x: e.x + e.w - 4, y: e.y + 32, w: 6, h: 4, vx: 2.6, vy: -0.6, g: 0.02, dmg: 12, life: 130 });
+  }
   if (e.t % 85 === 0) {
     game.eprojs.push({ kind: 'spike', x: e.x + e.w - 4, y: e.y + 24, w: 6, h: 4, vx: 2.1, vy: 0, g: 0, dmg: 12, life: 130 });
     game.eprojs.push({ kind: 'spike', x: e.x + e.w - 4, y: e.y + 40, w: 6, h: 4, vx: 1.7, vy: 0, g: 0, dmg: 12, life: 130 });
@@ -548,7 +566,8 @@ function updateSkyrax(game, e) {
         game.eprojs.push({ kind: 'fire', x: cx, y: cy, w: 6, h: 6, vx: Math.cos(a) * 2, vy: Math.sin(a) * 2, g: 0, dmg: 14, life: 140 });
       }
       void d;
-      e.rest = 46 + Math.random() * 30;
+      // enraged below a third health: barely rests between hops
+      e.rest = (e.hp <= 24 ? 18 : 46) + Math.random() * 30;
     }
   } else {
     e.vy = Math.min(TERM, e.vy + 0.16);

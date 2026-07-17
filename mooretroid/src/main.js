@@ -16,7 +16,7 @@ import {
 const VIEW_W = 256, VIEW_H = 240;
 const SAVE_KEY = 'mooretroid-save';
 const ESCAPE_FRAMES = 150 * 60;
-const TOTAL_ITEMS = 21;
+const TOTAL_ITEMS = 24;
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -149,6 +149,10 @@ class Game {
     }
 
     this.items = r.items.filter((it) => !this.save.items[it.id]);
+
+    if (!this.save.visited) this.save.visited = {};
+    if (!this.save.visited[r.id]) { this.save.visited[r.id] = true; this.writeSave(); }
+
     this.updateCamera(true);
     this.setMusic();
   }
@@ -221,6 +225,16 @@ class Game {
     }
     if (SOLID.has(ch)) return true;
     return false;
+  }
+
+  // Wave shots pierce the world but still trip doors they pass through.
+  waveTouchWorld(p) {
+    const tx = Math.floor((p.x + p.w / 2) / TILE), ty = Math.floor((p.y + p.h / 2) / TILE);
+    const ch = this.tileAt(tx, ty);
+    if (ch === 'D' || ch === 'R') {
+      const d = this.doorMap[`${tx},${ty}`];
+      if (d && d.openT <= 0) this.tryOpenDoor(d, 'beam');
+    }
   }
 
   breakStar(tx, ty) {
@@ -463,6 +477,15 @@ class Game {
       case 'play': this.updatePlay(inp); break;
       case 'pause':
         if (inp.pressed('start')) { this.state = 'play'; }
+        if (inp.pressed('fire') || inp.pressed('left') || inp.pressed('right')) {
+          this.pauseView = this.pauseView === 'map' ? 'status' : 'map';
+          this.sound.text();
+        }
+        if (inp.pressed('sel') && this.save.items.ice && this.save.items.wave) {
+          this.save.beam = this.save.beam === 'wave' ? 'ice' : 'wave';
+          this.writeSave();
+          this.sound.refill();
+        }
         break;
       case 'item': this.updateItemGet(inp); break;
       case 'doorfade':
@@ -515,7 +538,7 @@ class Game {
       return;
     }
 
-    if (inp.pressed('start')) { this.state = 'pause'; this.sound.text(); return; }
+    if (inp.pressed('start')) { this.state = 'pause'; this.pauseView = 'status'; this.sound.text(); return; }
     if (inp.pressed('sel') && this.save.maxMissiles > 0) {
       this.missileMode = !this.missileMode;
       this.sound.refill();
@@ -624,6 +647,9 @@ class Game {
         this.save.energy = this.maxEnergy;
       } else {
         this.save.items[it.kind] = true;
+        // last-collected beam becomes active; swap any time on the pause screen
+        if (it.kind === 'ice') this.save.beam = 'ice';
+        if (it.kind === 'wave') this.save.beam = 'wave';
       }
       this.writeSave();
       this.itemGot = it;
@@ -808,7 +834,7 @@ class Game {
     // items
     for (const it of this.items) {
       const bob = Math.sin(this.frame * 0.08 + it.tx) * 2;
-      const name = { morph: 'i_morph', mpack: 'i_missile', bombs: 'i_bombs', long: 'i_long', ice: 'i_ice', hijump: 'i_hijump', varia: 'i_varia', etank: 'i_etank', screw: 'i_screw' }[it.kind];
+      const name = { morph: 'i_morph', mpack: 'i_missile', bombs: 'i_bombs', long: 'i_long', ice: 'i_ice', hijump: 'i_hijump', varia: 'i_varia', etank: 'i_etank', screw: 'i_screw', wave: 'i_wave' }[it.kind];
       if ((this.frame >> 3) % 4 !== 3) drawSprite(ctx, name, it.tx * TILE - camX, it.ty * TILE + bob - camY);
     }
 
@@ -876,14 +902,17 @@ class Game {
   drawPause() {
     ctx.fillStyle = 'rgba(4,4,12,0.88)';
     ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    if (this.pauseView === 'map') { this.drawMapPage(); return; }
     const s = this.save;
     text(ctx, '- STATUS -', 128, 20, '#f8a800', 12, 'center');
 
+    const both = s.items.ice && s.items.wave;
+    const mark = (b) => (both ? (b ? ' *' : '') : '');
     const gear = [
       ['MORPH BALL', s.items.morph], ['BOMBS', s.items.bombs],
-      ['LONG BEAM', s.items.long], ['ICE BEAM', s.items.ice],
+      ['LONG BEAM', s.items.long], ['ICE BEAM' + mark(s.beam !== 'wave'), s.items.ice],
       ['HI-JUMP', s.items.hijump], ['VARIA SUIT', s.items.varia],
-      ['SCREW ATTACK', s.items.screw],
+      ['SCREW ATTACK', s.items.screw], ['WAVE BEAM' + mark(s.beam === 'wave'), s.items.wave],
     ];
     gear.forEach(([name, got], i) => {
       const x = i % 2 === 0 ? 40 : 140;
@@ -892,14 +921,55 @@ class Game {
     });
     text(ctx, `ENERGY TANKS ${s.tanks}`, 40, 100, '#f86868', 8);
     text(ctx, `MISSILES ${s.missiles}/${s.maxMissiles}`, 140, 100, '#c8d0d8', 8);
+    if (both) text(ctx, '* ACTIVE BEAM - PRESS C TO SWAP', 128, 112, '#40d8d8', 7, 'center');
 
     const time = Math.floor(s.time / 3600);
-    text(ctx, `AREA: ${THEMES[this.room.theme].name}`, 128, 120, '#8890a0', 8, 'center');
-    text(ctx, `TIME ${time} MIN   DEATHS ${s.deaths}`, 128, 132, '#8890a0', 8, 'center');
+    text(ctx, `AREA: ${THEMES[this.room.theme].name}`, 128, 126, '#8890a0', 8, 'center');
+    text(ctx, `TIME ${time} MIN   DEATHS ${s.deaths}`, 128, 138, '#8890a0', 8, 'center');
 
     text(ctx, 'INTEL:', 128, 158, '#40d8d8', 8, 'center');
     this.wrapText(hintFor(s), 128, 170, '#c8d0d8', 8, 30);
-    text(ctx, 'START TO RESUME', 128, 214, '#f8a800', 8, 'center');
+    text(ctx, 'FIRE: MAP   START: RESUME', 128, 214, '#f8a800', 8, 'center');
+  }
+
+  drawMapPage() {
+    const area = this.room.mapArea || this.room.theme;
+    const theme = THEMES[area];
+    text(ctx, `- MAP: ${theme.name} -`, 128, 20, '#f8a800', 10, 'center');
+
+    const rooms = Object.values(ROOMS).filter((r) => (r.mapArea || r.theme) === area && r.mapPos);
+    const seen = rooms.filter((r) => this.save.visited?.[r.id]);
+    if (!seen.length) { text(ctx, 'NO DATA', 128, 110, '#484858', 10, 'center'); return; }
+
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    for (const r of rooms) {
+      x0 = Math.min(x0, r.mapPos[0]); y0 = Math.min(y0, r.mapPos[1]);
+      x1 = Math.max(x1, r.mapPos[0] + r.mapW); y1 = Math.max(y1, r.mapPos[1] + r.mapH);
+    }
+    const cw = Math.min(20, Math.floor(216 / (x1 - x0)));
+    const chh = Math.min(16, Math.floor(150 / (y1 - y0)));
+    const ox = Math.round(128 - ((x1 - x0) * cw) / 2);
+    const oy = Math.round(118 - ((y1 - y0) * chh) / 2);
+
+    for (const r of seen) {
+      const px = ox + (r.mapPos[0] - x0) * cw;
+      const py = oy + (r.mapPos[1] - y0) * chh;
+      const w = r.mapW * cw, h = r.mapH * chh;
+      ctx.fillStyle = theme.lo;
+      ctx.fillRect(px + 1, py + 1, w - 2, h - 2);
+      ctx.strokeStyle = theme.hi;
+      ctx.strokeRect(px + 1.5, py + 1.5, w - 3, h - 3);
+      if (r.elevators.length) {
+        ctx.fillStyle = '#e8e858';
+        ctx.fillRect(px + w / 2 - 2, py + h / 2 - 2, 4, 4);
+      }
+      if (r.id === this.room.id && (this.frame >> 4) & 1) {
+        ctx.strokeStyle = '#fff';
+        ctx.strokeRect(px + 1.5, py + 1.5, w - 3, h - 3);
+      }
+    }
+    text(ctx, '▪ ELEVATOR   ▯ YOU ARE HERE', 128, 196, '#8890a0', 7, 'center');
+    text(ctx, 'FIRE: STATUS   START: RESUME', 128, 214, '#f8a800', 8, 'center');
   }
 
   wrapText(str, cx, y, color, size, maxChars) {
@@ -955,9 +1025,15 @@ class Game {
     }
     if (t > 420) {
       const s = this.save;
-      const got = Object.keys(s.items).length;
-      const pct = Math.round(100 * got / TOTAL_ITEMS);
-      text(ctx, `CLEAR TIME ${Math.floor(s.time / 3600)} MIN  -  ITEMS ${pct}%`, 128, 178, '#f8a800', 8, 'center');
+      const got = Object.keys(s.items).filter((k) => ITEM_INFO[k] || k.match(/^(m\d|etank\d)/)).length;
+      const pct = Math.min(100, Math.round(100 * got / TOTAL_ITEMS));
+      const mins = Math.floor(s.time / 3600);
+      let rank = 'ROOKIE HUNTER';
+      if (pct >= 100) rank = mins <= 75 ? 'LEGEND OF ZEMOOR' : 'PERFECT HUNTER';
+      else if (pct >= 75) rank = 'VETERAN HUNTER';
+      else if (mins <= 45) rank = 'SPEED DEMON';
+      text(ctx, `CLEAR TIME ${mins} MIN  -  ITEMS ${pct}%`, 128, 172, '#f8a800', 8, 'center');
+      text(ctx, `RANK: ${rank}`, 128, 186, '#40d8d8', 9, 'center');
       if ((this.frame >> 5) & 1) text(ctx, 'PRESS START', 128, 224, '#fff', 8, 'center');
     }
   }

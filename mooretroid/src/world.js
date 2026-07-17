@@ -333,9 +333,71 @@ room('n_deep', {
     const f = F(8) + '~'.repeat(10) + F(6) + '~'.repeat(10) + F(12);
     return corridor(46, feats, [f12, f, f]);
   })(),
-  exits: [{ side: 'right', y: 9, to: 'n_shaft' }],
+  exits: [
+    { side: 'right', y: 9, to: 'n_shaft' },
+    { side: 'left', y: 9, to: 'w_entry' },
+  ],
   spawns: [['squeept', 13, 13], ['squeept', 28, 13], ['waver', 20, 6], ['waver', 38, 7]],
   elevators: [{ tx: 3, tw: 4, ty: 12, to: 'r_shaft' }],
+});
+
+// ============================ THE SUNKEN WRECK ============================
+// A colony ship swallowed by the planet, entered from the deep lava run.
+// Holds the Wave Beam, a sixth Energy Tank, and a missile pack.
+
+room('w_entry', {
+  theme: 'wreck', music: 'wreck', w: 48, h: 15,
+  rows: corridor(46, {
+    8: '..........%%%%............%%%%',
+    10: '......%%......%%%%......%%......%%%%',
+    11: '......%%......%%%%......%%......%%%%',
+  }),
+  exits: [
+    { side: 'right', y: 9, to: 'n_deep' },
+    { side: 'left', y: 9, to: 'w_shaft' },
+  ],
+  spawns: [['ripper', 14, 6], ['ripper', 30, 4], ['skree', 22, 2]],
+});
+
+room('w_shaft', {
+  theme: 'wreck', music: 'wreck', w: 16, h: 30,
+  rows: shaft(30, [
+    [12, 'R'], [15, 'C'], [18, 'R'], [21, 'C'], [24, 'R'],
+  ], { 27: F(14) }),
+  exits: [
+    { side: 'right', y: 9, to: 'w_entry' },
+    { side: 'left', y: 24, to: 'w_hold' },
+  ],
+  spawns: [['waver', 7, 20]],
+});
+
+room('w_hold', {
+  theme: 'wreck', music: 'wreck', w: 48, h: 15,
+  rows: corridor(46, {
+    5: '..............................#####',
+    9: '......................**............####',
+    10: '......................**',
+    11: '......................**',
+  }),
+  exits: [
+    { side: 'right', y: 9, to: 'w_shaft' },
+    { side: 'left', y: 9, to: 'w_core', red: true },
+  ],
+  items: [{ id: 'etank6', kind: 'etank', tx: 32, ty: 4 }],
+  spawns: [['hopper', 12, 11], ['hopper', 34, 11], ['zoomer', 28, 11]],
+});
+
+room('w_core', {
+  theme: 'wreck', music: 'wreck', w: 24, h: 15,
+  rows: corridor(22, {
+    11: '...%%...^^^',
+  }),
+  exits: [{ side: 'right', y: 9, to: 'w_hold', red: true }],
+  items: [
+    { id: 'wave', kind: 'wave', tx: 4, ty: 10 },
+    { id: 'm10', kind: 'mpack', tx: 7, ty: 11 },
+  ],
+  spawns: [['skree', 14, 2], ['waver', 16, 7]],
 });
 
 // ============================ GORLUK'S DEN ============================
@@ -506,7 +568,31 @@ export const ITEM_INFO = {
   varia: { name: 'VARIA SUIT', desc: 'ALL DAMAGE IS HALVED.' },
   etank: { name: 'ENERGY TANK', desc: 'MAXIMUM ENERGY +100.' },
   screw: { name: 'SCREW ATTACK', desc: 'YOUR SOMERSAULT TEARS THROUGH FOES.' },
+  wave: { name: 'WAVE BEAM', desc: 'YOUR SHOTS PASS THROUGH WALLS.' },
 };
+
+// ---- automap: room positions in screen units, grouped by area ----
+// [gx, gy] of the room's top-left screen; optional third entry overrides
+// the map area (t_surface is drawn with the Hive even though it uses the
+// brinstar tile theme).
+const MAP_POS = {
+  b_start: [0, 0], b_shaft1: [3, 0], b_long: [4, 0], b_missile: [4, 1],
+  b_tank: [2, 1], b_bomb: [4, 2], b_low: [-1, 2], b_gate: [-3, 2],
+  c_entry: [0, 0], c_shaft: [0, 1], c_gallery: [1, 1], c_maze: [-2, 2], c_deep: [1, 3],
+  n_shaft: [0, 0], n_hijump: [1, 0], n_ice: [-2, 1], n_lava: [1, 1], n_deep: [-3, 2],
+  w_entry: [0, 0], w_shaft: [-1, 0], w_hold: [-4, 1], w_core: [-6, 1],
+  k_shaft: [0, 0], k_hall: [-3, 1], k_boss: [-5, 1], k_prize: [-6, 1],
+  r_shaft: [0, 0], r_hall: [1, 1], r_boss: [4, 1], r_prize: [6, 1],
+  t_shaft: [0, 0], t_hall1: [-3, 2], t_hall2: [-7, 2],
+  t_escape: [-8, -1], t_surface: [-7, -1, 'tourian'],
+};
+for (const [id, [gx, gy, area]] of Object.entries(MAP_POS)) {
+  const r = ROOMS[id];
+  r.mapPos = [gx, gy];
+  r.mapArea = area || r.theme;
+  r.mapW = Math.ceil(r.w / 16);
+  r.mapH = Math.ceil(r.h / 15);
+}
 
 // ============================ STORY ============================
 

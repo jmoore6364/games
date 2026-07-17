@@ -30,11 +30,11 @@ Or serve the folder with any static file server.
 
 ## The mission
 
-- **Six areas**: the Blue Caverns, the Crystal Hollows, the Molten Vein,
-  Gorluk's Den, Skyrax's Roost, and the Hive — 31 rooms of shafts,
-  corridors, and lava.
-- **Powerups**: Morph Ball, Missiles, Bombs, Long Beam, Ice Beam, Hi-Jump
-  Boots, Varia Suit, Screw Attack, 5 Energy Tanks, 9 missile packs.
+- **Seven areas**: the Blue Caverns, the Crystal Hollows, the Molten Vein,
+  the Sunken Wreck, Gorluk's Den, Skyrax's Roost, and the Hive — 35 rooms
+  of shafts, corridors, and lava.
+- **Powerups**: Morph Ball, Missiles, Bombs, Long Beam, Ice Beam, Wave Beam,
+  Hi-Jump Boots, Varia Suit, Screw Attack, 6 Energy Tanks, 10 missile packs.
 - **Doors**: blue doors open to any shot; red doors demand a missile; the Hive
   gate opens only when both titans have fallen.
 - **Ice Beam** shots deal normal damage and freeze anything that survives the
@@ -43,8 +43,14 @@ Or serve the folder with any static file server.
 - **The Crystal Hollows** are optional: the upper red door on the left side of
   the great shaft hides an elevator to the Screw Attack — somersault through
   enemies like they aren't there.
+- **The Sunken Wreck** hides past the deep lava run below the Molten Vein: a
+  dead colony ship holding the Wave Beam, whose shots pass through walls.
+  With both beams, swap on the pause screen with C.
+- **Automap**: press Fire on the pause screen for a map of everywhere you've
+  been in the current area. Elevators are marked.
 - Destroy the Overmind and you have 2:30 to reach the surface before the
-  planet comes down. Your gunship is waiting.
+  planet comes down. Your gunship is waiting — and your rank depends on your
+  time and item count.
 
 Progress saves automatically (localStorage) at elevators, items, and boss
 kills. The pause screen gives you a hint about where to go next.

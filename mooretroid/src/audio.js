@@ -122,6 +122,19 @@ const M_CRYSTAL = [
 ];
 const B_CRYSTAL = [40, 40, 45, 45, 43, 43, 38, 38, 40, 40, 45, 45, 43, 38, 40, 40];
 
+// "Dead Hull" — the sunken wreck, groaning metal. A minor, slow.
+const M_WRECK = [
+  57, 0, 0, 0, 55, 0, 57, 0,
+  60, 0, 57, 0, 0, 0, 52, 0,
+  57, 0, 0, 0, 55, 0, 57, 0,
+  63, 0, 62, 0, 60, 0, 57, 0,
+  56, 0, 0, 0, 55, 0, 56, 0,
+  59, 0, 56, 0, 0, 0, 52, 0,
+  57, 0, 55, 0, 53, 0, 52, 0,
+  50, 0, 0, 0, 45, 0, 0, 0,
+];
+const B_WRECK = [33, 33, 33, 33, 31, 31, 31, 31, 33, 33, 33, 33, 29, 29, 31, 31];
+
 const TRACKS = {
   title: { melody: M_TITLE, bass: B_TITLE, stepDur: 0.22, lead: 'triangle', drums: false },
   cavern: { melody: M_CAVERN, bass: B_CAVERN, stepDur: 0.13, lead: 'square', drums: true },
@@ -129,6 +142,7 @@ const TRACKS = {
   lair: { melody: M_LAIR, bass: B_LAIR, stepDur: 0.19, lead: 'triangle', drums: true },
   hive: { melody: M_HIVE, bass: B_HIVE, stepDur: 0.115, lead: 'square', drums: true },
   crystal: { melody: M_CRYSTAL, bass: B_CRYSTAL, stepDur: 0.17, lead: 'triangle', drums: false },
+  wreck: { melody: M_WRECK, bass: B_WRECK, stepDur: 0.18, lead: 'square', drums: true },
   boss: { melody: M_BOSS, bass: B_BOSS, stepDur: 0.105, lead: 'square', drums: true },
   escape: { melody: M_ESCAPE, bass: B_ESCAPE, stepDur: 0.1, lead: 'square', drums: true },
   ending: { melody: M_END, bass: B_END, stepDur: 0.15, lead: 'square', drums: false },
@@ -248,6 +262,7 @@ export class Sound {
   // ---- sfx ----
   shoot() { this.tone('square', 900, 300, 0.06, 0.25); }
   shootIce() { this.tone('square', 1300, 500, 0.08, 0.25); this.tone('square', 1600, 700, 0.06, 0.15, 0.02); }
+  shootWave() { this.tone('square', 700, 250, 0.09, 0.22); this.tone('square', 500, 900, 0.07, 0.15, 0.03); }
   missile() { this.noise(0.2, 0.4, 2000); this.tone('sawtooth', 300, 700, 0.18, 0.2); }
   bombLay() { this.tone('square', 500, 350, 0.06, 0.25); }
   boom() { this.noise(0.25, 0.55, 600); this.tone('square', 160, 40, 0.2, 0.35); }
