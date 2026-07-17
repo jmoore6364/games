@@ -133,6 +133,15 @@ export const WORLD = [];
   fill(118, 82, 124, 88, 'd');
   g[85][121] = 'C';                  // the Sand Sepulcher
   g[86][121] = 's';
+  // the south-east sea, and The Smolder — a volcanic isle
+  fill(134, 58, W_W - 1, W_H - 1, 'w');
+  fill(142, 70, 150, 78, 'm');       // the isle's rim
+  fill(143, 72, 149, 77, 'a');
+  scatter(143, 72, 149, 77, 'A', 0.2, r, 'a');
+  g[73][146] = 'C';                  // Ember Hollow
+  fill(146, 74, 146, 78, 'a');       // path down from the crater
+  g[78][146] = 'a';
+  fill(144, 79, 148, 79, 's');       // the landing beach
   // roads
   path([[24, 53], [24, 46], [30, 46], [30, 39], [30, 38], [35, 38]]);
   g[38][30] = 'T';                   // Fordwell (placed after the road)
@@ -159,15 +168,29 @@ export const TOWN_AT = {
 };
 export const CAVE_AT = {
   '10,34': 'barrow1', '72,50': 'mire1', '70,18': 'dusk1', '58,8': 'spire1', '60,59': 'vault1',
-  '7,87': 'light1', '121,85': 'sep1',
+  '7,87': 'light1', '121,85': 'sep1', '146,73': 'ember1',
 };
 // ferry docks: stepping on one 'D' sails you to its pair
 export const DOCKS = { '10,80': [7, 90], '7,90': [10, 80] };
 // bosses that roam the open world
-export const WORLD_BOSSES = Object.fromEntries(
-  ['129,49', '130,49', '131,49', '130,48', '130,50'].map((k) => [k,
-    { group: ['palestag'], flag: 'k_stag', text: 'THE PALE STAG LOWERS ITS CROWN OF BONE!' }]),
-);
+export const WORLD_BOSSES = {
+  ...Object.fromEntries(
+    ['129,49', '130,49', '131,49', '130,48', '130,50'].map((k) => [k,
+      { group: ['palestag'], flag: 'k_stag', text: 'THE PALE STAG LOWERS ITS CROWN OF BONE!' }]),
+  ),
+  // the Kraken guards every water tile touching The Smolder's beach
+  ...Object.fromEntries(
+    ['144,80', '145,80', '146,80', '147,80', '148,80', '143,79', '149,79'].map((k) => [k,
+      { group: ['kraken'], flag: 'k_kraken', text: 'THE SEA BOILS -- THE KRAKEN HAS FOUND YOUR HULL!' }]),
+  ),
+};
+// where the ship waits when granted (and after a defeat)
+export const SHIP_HOME = [10, 84];
+// encounters while sailing
+export const SEA_ENCOUNTERS = {
+  rate: 15,
+  groups: [['gullwing'], ['saltfang'], ['gullwing', 'gullwing'], ['krakenarm'], ['saltfang', 'gullwing'], ['krakenarm', 'saltfang']],
+};
 
 // ============================ TOWNS ============================
 // 24 x 16 maps. Walking off any edge returns to the world map.
@@ -576,10 +599,7 @@ const GREYWATER = town('greywater', 'GREYWATER', [
   { id: 'ferry', sprite: 'man', x: 9, y: 13, say: [
     { text: ['FERRYMAN: THE OLD LIGHT ON', 'THE ISLE STILL TURNS, BUT', 'SOMETHING NESTS IN IT NOW.', 'MY SKIFF WAITS AT THE DOCK', 'SOUTH OF TOWN.'] },
   ] },
-  { id: 'harbor', sprite: 'elder', x: 17, y: 10, wander: true, say: [
-    { if: 'k_storm', text: ['HARBORMASTER: THE LIGHT', 'BURNS CLEAN AGAIN. SAILORS', 'OWE YOU THEIR NECKS.'] },
-    { text: ['HARBORMASTER: NO SHIP DARES', 'THE BAY SINCE THE LIGHTHOUSE', 'WENT STRANGE. STORMS COME', 'OUT OF IT SIDEWAYS.'] },
-  ] },
+  { id: 'harbor', sprite: 'elder', x: 17, y: 10, role: 'shipwright' },
   { id: 'vil_g', sprite: 'woman2', x: 6, y: 9, wander: true, say: [
     { text: ['GREY SANDS, GREY SKY, GREY', 'WATER. HOME SWEET HOME.'] },
   ] },
@@ -796,12 +816,42 @@ const VAULT2 = dungeon('vault2', 'THE DROWNED THRONE', [
   encounters: null,
 });
 
+// Ember Hollow — the crater's heart, on The Smolder.
+const EMBER1 = dungeon('ember1', 'EMBER HOLLOW', [
+  'RRRRRRRRRRRRRRRRRRRRRRRR',
+  'RRRRRRRR,X,X,X,RRRRRRRRR',
+  'RRRRRRR,,,,,,,,RRRRRRRRR',
+  'RRRRRRRZ,,,,,,ZRRRRRRRRR',
+  'RRRRRR,,,,,,,,,,RRRRRRRR',
+  'RRRRRR,,,,,,,,,,RRRRRRRR',
+  'RRRRRR,,,,,,,,,,RRRRRRRR',
+  'RRRRRRRR,,,,,,RRRRRRRRRR',
+  'RRRRRRRRR,,,,RRRRRRRRRRR',
+  'RRRR,,,,,,,,,,,,,RRRRRRR',
+  'RRRR,RRRRRRRRRRR,RRRRRRR',
+  'RRRR,RRRRRRRRRRR,RRRRRRR',
+  'RRRR,,,,,,,,,,,,,RRRRRRR',
+  'RRRRRRRRRR,<,RRRRRRRRRRR',
+  'RRRRRRRRRRRRRRRRRRRRRRRR',
+  'RRRRRRRRRRRRRRRRRRRRRRRR',
+], {
+  music: 'boss',
+  links: { '11,13': { map: 'world', x: 146, y: 78 } },
+  chests: { '9,1': { item: 'emberplate' }, '11,1': { gold: 800 }, '13,1': { item: 'bigpotion' } },
+  bosses: Object.fromEntries(
+    ['9,8', '10,8', '11,8', '12,8'].map((k) => [k,
+      { group: ['cindercolossus'], flag: 'k_colossus', text: 'THE CINDER COLOSSUS HEAVES ITSELF FROM THE MAGMA!' }]),
+  ),
+  encounters: { rate: 12, groups: [['embereater'], ['sunwraith'], ['embereater', 'sunwraith'], ['revenant', 'embereater']] },
+});
+
 export const MAPS = {
   emberwick: EMBERWICK, fordwell: FORDWELL, sagemoor: SAGEMOOR, highcairn: HIGHCAIRN,
   greywater: GREYWATER, cinderdune: CINDERDUNE, thornwatch: THORNWATCH,
   barrow1: BARROW1, barrow2: BARROW2, mire1: MIRE1, mire2: MIRE2,
   dusk1: DUSK1, dusk2: DUSK2, spire1: SPIRE1, spire2: SPIRE2, spire3: SPIRE3,
   vault1: VAULT1, vault2: VAULT2, light1: LIGHT1, light2: LIGHT2, sep1: SEP1, sep2: SEP2,
+  ember1: EMBER1,
 };
 
 // ============================ ITEMS & GEAR ============================
@@ -843,6 +893,7 @@ export const GEAR = {
   aegis: { name: 'TIDEWORN AEGIS', slot: 'armor', def: 14, price: 990 },
   duneweave: { name: 'DUNEWEAVE ROBE', slot: 'armor', def: 8, price: 320 },
   staghide: { name: 'STAGHIDE COAT', slot: 'armor', def: 9, price: 400 },
+  emberplate: { name: 'EMBERPLATE', slot: 'armor', def: 16, price: 1400 },
 };
 
 export const SHOPS = {
@@ -929,6 +980,9 @@ export const ENEMIES = {
   dustjackal: { name: 'DUST JACKAL', sprite: 'b_dustjackal', hp: 46, atk: 19, def: 8, spd: 13, xp: 28, gold: 24 },
   glasscorpion: { name: 'GLASS SCORPION', sprite: 'b_glasscorpion', hp: 54, atk: 20, def: 14, spd: 6, xp: 32, gold: 26, poison: 0.35 },
   sunwraith: { name: 'SUN WRAITH', sprite: 'b_sunwraith', hp: 62, atk: 24, def: 10, spd: 10, xp: 40, gold: 34, cast: { kind: 'fire', pow: 20, chance: 0.4 } },
+  gullwing: { name: 'GULLWING', sprite: 'b_gullwing', hp: 40, atk: 17, def: 7, spd: 14, xp: 26, gold: 20 },
+  saltfang: { name: 'SALTFANG', sprite: 'b_saltfang', hp: 56, atk: 22, def: 9, spd: 11, xp: 38, gold: 30 },
+  krakenarm: { name: 'KRAKEN ARM', sprite: 'b_krakenarm', hp: 70, atk: 25, def: 13, spd: 6, xp: 48, gold: 40 },
   // bosses
   stonewarden: { name: 'STONE WARDEN', sprite: 'b_stonewarden', boss: true, hp: 130, atk: 16, def: 11, spd: 4, xp: 90, gold: 120 },
   miremaw: { name: 'MIRE MAW', sprite: 'b_miremaw', boss: true, hp: 210, atk: 21, def: 10, spd: 6, xp: 180, gold: 240, double: true },
@@ -938,6 +992,8 @@ export const ENEMIES = {
   stormcaller: { name: 'THE STORMCALLER', sprite: 'b_stormcaller', boss: true, hp: 260, atk: 22, def: 11, spd: 14, xp: 240, gold: 320, cast: { kind: 'storm', pow: 20, chance: 0.45 } },
   husk: { name: 'THE HUSK', sprite: 'b_husk', boss: true, hp: 340, atk: 26, def: 14, spd: 7, xp: 420, gold: 520, poison: 0.3, double: true },
   palestag: { name: 'THE PALE STAG', sprite: 'b_palestag', boss: true, hp: 300, atk: 28, def: 12, spd: 16, xp: 460, gold: 380, double: true },
+  kraken: { name: 'THE KRAKEN', sprite: 'b_kraken', boss: true, hp: 520, atk: 32, def: 15, spd: 9, xp: 900, gold: 900, double: true, cast: { kind: 'storm', pow: 24, chance: 0.35 } },
+  cindercolossus: { name: 'CINDER COLOSSUS', sprite: 'b_cindercolossus', boss: true, hp: 700, atk: 36, def: 20, spd: 5, xp: 2000, gold: 2000, double: true, cast: { kind: 'fire', pow: 32, chance: 0.35 } },
 };
 
 // World encounter zones, checked in order. rate = avg steps per battle.

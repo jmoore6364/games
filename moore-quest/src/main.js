@@ -6,7 +6,7 @@ import { initSprites, drawSprite, drawWalker, drawTile, drawWindow, SPR } from '
 import {
   TILE, W_W, W_H, WORLD, MAPS, TOWN_AT, CAVE_AT, walkable, BUMPS, START_POS,
   ITEMS, GEAR, SHOPS, PARTY_DEFS, SKILLS, ENEMIES, ZONES, TERRAIN_RATE,
-  DOCKS, WORLD_BOSSES, STORY, ENDING, xpForLevel, validateWorld,
+  DOCKS, WORLD_BOSSES, SHIP_HOME, SEA_ENCOUNTERS, STORY, ENDING, xpForLevel, validateWorld,
 } from './world.js';
 import { Battle, eAtk, eDef, knownSkills } from './battle.js';
 
@@ -82,6 +82,7 @@ class Game {
       party: [makeChar('moore', 1)],
       pos: { map: 'emberwick', x: 12, y: 13, dir: 'up' },
       lastInn: { map: 'emberwick', x: 12, y: 13 },
+      shipPos: null, sailing: false,
       steps: 0, time: 0, battles: 0,
     };
   }
@@ -278,6 +279,27 @@ class Game {
           return;
         }
         const ch = this.effTile(nx, ny);
+        const s = this.save;
+        if (s.sailing) {
+          // at the helm: open water sails, walkable shore disembarks
+          if (ch === 'w') {
+            p.moving = true; p.tx = nx; p.ty = ny; p.prog = 0;
+          } else if (ch !== null && walkable(ch) && !this.npcAt(nx, ny)) {
+            s.sailing = false;
+            s.shipPos = [p.x, p.y];
+            this.sound.stairs();
+            p.moving = true; p.tx = nx; p.ty = ny; p.prog = 0;
+          }
+          return;
+        }
+        // on foot: stepping onto the moored ship boards it
+        if (this.mapId === 'world' && ch === 'w' && s.shipPos && s.shipPos[0] === nx && s.shipPos[1] === ny) {
+          s.sailing = true;
+          this.sound.stairs();
+          this.showBanner('ALL ABOARD');
+          p.moving = true; p.tx = nx; p.ty = ny; p.prog = 0;
+          return;
+        }
         if (BUMPS.has(ch)) { this.bump(ch); return; }
         if (ch === 'X') { this.openChest(nx, ny); return; }
         if (!this.isBlocked(nx, ny)) {
@@ -330,6 +352,20 @@ class Game {
     const m = this.mapDef();
 
     if (!this.justArrived) {
+      if (this.mapId === 'world' && this.save.sailing) {
+        // only sea bosses trouble a ship
+        const wboss = WORLD_BOSSES[`${p.x},${p.y}`];
+        if (wboss && !this.save.flags[wboss.flag]) {
+          this.say([wboss.text], () => this.startBattle(wboss.group, { boss: true, flag: wboss.flag }));
+          return;
+        }
+        this.stepsSinceBattle++;
+        if (this.stepsSinceBattle >= 8 && Math.random() < 1 / SEA_ENCOUNTERS.rate) {
+          const group = SEA_ENCOUNTERS.groups[(Math.random() * SEA_ENCOUNTERS.groups.length) | 0];
+          this.startBattle(group, { bg: 'sea' });
+        }
+        return;
+      }
       if (this.mapId === 'world') {
         const key = `${p.x},${p.y}`;
         if (ch === 'T' && TOWN_AT[key]) {
@@ -524,6 +560,8 @@ class Game {
       // wake at the last inn, half gold
       this.save.gold = Math.floor(this.save.gold / 2);
       for (const c of this.party) { c.hp = c.maxhp; c.mp = c.maxmp; c.psn = false; }
+      if (this.save.shipPos) this.save.shipPos = [...SHIP_HOME]; // the cog drifts home
+      this.save.sailing = false;
       const inn = this.save.lastInn;
       this.battle = null;
       this.loadMap(inn.map, inn.x, inn.y, 'down');
@@ -683,6 +721,19 @@ class Game {
           });
         } else {
           this.say(['FISHER: LOST MY LUCKY RING', 'IN THE OLD BARROW WHEN THE', 'BONES CHASED ME OUT.', 'BRING IT BACK AND I\'LL', 'MAKE IT WORTH YOUR WHILE.']);
+        }
+        return;
+      case 'shipwright':
+        if (this.save.shipPos) {
+          this.say(['HARBORMASTER: SHE HANDLES', 'LIKE A DRUNK MULE, BUT SHE', 'FLOATS. THE WHOLE SEA IS', 'YOURS NOW, LAMPLIGHTER.']);
+        } else if (f.k_storm) {
+          this.say(['HARBORMASTER: YOU CLEARED', 'THE LIGHT? THEN TAKE MY OLD', 'COG -- SHE\'S EARNED A BRAVER', 'HAND THAN MINE.', 'SHE\'S MOORED SOUTH OF THE', 'FERRY DOCK. STEP ABOARD AND', 'SAIL WHERE YOU PLEASE.'], () => {
+            this.save.shipPos = [...SHIP_HOME];
+            this.sound.itemGet();
+            this.say(['RECEIVED THE OLD COG!'], () => this.writeSave());
+          });
+        } else {
+          this.say(['HARBORMASTER: NO SHIP DARES', 'THE BAY SINCE THE LIGHTHOUSE', 'WENT STRANGE. STORMS COME', 'OUT OF IT SIDEWAYS.', 'CLEAR THE OLD LIGHT AND WE', 'WILL TALK ABOUT BOATS.']);
         }
         return;
       case 'keeper':
@@ -885,8 +936,17 @@ class Game {
       }
       drawWalker(ctx, n.sprite, n.dir, n.moving ? (n.prog >> 3) & 1 : 0, nx - camX, ny - camY - 2);
     }
+    // the moored ship
+    const s = this.save;
+    if (this.mapId === 'world' && s.shipPos && !s.sailing) {
+      drawSprite(ctx, (this.frame & 16) ? 'boat1' : 'boat2', s.shipPos[0] * TILE - camX, s.shipPos[1] * TILE - camY);
+    }
     // party caterpillar: followers use the trail
     const p = this.player;
+    if (s.sailing) {
+      drawSprite(ctx, (this.frame & 16) ? 'boat1' : 'boat2', p.x * TILE + p.ox - camX, p.y * TILE + p.oy - camY);
+      return;
+    }
     for (let i = this.party.length - 1; i >= 1; i--) {
       const t = this.trail[i - 1];
       if (!t) continue;
@@ -988,6 +1048,10 @@ class Game {
       }
     }
     const lw = this.save.lastWorld || { x: START_POS.x, y: START_POS.y };
+    if (this.save.shipPos && !this.save.sailing) {
+      ctx.fillStyle = '#a87840';
+      ctx.fillRect(ox + this.save.shipPos[0] - 1, oy + this.save.shipPos[1] - 1, 3, 3);
+    }
     if (this.frame & 16) {
       ctx.fillStyle = '#fff';
       ctx.fillRect(ox + lw.x - 1, oy + lw.y - 1, 3, 3);

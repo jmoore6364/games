@@ -32,23 +32,27 @@ Or serve the folder with any static file server.
 - **A 160x96-tile continuous overworld** — grasslands, deep woods, a river,
   swamps, hills, mountains, the ashlands, a grey western coast, an eastern
   pinewood, and a southern desert — with a scrolling camera, roads, a ferry
-  across the bay, and random encounters by terrain.
+  across the bay, and random encounters by terrain. Clear the lighthouse
+  and the harbormaster hands you his old cog: **the whole sea opens**,
+  with its own monsters, and you can circumnavigate the continent.
 - **Six towns and a hunters' camp** (Emberwick, Fordwell, Sagemoor,
   Highcairn, the port of Greywater, the oasis of Cinderdune, and
   Thornwatch) full of townsfolk whose gossip changes as the story moves —
   plus inns that heal and save, item shops, and smithies with tiers of gear.
-- **Seven dungeons** — the Hollow Barrow, the Mire Cave, Duskhold Fort,
-  the three floors of the Worldspire, and three optional delves: the Old
+- **Eight dungeons** — the Hollow Barrow, the Mire Cave, Duskhold Fort,
+  the three floors of the Worldspire, and four optional delves: the Old
   Lighthouse across Greywater Bay, the Sand Sepulcher that eats desert
-  caravans, and the Sunken Vault where the Drowned King guards the best
-  gear in the game. A pale-boned stag also walks a glade east of
-  Thornwatch, and no arrow touches it.
+  caravans, the Sunken Vault of the Drowned King, and — for ships brave
+  enough to run the Kraken's blockade — Ember Hollow, in the crater of a
+  volcanic isle, where the Cinder Colossus guards the finest armor ever
+  forged. A pale-boned stag also walks a glade east of Thornwatch, and
+  no arrow touches it.
 - **A party of three**: Moore the lamplighter (fire magic), Brann the
   smith (joins when you bring him star-iron to mend the Fordwell bridge),
   and Lyra the hedge-witch (joins when you cure Sagemoor's marsh fever —
   and she alone can part the mist pass).
 - **Turn-based battles**: Fight / Skill / Item / Run, enemy groups, speed
-  order, crits, 21 monsters and 8 bosses, XP, levels, learned skills,
+  order, crits, 24 monsters and 10 bosses, XP, levels, learned skills,
   gold, and equipment. Swamp and desert things poison — carry antidotes,
   or let the venom sap you with every step.
 - **A world map and a bestiary** on the pause menu, and side work for
