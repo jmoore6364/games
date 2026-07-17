@@ -109,6 +109,19 @@ const M_CATA = [
 ];
 const B_CATA = [33, 33, 31, 31, 29, 29, 28, 31, 33, 33, 31, 31, 28, 28, 33, 33];
 
+// "The Drowned Quarter" — a waterlogged shanty for Vireton.
+const M_PORT = [
+  60, 0, 64, 67, 0, 64,
+  60, 0, 64, 67, 0, 64,
+  62, 0, 65, 69, 0, 65,
+  62, 0, 65, 69, 0, 65,
+  64, 0, 67, 72, 0, 67,
+  62, 0, 65, 69, 0, 65,
+  60, 0, 64, 67, 64, 62,
+  60, 0, 0, 55, 0, 0,
+];
+const B_PORT = [36, 36, 43, 38, 38, 43, 40, 38, 36, 43, 38, 36];
+
 const TRACKS = {
   day: { melody: M_DAY, bass: B_DAY, stepDur: 0.125, lead: 'square', drums: true },
   night: { melody: M_NIGHT, bass: B_NIGHT, stepDur: 0.185, lead: 'triangle', drums: false },
@@ -117,6 +130,7 @@ const TRACKS = {
   boss: { melody: M_BOSS, bass: B_BOSS, stepDur: 0.105, lead: 'square', drums: true },
   title: { melody: M_TITLE, bass: B_TITLE, stepDur: 0.21, lead: 'triangle', drums: false },
   cata: { melody: M_CATA, bass: B_CATA, stepDur: 0.2, lead: 'triangle', drums: false },
+  port: { melody: M_PORT, bass: B_PORT, stepDur: 0.155, lead: 'triangle', drums: false },
   ending: { melody: M_END, bass: B_END, stepDur: 0.16, lead: 'square', drums: false },
 };
 

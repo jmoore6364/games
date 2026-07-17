@@ -42,6 +42,19 @@ Count forever.
   the gear menu.
 - Wraiths now haunt the cemetery at night. Old saves keep working.
 
+### v1.2 — The Drowned Quarter
+
+- **Vireton**: a second, half-sunken town between the Bonebridge and the
+  cliffs — flooded streets, plank walks, a chapel (heal + save on the east
+  side of the world), and the Fish Exchange, which sells **Holy Ash**
+  (scours every lesser monster off the screen).
+- **Snapclaw crabs**: their shells turn every blow — strike when they rear
+  up to pinch.
+- **The Ferryman's Bell**: Widow Petra's side quest. Recover her husband's
+  bell from the strongbox on the bridge isle and earn the **Ferry Whistle**
+  — fast travel between the two towns from the gear menu.
+- The world map now shows Vireton; old saves keep working.
+
 ## Controls
 
 | Action | Keys |

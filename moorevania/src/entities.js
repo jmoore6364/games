@@ -335,6 +335,7 @@ const STATS = {
   knight:    { hp: 12, dmg: 8, exp: 20, hearts: 4, w: 11, h: 20 },
   mummy:     { hp: 8, dmg: 7, exp: 15, hearts: 3, w: 10, h: 18 },
   redskeleton: { hp: 5, dmg: 6, exp: 12, hearts: 2, w: 10, h: 18 },
+  crab:      { hp: 4, dmg: 5, exp: 8, hearts: 2, w: 14, h: 8 },
   wraith:    { hp: 4, dmg: 6, exp: 10, hearts: 2, w: 12, h: 11 },
   gravelord: { hp: 55, dmg: 9, exp: 150, hearts: 0, w: 18, h: 22, boss: true },
   batlord:   { hp: 42, dmg: 8, exp: 120, hearts: 15, w: 26, h: 15, boss: true },
@@ -384,6 +385,13 @@ function dropLoot(g, e) {
 
 export function damageEnemy(g, e, dmg) {
   if (e.dead || e.spawnGrace > 0 || e.collapsed > 0) return false;
+  // snapclaw shells turn every blow while hunkered down
+  if (e.type === 'crab' && e.state === 0) {
+    e.hitT = 4;
+    g.sound.stairs();
+    g.spark(e.x + e.w / 2, e.y, '#d8d8e8');
+    return false;
+  }
   e.hp -= dmg;
   e.hitT = 8;
   // red skeletons collapse into bones and rise again
@@ -421,6 +429,19 @@ export function updateEnemy(g, e) {
       if (e.emerge > 0) { e.emerge--; return; }
       e.vx = Math.sign(dx) * 0.35 || 0.35;
       e.dir = Math.sign(e.vx);
+      physics(g, e);
+      break;
+    }
+    case 'crab': {
+      if (e.state === 0) { // scuttling, shelled
+        e.vx = (Math.sign(dx) || e.dir) * 0.5;
+        e.dir = Math.sign(e.vx);
+        if (e.hitWall || !ledgeAhead(g, e)) { e.vx = 0; e.hitWall = false; }
+        if (e.t % 170 === 0 && Math.abs(dx) < 120) { e.state = 1; e.stateT = 0; }
+      } else { // reared up to pinch: vulnerable
+        e.vx = 0;
+        if (++e.stateT > 70) e.state = 0;
+      }
       physics(g, e);
       break;
     }
@@ -717,6 +738,10 @@ export function drawEnemy(g, ctx, e) {
       break;
     }
     case 'wolf': put(f2 ? 'wolf1' : 'wolf2', 24, 10); break;
+    case 'crab':
+      if (e.state === 1) put('crab_up', 16, 10);
+      else put(f2 ? 'crab1' : 'crab2', 16, 8);
+      break;
     case 'bat': put((Math.floor(e.t / 6) & 1) ? 'bat1' : 'bat2', 16, 10); break;
     case 'crow': put((Math.floor(e.t / 6) & 1) ? 'crow1' : 'crow2', 12, 9); break;
     case 'skeleton': put(f2 ? 'skeleton1' : 'skeleton2', 16, 18); break;

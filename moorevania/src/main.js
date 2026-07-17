@@ -62,7 +62,7 @@ class Game {
       lvl: 1, exp: 0, hearts: 30,
       hp: maxHpFor(1),
       whip: 0, subs: [], sub: null,
-      items: { stake: 0, tonic: 0, laurel: 0, garlic: 0 },
+      items: { stake: 0, tonic: 0, laurel: 0, garlic: 0, ash: 0 },
       relics: [],
       flags: {},
     };
@@ -74,8 +74,9 @@ class Game {
 
   startGame(fromSave) {
     this.save = fromSave ? JSON.parse(localStorage.getItem(SAVE_KEY)) : this.freshSave();
-    if (!this.save.items) this.save.items = { stake: 0, tonic: 0, laurel: 0, garlic: 0 };
+    if (!this.save.items) this.save.items = { stake: 0, tonic: 0, laurel: 0, garlic: 0, ash: 0 };
     if (this.save.items.garlic === undefined) this.save.items.garlic = 0; // pre-1.1 saves
+    if (this.save.items.ash === undefined) this.save.items.ash = 0; // pre-1.2 saves
     this.player = new Player();
     this.clock = 0;
     this.nightBlend = 0;
@@ -304,7 +305,7 @@ class Game {
       if (this.bossActive) s.playMusic('boss');
       else if (this.zone.indoor) s.playMusic(this.zone.music === 'cata' ? 'cata' : 'manor');
       else if (this.night) s.playMusic('night');
-      else s.playMusic(this.zone.music === 'town' ? 'town' : 'day');
+      else s.playMusic(this.zone.music === 'town' || this.zone.music === 'port' ? this.zone.music : 'day');
     }
     s.updateMusic();
     inp.endFrame();
@@ -613,6 +614,10 @@ class Game {
           s.subs.push('cross');
           if (!s.sub) s.sub = 'cross';
           this.showBanner('THE GOLDEN CROSS SLEEPS HERE NO MORE!');
+        } else if (pk.contents === 'bell') {
+          s.flags.bell = true;
+          this.showBanner('A BRONZE BELL, GREEN WITH THE LAKE.');
+          if (!s.flags.quest_bell) this.showBanner('SOMEONE IN VIRETON MUST MISS THIS.');
         } else {
           s.hearts = Math.min(999, s.hearts + 30);
           this.showBanner('A HOARD OF HEARTS!');
@@ -712,11 +717,30 @@ class Game {
     if (!this.night) {
       for (const n of this.npcs) {
         if (Math.abs(pcx - (n.x * TILE + 8)) < 16) {
-          this.openDialog(n.name, n.lines);
+          this.openDialog(n.name, this.npcLines(n));
           return;
         }
       }
     }
+  }
+
+  // Quest NPCs pick their lines (and advance their quest) by save state.
+  npcLines(n) {
+    if (n.quest === 'bell') {
+      const f = this.save.flags;
+      if (f.whistle) {
+        return ['THE BELL SITS ON MY SILL AGAIN.', 'THANK YOU, HUNTER. SAFE CROSSINGS.'];
+      }
+      if (f.bell) {
+        f.whistle = true;
+        this.sound.relic();
+        this.writeSave();
+        return ['...HIS BELL! OH, IT STILL SMELLS OF THE LAKE.', 'TAKE HIS FERRY WHISTLE, THEN.', 'BLOW IT IN EITHER TOWN AND THE PALE FERRY', 'WILL CARRY YOU ACROSS THE WATER.'];
+      }
+      f.quest_bell = true;
+      return ['MY HUSBAND FERRIED THIS LAKE THIRTY YEARS.', 'THE NIGHT TOOK HIM, BELL AND ALL.', 'HIS BRONZE BELL LIES ON THE BRIDGE ISLE,', 'IN HIS OLD STRONGBOX. BRING IT HOME', 'AND HIS WHISTLE IS YOURS.'];
+    }
+    return n.lines;
   }
 
   openDialog(name, lines) {
@@ -813,6 +837,8 @@ class Game {
     rows.push({ label: `USE MOOR TONIC  x${s.items.tonic}`, act: 'tonic' });
     rows.push({ label: `USE LAUREL      x${s.items.laurel}`, act: 'laurel' });
     rows.push({ label: `USE GARLIC      x${s.items.garlic}`, act: 'garlic' });
+    rows.push({ label: `USE HOLY ASH    x${s.items.ash}`, act: 'ash' });
+    if (s.flags.whistle) rows.push({ label: 'FERRY WHISTLE', act: 'whistle' });
     rows.push({ label: 'VIEW MAP', act: 'map' });
     rows.push({ label: 'RESUME', act: 'resume' });
     return rows;
@@ -857,6 +883,39 @@ class Game {
           this.garlicSpot = { x: this.player.x + this.player.w / 2, y: this.player.y + this.player.h - 6 };
           this.fairy = { t: 0 };
           this.showBanner('YOU LAY THE GARLIC ON THE GRAVES...');
+        }
+      }
+      if (act === 'ash') {
+        if (s.items.ash <= 0) this.sound.deny();
+        else {
+          s.items.ash--;
+          this.state = 'play';
+          this.flash = 8;
+          this.shake = 8;
+          this.sound.flame();
+          let scoured = 0;
+          for (const e of this.enemies) {
+            if (e.dead || e.boss) continue;
+            if (Math.abs(e.x + e.w / 2 - (this.camX + VIEW_W / 2)) > VIEW_W * 0.65) continue;
+            if (e.type === 'crab') e.state = 1; // ash finds the flesh under the shell
+            e.collapsed = 0;
+            damageEnemy(this, e, 999);
+            scoured++;
+          }
+          this.showBanner(scoured ? 'THE HOLY ASH SCOURS THE AIR!' : 'THE ASH DRIFTS AWAY, UNSPENT.');
+        }
+      }
+      if (act === 'whistle') {
+        if (this.zone.id === 'hollow' || this.zone.id === 'vireton') {
+          this.state = 'play';
+          this.sound.dawn();
+          this.showBanner('THE PALE FERRY CARRIES YOU ACROSS THE WATER...');
+          if (this.zone.id === 'hollow') this.warp('vireton', 6);
+          else this.warp('hollow', 116);
+        } else {
+          this.sound.deny();
+          this.state = 'play';
+          this.showBanner('THE FERRY ONLY CALLS AT TOWN DOCKS.');
         }
       }
       if (act === 'map') { this.state = 'map'; this.sound.text(); }
@@ -1167,10 +1226,11 @@ class Game {
   }
 
   renderChurch() {
-    this.panel(80, 70, VIEW_W - 160, 104, 'THE CHURCH OF THE HOLLOW');
+    const vir = this.zone.id === 'vireton';
+    this.panel(80, 70, VIEW_W - 160, 104, vir ? 'CHAPEL OF THE DROWNED' : 'THE CHURCH OF THE HOLLOW');
     drawSprite(ctx, 'priest', 100, 88, false);
-    text(ctx, 'FATHER AMBROSE:', 126, 90, '#8a8a99', 7);
-    text(ctx, '"REST, HUNTER. THE LORD KEEPS WATCH."', 126, 100, '#8a8a99', 7);
+    text(ctx, vir ? 'SISTER MAREN:' : 'FATHER AMBROSE:', 126, 90, '#8a8a99', 7);
+    text(ctx, vir ? '"THE LAKE GIVES BACK, IN TIME. REST."' : '"REST, HUNTER. THE LORD KEEPS WATCH."', 126, 100, '#8a8a99', 7);
     const opts = ['REST AND RECORD YOUR DEEDS', 'LEAVE'];
     opts.forEach((o, i) => {
       if (i === this.churchSel) text(ctx, '►', 108, 126 + i * 14, '#f8d048', 8);
@@ -1196,10 +1256,17 @@ class Game {
       drawSprite(ctx, 'amulet_i', sx, 103, false);
       text(ctx, 'MOON AMULET', sx + 13, 104, '#48c8d8', 7);
     }
-    text(ctx, 'RELICS:', sx, 118, '#c8a870', 8);
+    if (s.flags.whistle) {
+      drawSprite(ctx, 'whistle_i', sx, 116, false);
+      text(ctx, 'FERRY WHISTLE', sx + 13, 116, '#c8a870', 7);
+    } else if (s.flags.bell) {
+      drawSprite(ctx, 'bell_i', sx, 115, false);
+      text(ctx, 'BRONZE BELL', sx + 13, 116, '#f8d048', 7);
+    }
+    text(ctx, 'RELICS:', sx, 130, '#c8a870', 8);
     RELICS.forEach((r, i) => {
       ctx.globalAlpha = s.relics.includes(r.id) ? 1 : 0.18;
-      drawSprite(ctx, r.icon, sx + (i * 16), 129, false);
+      drawSprite(ctx, r.icon, sx + (i * 16), 141, false);
       ctx.globalAlpha = 1;
     });
     text(ctx, 'SUBS: ' + (s.subs.length ? s.subs.map((x) => SUBS[x].name).join(', ') : 'NONE'), 66, 186, '#556', 7);
@@ -1209,10 +1276,11 @@ class Game {
   renderMap() {
     this.panel(24, 34, VIEW_W - 48, 180, '— THE LAND OF MOORLACH —');
     const nodes = {
-      graveyard: [74, 132, 'CEMETERY'], westwood: [122, 132, 'WOODS'], hollow: [170, 132, 'HOLLOW'],
-      marsh: [218, 132, 'MARSH'], bridge: [266, 132, 'BRIDGE'], cliffs: [314, 132, 'CLIFFS'],
-      castle: [340, 62, 'CASTLE'], manor1: [74, 98, 'BRAMBLEWICK'], catacombs: [74, 170, 'CATACOMBS'],
-      manor2: [266, 98, 'GRIMHOLLOW'], manor3: [314, 98, 'RAVENMOOR'],
+      graveyard: [64, 132, 'CEMETERY'], westwood: [106, 132, 'WOODS'], hollow: [148, 132, 'HOLLOW'],
+      marsh: [190, 132, 'MARSH'], bridge: [232, 132, 'BRIDGE'], vireton: [274, 132, 'VIRETON'],
+      cliffs: [316, 132, 'CLIFFS'],
+      castle: [340, 62, 'CASTLE'], manor1: [64, 98, 'BRAMBLEWICK'], catacombs: [64, 170, 'CATACOMBS'],
+      manor2: [232, 98, 'GRIMHOLLOW'], manor3: [316, 98, 'RAVENMOOR'],
     };
     ctx.strokeStyle = '#5a5a68';
     const line = (a, b) => {
@@ -1222,7 +1290,7 @@ class Game {
       ctx.stroke();
     };
     line('graveyard', 'westwood'); line('westwood', 'hollow'); line('hollow', 'marsh');
-    line('marsh', 'bridge'); line('bridge', 'cliffs');
+    line('marsh', 'bridge'); line('bridge', 'vireton'); line('vireton', 'cliffs');
     line('graveyard', 'manor1'); line('graveyard', 'catacombs');
     line('bridge', 'manor2'); line('cliffs', 'manor3'); line('cliffs', 'castle');
     const relicAt = { manor1: 'fang', manor2: 'eye', manor3: 'chalice' };
@@ -1277,7 +1345,7 @@ class Game {
     drawSprite(ctx, 'zombie1', VIEW_W / 2 + 44, 178, true);
     text(ctx, 'A SIMON\'S QUEST STYLE ADVENTURE · ORIGINAL ART & MUSIC', VIEW_W / 2, 216, '#556', 7, 'center');
     text(ctx, 'M: MUTE', VIEW_W / 2, 228, '#445', 7, 'center');
-    text(ctx, 'v1.1 SECRETS OF MOORLACH', 6, 228, '#445', 7);
+    text(ctx, 'v1.2 THE DROWNED QUARTER', 6, 228, '#445', 7);
   }
 
   renderStory(pages, title) {
