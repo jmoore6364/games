@@ -136,7 +136,7 @@ function buildCoast() {
   b.billboards(['billboard0', 'billboard1', 'billboard2'], 220);
   return finalize(b, {
     id: 'coast', name: 'PACIFIC COAST', bg: 'ocean', laps: 2,
-    timeStart: 60, timeBonus: 28,
+    timeStart: 70, timeBonus: 26,
     sky: ['#1e8fd8', '#a8e4ff'], fog: '#a8e4ff',
     grass: ['#3fae58', '#37a050'], rumble: ['#ffffff', '#d63a3a'],
     road: ['#6e6e74', '#68686e'], lane: '#ffffff',
@@ -164,7 +164,7 @@ function buildDesert() {
   b.billboards(['billboard0', 'billboard1', 'billboard2'], 240);
   return finalize(b, {
     id: 'desert', name: 'ROUTE 66', bg: 'desert', laps: 2,
-    timeStart: 62, timeBonus: 28,
+    timeStart: 70, timeBonus: 26,
     sky: ['#ff9d3c', '#ffe29a'], fog: '#ffd98f',
     grass: ['#d8a75c', '#cd9c52'], rumble: ['#ffffff', '#2c2c2c'],
     road: ['#7a7068', '#746a62'], lane: '#ffe9b0',
@@ -193,7 +193,7 @@ function buildCity() {
   b.billboards(['billboardNeon0', 'billboardNeon1'], 200);
   return finalize(b, {
     id: 'city', name: 'MOORE CITY NIGHTS', bg: 'city', laps: 2,
-    timeStart: 58, timeBonus: 27,
+    timeStart: 65, timeBonus: 25,
     sky: ['#07071e', '#2a1450'], fog: '#1a1038',
     grass: ['#20222e', '#1c1e2a'], rumble: ['#c9c9d4', '#5a5a70'],
     road: ['#3c3c46', '#383842'], lane: '#ffd23c',

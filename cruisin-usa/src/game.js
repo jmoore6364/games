@@ -14,12 +14,12 @@ const CAMERA_DEPTH = 1 / Math.tan((FOV / 2) * Math.PI / 180);
 const DRAW_DISTANCE = 240;               // segments
 const FOG_DENSITY = 5;
 const MAX_SPEED = SEGMENT_LENGTH * 60;
-const ACCEL = MAX_SPEED / 5;
+const ACCEL = MAX_SPEED / 4.2;
 const BRAKING = -MAX_SPEED;
 const DECEL = -MAX_SPEED / 5;
 const OFFROAD_DECEL = -MAX_SPEED / 1.5;
 const OFFROAD_LIMIT = MAX_SPEED / 4;
-const CENTRIFUGAL = 0.29;
+const CENTRIFUGAL = 0.17;
 const PLAYER_Z = CAMERA_HEIGHT * CAMERA_DEPTH;
 const PLAYER_W = 0.34;                   // in playerX units (1 = road half-width)
 const CAR_LENGTH = SEGMENT_LENGTH * 1.1;
@@ -71,6 +71,7 @@ export class Game {
     this.timeLeft = this.course.timeStart;
     this.lap = 1;
     this.flip = null;
+    this.mercy = 0;            // post-crash invulnerability seconds
     this.shake = 0;
     this.finPos = 0;
     this.flash = null;
@@ -93,7 +94,7 @@ export class Game {
         kind: 'rival', name: RIVAL_NAMES[r], img: this.vehicles.rivals[r],
         dist: (r + 1) * SEGMENT_LENGTH * 2.2,
         z: 0, offset: (r % 2 === 0 ? -0.42 : 0.42), w: 0.34,
-        base: MAX_SPEED * (0.925 + r * 0.013), speed: 0,
+        base: MAX_SPEED * (0.70 + r * 0.045), speed: 0,
         finished: false, finishTime: 0,
       });
     }
@@ -104,17 +105,17 @@ export class Game {
       this.cars.push({
         kind: 'traffic', img,
         dist: 0, z: rnd(60, this.segments.length - 20) * SEGMENT_LENGTH,
-        offset: rnd(0.2, 0.72), w: img.width > 128 ? 0.4 : 0.33,
+        offset: rnd(0.3, 0.72), w: img.width > 128 ? 0.4 : 0.33,
         speed: MAX_SPEED * rnd(0.22, 0.4),
       });
     }
     // oncoming traffic (left side, toward the player) — the Cruis'n signature
-    for (let o = 0; o < 8; o++) {
+    for (let o = 0; o < 6; o++) {
       this.cars.push({
         kind: 'oncoming', img: this.vehicles.oncoming[o % this.vehicles.oncoming.length],
         dist: 0, z: rnd(80, this.segments.length - 20) * SEGMENT_LENGTH,
-        offset: rnd(-0.72, -0.25), w: 0.33,
-        speed: MAX_SPEED * rnd(0.28, 0.42),
+        offset: rnd(-0.75, -0.4), w: 0.33,
+        speed: MAX_SPEED * rnd(0.25, 0.35),
       });
     }
     for (const c of this.cars) c.z = wrap(c.z, this.trackLength);
@@ -203,7 +204,7 @@ export class Game {
 
     const playerSeg = this.segmentAt(this.position + PLAYER_Z);
     const speedPct = this.speed / MAX_SPEED;
-    const dx = dt * 2 * speedPct;
+    const dx = dt * 2.2 * speedPct;
 
     if (this.flip) {
       this.flip.t += dt;
@@ -212,6 +213,7 @@ export class Game {
         this.flip = null;
         this.playerX = clamp(this.playerX, -0.85, 0.85);
         this.speed = 0;
+        this.mercy = 2;
       }
       this.steer = 0;
     } else {
@@ -237,7 +239,7 @@ export class Game {
       if (this.speed > OFFROAD_LIMIT) this.speed += OFFROAD_DECEL * dt;
       this.shake = Math.max(this.shake, 0.25);
       // scenery collisions
-      if (!this.flip) {
+      if (!this.flip && this.mercy <= 0) {
         for (const s of playerSeg.sprites) {
           const spr = this.sprites[s.name];
           if (spr.arch) continue;
@@ -258,8 +260,9 @@ export class Game {
     this.totalDist += this.speed * dt;
     this.position = wrap(this.position + this.speed * dt, this.trackLength);
 
+    this.mercy = Math.max(0, this.mercy - dt);
     this.updateCars(dt);
-    if (!this.flip) this.carCollisions();
+    if (!this.flip && this.mercy <= 0) this.carCollisions();
 
     // time gates
     if (this.nextGate < this.gates.length &&
@@ -296,8 +299,8 @@ export class Game {
   }
 
   crashIntoScenery() {
-    if (this.speed > MAX_SPEED * 0.45) {
-      this.flip = { t: 0, dur: 1.4 };
+    if (this.speed > MAX_SPEED * 0.6) {
+      this.flip = { t: 0, dur: 1.1 };
       this.shake = 1;
       this.sound.crash();
     } else {
@@ -313,9 +316,11 @@ export class Game {
     for (const car of this.cars) {
       if (car.kind === 'rival') {
         if (!racing && this.state !== 'finish' && this.state !== 'gameover') continue;
-        // rubber-band toward the player to keep the race close
+        // rubber-band toward the player to keep the race close; the dead zone
+        // stops rivals from speed-matching bumper-to-bumper, so passes stick
         const diff = this.totalDist - car.dist;
-        const rubber = clamp(1 + diff / 220000, 0.9, 1.08);
+        const dz = Math.abs(diff) > 4000 ? diff - Math.sign(diff) * 4000 : 0;
+        const rubber = clamp(1 + dz / 120000, 0.8, 1.08);
         const target = car.base * rubber;
         car.speed += clamp(target - car.speed, -ACCEL * dt, ACCEL * 0.8 * dt);
         car.dist += car.speed * dt;
@@ -329,7 +334,7 @@ export class Game {
         const rel = wrap(car.z - this.position, this.trackLength);
         if (rel > this.trackLength - SEGMENT_LENGTH * 10) { // just passed behind us
           car.z = wrap(this.position + (DRAW_DISTANCE + 20 + Math.random() * 100) * SEGMENT_LENGTH, this.trackLength);
-          car.offset = -0.72 + Math.random() * 0.45;
+          car.offset = -0.75 + Math.random() * 0.35;
         }
       }
     }
@@ -370,12 +375,13 @@ export class Game {
 
       if (car.kind === 'oncoming') {
         // head-on: the famous Cruis'n wipeout
-        if (this.speed + car.speed > MAX_SPEED * 0.5) {
-          this.flip = { t: 0, dur: 1.5 };
+        if (this.speed + car.speed > MAX_SPEED * 0.7) {
+          this.flip = { t: 0, dur: 1.2 };
           this.shake = 1;
           this.sound.crash();
         } else {
           this.speed = 0;
+          this.mercy = 1;
           this.sound.bump();
         }
         car.z = wrap(this.position + (DRAW_DISTANCE + 50) * SEGMENT_LENGTH, this.trackLength);
@@ -617,6 +623,7 @@ export class Game {
     const bounce = speedPct > 0.05 ? (Math.random() - 0.5) * 3 * speedPct : 0;
     const cx = W / 2, cy = H - h / 2 - 14 + bounce;
 
+    if (this.mercy > 0 && Math.floor(this.mercy * 10) % 2 === 0) return; // blink
     ctx.save();
     ctx.translate(cx, cy);
     if (this.flip) {
