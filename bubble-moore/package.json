@@ -1,0 +1,9 @@
+{
+  "name": "bubble-moore",
+  "version": "0.1.0",
+  "description": "Bubble Moore — a Bubble Bobble style NES arcade platformer, vanilla JS + canvas",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
