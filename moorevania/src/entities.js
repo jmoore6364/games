@@ -310,8 +310,8 @@ export class Player {
         // tip
         ctx.fillStyle = g.save.whip >= 2 ? '#e8e8f8' : whip.color;
         ctx.fillRect(sx + this.dir * (segs * 4), wy - 1, 4, 4);
-        if (g.save.whip === 3 && (g.frame & 1)) {
-          ctx.fillStyle = '#e85818';
+        if (g.save.whip >= 3 && (g.frame & 1)) {
+          ctx.fillStyle = g.save.whip === 4 ? '#c03028' : '#e85818';
           ctx.fillRect(sx + this.dir * (segs * 4) + 1, wy - 4, 2, 3);
         }
       }
@@ -343,6 +343,7 @@ const STATS = {
   bonedragon:{ hp: 100, dmg: 10, exp: 350, hearts: 25, w: 17, h: 12, boss: true },
   vorlok:    { hp: 110, dmg: 12, exp: 0, hearts: 0, w: 14, h: 26, boss: true },
   demon:     { hp: 95, dmg: 14, exp: 999, hearts: 0, w: 24, h: 22, boss: true },
+  nyxara:    { hp: 130, dmg: 12, exp: 500, hearts: 0, w: 14, h: 24, boss: true },
 };
 
 export function spawnEnemy(g, type, tx, ty, opts = {}) {
@@ -405,6 +406,8 @@ export function damageEnemy(g, e, dmg) {
   }
   if (e.hp <= 0) {
     e.dead = true;
+    if (!g.save.kills) g.save.kills = {};
+    g.save.kills[e.type] = (g.save.kills[e.type] || 0) + 1;
     g.sound[e.boss ? 'bossDie' : 'enemyDie']();
     g.burst(e.x + e.w / 2, e.y + e.h / 2, e.boss ? 26 : 8, '#e85818');
     dropLoot(g, e);
@@ -698,6 +701,34 @@ export function updateEnemy(g, e) {
       }
       break;
     }
+    case 'nyxara': {
+      const frenzy = e.hp < e.maxhp / 2;
+      const telAt = frenzy ? 100 : 140;
+      if (e.t % telAt === 0) {
+        g.burst(ecx, ecy, 12, '#c03028');
+        e.x = pcx - e.w / 2 + (Math.random() > 0.5 ? 80 : -80) + Math.random() * 40 - 20;
+        e.y = pcy - 50 - Math.random() * 30;
+        e.clampRoom(g, e);
+        g.burst(e.x + e.w / 2, e.y + e.h / 2, 12, '#c03028');
+      }
+      e.y += Math.sin(e.t / 18) * 0.5;
+      e.dir = Math.sign(dx) || e.dir;
+      if (e.t % (frenzy ? 90 : 110) === 55) {
+        const n = frenzy ? 6 : 3;
+        const base = Math.atan2(dy, dx);
+        for (let i = 0; i < n; i++) {
+          const ang = frenzy ? (i / n) * Math.PI * 2 : base + (i - 1) * 0.3;
+          g.addProj({ kind: 'beam', owner: 'enemy', x: ecx, y: ecy, vx: Math.cos(ang) * 2.6, vy: Math.sin(ang) * 2.6, dmg: e.dmg });
+        }
+        g.sound.throwSub();
+      }
+      if (e.t % 260 === 200 && g.enemies.filter((x) => x.type === 'wraith' && !x.dead).length < 2) {
+        const w = spawnEnemy(g, 'wraith', Math.floor(ecx / TILE), Math.floor(ecy / TILE));
+        w.ambient = true;
+        g.enemies.push(w);
+      }
+      break;
+    }
     case 'demon': {
       if (e.grounded && e.t % 90 === 0) {
         e.vy = -6.2;
@@ -795,6 +826,11 @@ export function drawEnemy(g, ctx, e) {
       break;
     }
     case 'vorlok': put((Math.floor(e.t / 14) & 1) ? 'vorlok1' : 'vorlok2', 20, 26); break;
+    case 'nyxara': {
+      if (g.frame % 4 === 0) g.spark(dx + (Math.random() - 0.5) * 16, dy - Math.random() * 24, '#c03028');
+      put((Math.floor(e.t / 12) & 1) ? 'nyxara1' : 'nyxara2', 20, 24);
+      break;
+    }
     case 'demon': put((Math.floor(e.t / 8) & 1) ? 'demon1' : 'demon2', 32, 22); break;
   }
 }
@@ -880,6 +916,16 @@ export function drawProj(g, ctx, pr) {
       ctx.arc(x, y, 3.5, 0, 7);
       ctx.fill();
       if (g.frame % 3 === 0) g.spark(x - pr.vx * 3, y - pr.vy * 3, '#e85818');
+      break;
+    }
+    case 'beam': {
+      ctx.strokeStyle = (g.frame & 2) ? '#c03028' : '#f8d0d0';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x - pr.vx * 3, y - pr.vy * 3);
+      ctx.lineTo(x + pr.vx * 2, y + pr.vy * 2);
+      ctx.stroke();
+      ctx.lineWidth = 1;
       break;
     }
   }

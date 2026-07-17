@@ -55,6 +55,17 @@ Count forever.
   — fast travel between the two towns from the gear menu.
 - The world map now shows Vireton; old saves keep working.
 
+### v1.3 — The Blood Moon
+
+- **Bestiary**: the gear menu now tracks every monster you slay — kill
+  counts, lore, and boss records across 21 entries.
+- **The Moon Well**: the old well on the Whispering Woods hill opens only
+  at night, and only for one who carries the Moon Amulet. At the bottom
+  waits **Nyxara, the Blood Moon Hag** — the hardest fight in the game.
+- **The Blood Whip**: Nyxara's hoard. The final whip tier — long, brutal,
+  and it drinks: every landed blow restores a sliver of your health.
+- Old saves keep working; kill counts start fresh.
+
 ## Controls
 
 | Action | Keys |

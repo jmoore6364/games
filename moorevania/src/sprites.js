@@ -799,6 +799,18 @@ def('amulet_i', [
   '....cc....',
 ]);
 
+def('bloodwhip_i', [
+  '..rrrr....',
+  '.rr..rr...',
+  'rr....rr..',
+  'rr..R.rr..',
+  '.rr.Rrr...',
+  '..rrrr....',
+  '....R.....',
+  '....RR....',
+  '.....Wr...',
+]);
+
 def('chest', [
   '.mmmmmmmmmm.',
   'mMMMMMMMMMMm',
@@ -1065,6 +1077,56 @@ def('demon2', [
   '.........Ppp....ppP.............',
   '.........pp......pp.............',
   '........ppp......ppp............',
+]);
+
+def('nyxara1', [
+  '....WWW.............',
+  '...WWWWWW...........',
+  '..WWWWWWWW..........',
+  '..WWkkkkWWW.........',
+  '..Wkrkkrk WW........',
+  '..Wkkkkkk.WW........',
+  '...kkckkk..W........',
+  '..PPPPPPP..W........',
+  '.PPPPPPPPP.W........',
+  '.PPPcPPPPPP.........',
+  'sPPPPcPPPPP.........',
+  'sPPPPPcPPPP.........',
+  '.sPPPPPPPPs.........',
+  '..PPPPPPPPPs........',
+  '..PPPPPPPPP.........',
+  '..PPPPPPPP..........',
+  '...PPPPPPP..........',
+  '...PPPPPPPP.........',
+  '..PPPPPPPPPP........',
+  '..PPPPPPPPPP........',
+  '.PPPPPPPPPPPP.......',
+  '.PPP......PPP.......',
+]);
+
+def('nyxara2', [
+  '....WWW.............',
+  '...WWWWWW...........',
+  '..WWWWWWWW..........',
+  '..WWkkkkWWW.........',
+  '..Wkrkkrk WW........',
+  '..Wkkkkkk.WW........',
+  '...kkckkk..W........',
+  '..PPPPPPP..W........',
+  '.sPPPPPPPP.W........',
+  'ssPPPcPPPPP.........',
+  's.PPPPcPPPPs........',
+  '..PPPPPcPPPss.......',
+  '..PPPPPPPPP.s.......',
+  '..PPPPPPPPP.........',
+  '..PPPPPPPPP.........',
+  '..PPPPPPPP..........',
+  '...PPPPPPP..........',
+  '...PPPPPPPP.........',
+  '..PPPPPPPPPP........',
+  '..PPPPPPPPPP........',
+  '.PPPPPPPPPPPP.......',
+  '.PPP......PPP.......',
 ]);
 
 // ============================== NPCS ==============================
@@ -1432,6 +1494,7 @@ const THEME_SOLID = {
   castle: ['#4a4258', '#332e40', '#5a5069'],
   catacomb: ['#4e4638', '#383226', '#5e5644'],
   port: ['#5e6a62', '#46504a', '#6e7a72'],
+  well: ['#4e5a72', '#38425a', '#5e6a86'],
 };
 
 export function drawTile(ctx, ch, theme, px, py, t, above) {
@@ -1591,9 +1654,9 @@ const SKY = {
 
 // phase: 0 day, 1 night; blend handles dusk.
 export function drawBG(ctx, theme, camX, camY, t, nightBlend, W, H) {
-  const indoor = theme === 'manor' || theme === 'manor2' || theme === 'manor3' || theme === 'castle' || theme === 'catacomb';
+  const indoor = theme === 'manor' || theme === 'manor2' || theme === 'manor3' || theme === 'castle' || theme === 'catacomb' || theme === 'well';
   if (indoor) {
-    const base = { manor: '#241a14', manor2: '#161a26', manor3: '#241416', castle: '#16121e', catacomb: '#141008' }[theme];
+    const base = { manor: '#241a14', manor2: '#161a26', manor3: '#241416', castle: '#16121e', catacomb: '#141008', well: '#0c1024' }[theme];
     ctx.fillStyle = base;
     ctx.fillRect(0, 0, W, H);
     // faint arches
@@ -1606,6 +1669,18 @@ export function drawBG(ctx, theme, camX, camY, t, nightBlend, W, H) {
     const off2 = -(camX * 0.5) % 96;
     for (let x = off2 - 96; x < W + 96; x += 96) {
       ctx.fillRect(x + 24, 36 - camY * 0.3, 48, 140);
+    }
+    if (theme === 'well') {
+      // a shaft of blood-red moonlight falls from above
+      const mx = W * 0.55 - camX * 0.3;
+      const grd2 = ctx.createLinearGradient(0, 0, 0, H);
+      grd2.addColorStop(0, 'rgba(200,48,40,0.22)');
+      grd2.addColorStop(1, 'rgba(200,48,40,0.02)');
+      ctx.fillStyle = grd2;
+      ctx.beginPath();
+      ctx.moveTo(mx - 14, 0); ctx.lineTo(mx + 14, 0);
+      ctx.lineTo(mx + 52, H); ctx.lineTo(mx - 52, H);
+      ctx.fill();
     }
     return;
   }

@@ -5,7 +5,7 @@ import { Sound } from './audio.js';
 import { drawSprite, drawTile, drawBG, SPR } from './sprites.js';
 import {
   TILE, ZONES, findGround, ITEMS, SHOPS, SUBS, WHIPS, RELICS,
-  LEVELS, maxHpFor, atkMult, STORY, ENDING,
+  LEVELS, maxHpFor, atkMult, STORY, ENDING, BESTIARY,
 } from './world.js';
 import {
   rects, Player, spawnEnemy, damageEnemy, updateEnemy, drawEnemy,
@@ -65,6 +65,7 @@ class Game {
       items: { stake: 0, tonic: 0, laurel: 0, garlic: 0, ash: 0 },
       relics: [],
       flags: {},
+      kills: {},
     };
   }
 
@@ -77,6 +78,7 @@ class Game {
     if (!this.save.items) this.save.items = { stake: 0, tonic: 0, laurel: 0, garlic: 0, ash: 0 };
     if (this.save.items.garlic === undefined) this.save.items.garlic = 0; // pre-1.1 saves
     if (this.save.items.ash === undefined) this.save.items.ash = 0; // pre-1.2 saves
+    if (!this.save.kills) this.save.kills = {}; // pre-1.3 saves
     this.player = new Player();
     this.clock = 0;
     this.nightBlend = 0;
@@ -122,7 +124,11 @@ class Game {
       if (b.drop === 'amulet' && !this.save.flags.amulet) {
         this.pickups.push({ kind: 'amulet', x: b.orbX * TILE + 3, y: b.orbY * TILE + 6, vy: 0, ttl: 1e9 });
       }
+      if (b.drop === 'bloodwhip' && this.save.whip < 4) {
+        this.pickups.push({ kind: 'bloodwhip', x: b.orbX * TILE + 3, y: b.orbY * TILE + 6, vy: 0, ttl: 1e9 });
+      }
     }
+    if (z.id === 'moonwell') this.save.flags.seen_moonwell = true;
     // treasure chests
     (z.chests || []).forEach((c, i) => {
       if (!this.save.flags[`chest_${z.id}_${i}`]) {
@@ -259,6 +265,12 @@ class Game {
       this.writeSave();
       return;
     }
+    if (z.boss && z.boss.drop === 'bloodwhip') {
+      this.pickups.push({ kind: 'bloodwhip', x: z.boss.orbX * TILE + 3, y: z.boss.orbY * TILE + 6, vy: 0, ttl: 1e9 });
+      this.showBanner('THE BLOOD MOON WANES...');
+      this.writeSave();
+      return;
+    }
     if (e.type === 'demon') {
       this.save.flags.won = true;
       this.endTimer = 200;
@@ -288,6 +300,7 @@ class Game {
       case 'play': this.updatePlay(inp); break;
       case 'pause': this.updatePause(inp); break;
       case 'map': this.updateMap(inp); break;
+      case 'bestiary': this.updateBestiary(inp); break;
       case 'shop': this.updateShop(inp); break;
       case 'dialog': this.updateDialog(inp); break;
       case 'church': this.updateChurch(inp); break;
@@ -303,7 +316,7 @@ class Game {
     else if (this.state === 'gameover') s.stopMusic();
     else if (this.zone) {
       if (this.bossActive) s.playMusic('boss');
-      else if (this.zone.indoor) s.playMusic(this.zone.music === 'cata' ? 'cata' : 'manor');
+      else if (this.zone.indoor) s.playMusic(this.zone.music === 'cata' || this.zone.music === 'night' ? this.zone.music : 'manor');
       else if (this.night) s.playMusic('night');
       else s.playMusic(this.zone.music === 'town' || this.zone.music === 'port' ? this.zone.music : 'day');
     }
@@ -564,7 +577,16 @@ class Game {
     const dmg = WHIPS[this.save.whip].dmg * atkMult(this.save.lvl);
     for (const e of this.enemies) {
       if (e.dead || e.hitT > 0 || e.collapsed > 0) continue;
-      if (rects(wb, { x: e.x, y: e.y, w: e.w, h: e.h })) damageEnemy(this, e, dmg);
+      if (rects(wb, { x: e.x, y: e.y, w: e.w, h: e.h })) {
+        if (damageEnemy(this, e, dmg) && this.save.whip === 4) {
+          // the Blood Whip drinks
+          const max = maxHpFor(this.save.lvl);
+          if (this.save.hp < max) {
+            this.save.hp = Math.min(max, this.save.hp + 1);
+            this.spark(this.player.x + this.player.w / 2, this.player.y + 4, '#c03028');
+          }
+        }
+      }
     }
     // candles & breakables
     const tx0 = Math.floor(wb.x / TILE), tx1 = Math.floor((wb.x + wb.w) / TILE);
@@ -605,6 +627,13 @@ class Game {
         this.sound.relic();
         this.burst(pk.x + 5, pk.y + 4, 16, '#48c8d8');
         this.showBanner('THE MOON AMULET! THE NIGHT\'S TEETH ARE DULLED.');
+        this.writeSave();
+        break;
+      case 'bloodwhip':
+        s.whip = 4;
+        this.sound.relic();
+        this.burst(pk.x + 5, pk.y + 4, 20, '#c03028');
+        this.showBanner('THE BLOOD WHIP! IT DRINKS SO YOU MAY LIVE.');
         this.writeSave();
         break;
       case 'chest': {
@@ -680,6 +709,18 @@ class Game {
     for (const d of this.doors) {
       if (Math.abs(pcx - (d.px + 8)) < 14) {
         if (d.kind === 'zone') {
+          if (d.moonlock) {
+            if (!this.night) {
+              this.sound.deny();
+              this.openDialog('THE MOON WELL', ['THE WELL IS DRY AND SILENT.', 'BY NIGHT, THE MOON DRAWS ITS WATER.']);
+              return;
+            }
+            if (!this.save.flags.amulet) {
+              this.sound.deny();
+              this.openDialog('THE MOON WELL', ['RED WATER HUMS FAR BELOW.', 'SOMETHING DOWN THERE STIRS ONLY', 'FOR ONE WHO CARRIES THE MOON.']);
+              return;
+            }
+          }
           if (d.lockRelics && this.save.relics.length < d.lockRelics) {
             this.sound.deny();
             this.openDialog('THE CASTLE GATE', ['CARVED ABOVE THE ARCH:', '"FANG, EYE, AND CHALICE SHALL BE', 'MY FLESH, MY SIGHT, MY THIRST."', 'THE GATE DOES NOT MOVE.']);
@@ -840,6 +881,7 @@ class Game {
     rows.push({ label: `USE HOLY ASH    x${s.items.ash}`, act: 'ash' });
     if (s.flags.whistle) rows.push({ label: 'FERRY WHISTLE', act: 'whistle' });
     rows.push({ label: 'VIEW MAP', act: 'map' });
+    rows.push({ label: 'BESTIARY', act: 'bestiary' });
     rows.push({ label: 'RESUME', act: 'resume' });
     return rows;
   }
@@ -919,11 +961,22 @@ class Game {
         }
       }
       if (act === 'map') { this.state = 'map'; this.sound.text(); }
+      if (act === 'bestiary') { this.state = 'bestiary'; this.bestPage = 0; this.sound.text(); }
     }
     if (inp.pressed('start')) { this.state = 'play'; this.sound.text(); }
   }
 
   updateMap(inp) {
+    if (inp.pressed('start') || inp.pressed('jump') || inp.pressed('whip')) {
+      this.state = 'play';
+      this.sound.text();
+    }
+  }
+
+  updateBestiary(inp) {
+    const pages = Math.ceil(BESTIARY.length / 6);
+    if (inp.pressed('left')) { this.bestPage = (this.bestPage + pages - 1) % pages; this.sound.text(); }
+    if (inp.pressed('right')) { this.bestPage = (this.bestPage + 1) % pages; this.sound.text(); }
     if (inp.pressed('start') || inp.pressed('jump') || inp.pressed('whip')) {
       this.state = 'play';
       this.sound.text();
@@ -998,9 +1051,10 @@ class Game {
     // pickups
     for (const pk of this.pickups) {
       const bob = pk.kind === 'orb' ? Math.sin(this.frame / 16) * 2 : 0;
-      const name = { heart: 'heart_s', bigheart: 'heart_b', tonic: 'tonic', laurel: 'laurel_i', orb: 'orb', amulet: 'amulet_i', chest: 'chest' }[pk.kind];
+      const name = { heart: 'heart_s', bigheart: 'heart_b', tonic: 'tonic', laurel: 'laurel_i', orb: 'orb', amulet: 'amulet_i', chest: 'chest', bloodwhip: 'bloodwhip_i' }[pk.kind];
       if (pk.kind === 'orb' && (this.frame & 15) === 0) this.spark(pk.x + 6, pk.y + 4, '#e8d8f8');
       if (pk.kind === 'amulet' && (this.frame & 15) === 0) this.spark(pk.x + 5, pk.y + 3, '#48c8d8');
+      if (pk.kind === 'bloodwhip' && (this.frame & 7) === 0) this.spark(pk.x + 5, pk.y + 3, '#c03028');
       if (pk.ttl < 120 && (this.frame & 3) < 2 && pk.kind !== 'orb') continue;
       drawSprite(ctx, name, pk.x, pk.y + bob, false);
     }
@@ -1040,6 +1094,7 @@ class Game {
     if (this.state === 'church') this.renderChurch();
     if (this.state === 'pause') this.renderPause();
     if (this.state === 'map') this.renderMap();
+    if (this.state === 'bestiary') this.renderBestiary();
     if (this.state === 'gameover') this.renderGameOver();
 
     // banners
@@ -1273,6 +1328,33 @@ class Game {
     text(ctx, 'GARLIC WORKS BEST WHERE THE DEAD SLEEP.', 66, 197, '#445', 7);
   }
 
+  renderBestiary() {
+    const s = this.save;
+    const pages = Math.ceil(BESTIARY.length / 6);
+    const seen = BESTIARY.filter((b) => (b.boss ? s.flags[b.boss] : (s.kills[b.type] || 0) > 0)).length;
+    this.panel(36, 30, VIEW_W - 72, 188, `— BESTIARY  ${seen}/${BESTIARY.length} —`);
+    const page = BESTIARY.slice(this.bestPage * 6, this.bestPage * 6 + 6);
+    page.forEach((b, i) => {
+      const y = 48 + i * 26;
+      const known = b.boss ? !!s.flags[b.boss] : (s.kills[b.type] || 0) > 0;
+      ctx.strokeStyle = '#3a3a48';
+      ctx.strokeRect(48.5, y - 1.5, 20, 20);
+      if (known) {
+        const spr = SPR[b.icon];
+        const sc = Math.min(1, 16 / spr.w, 16 / spr.h);
+        ctx.drawImage(spr.img, 50 + (16 - spr.w * sc) / 2, y + (16 - spr.h * sc) / 2, spr.w * sc, spr.h * sc);
+        text(ctx, b.name, 76, y, b.boss ? '#c03028' : '#fff', 8);
+        if (b.boss) text(ctx, s.flags[b.boss] ? 'DEFEATED' : 'AT LARGE', 200, y, '#f8d048', 7);
+        else text(ctx, `SLAIN x${s.kills[b.type]}`, 200, y, '#f8d048', 7);
+        text(ctx, b.lore, 76, y + 10, '#8a8a99', 7);
+      } else {
+        text(ctx, '?????????', 76, y, '#556', 8);
+        text(ctx, 'NOT YET ENCOUNTERED', 76, y + 10, '#445', 7);
+      }
+    });
+    text(ctx, `◄  PAGE ${this.bestPage + 1}/${pages}  ►`, VIEW_W / 2, 204, '#48c8d8', 7, 'center');
+  }
+
   renderMap() {
     this.panel(24, 34, VIEW_W - 48, 180, '— THE LAND OF MOORLACH —');
     const nodes = {
@@ -1289,10 +1371,12 @@ class Game {
       ctx.lineTo(nodes[b][0], nodes[b][1]);
       ctx.stroke();
     };
+    if (this.save.flags.seen_moonwell) nodes.moonwell = [106, 170, 'MOON WELL'];
     line('graveyard', 'westwood'); line('westwood', 'hollow'); line('hollow', 'marsh');
     line('marsh', 'bridge'); line('bridge', 'vireton'); line('vireton', 'cliffs');
     line('graveyard', 'manor1'); line('graveyard', 'catacombs');
     line('bridge', 'manor2'); line('cliffs', 'manor3'); line('cliffs', 'castle');
+    if (nodes.moonwell) line('westwood', 'moonwell');
     const relicAt = { manor1: 'fang', manor2: 'eye', manor3: 'chalice' };
     for (const [id, [x, y, label]] of Object.entries(nodes)) {
       const here = this.zone.id === id;
@@ -1345,7 +1429,7 @@ class Game {
     drawSprite(ctx, 'zombie1', VIEW_W / 2 + 44, 178, true);
     text(ctx, 'A SIMON\'S QUEST STYLE ADVENTURE · ORIGINAL ART & MUSIC', VIEW_W / 2, 216, '#556', 7, 'center');
     text(ctx, 'M: MUTE', VIEW_W / 2, 228, '#445', 7, 'center');
-    text(ctx, 'v1.2 THE DROWNED QUARTER', 6, 228, '#445', 7);
+    text(ctx, 'v1.3 THE BLOOD MOON', 6, 228, '#445', 7);
   }
 
   renderStory(pages, title) {
