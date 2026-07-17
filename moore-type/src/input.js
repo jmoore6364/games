@@ -83,7 +83,9 @@ export function initTouch(input) {
     el.textContent = label;
     const on = (e) => {
       e.preventDefault();
-      if (el.setPointerCapture && e.pointerId !== undefined) el.setPointerCapture(e.pointerId);
+      try {
+        if (el.setPointerCapture && e.pointerId !== undefined) el.setPointerCapture(e.pointerId);
+      } catch { /* synthetic events have no active pointer */ }
       input.setTouch(action, true);
       el.classList.add('on');
     };
