@@ -32,6 +32,7 @@ export const WHIPS = [
   { id: 'chain', name: 'CHAIN WHIP', dmg: 2, reach: 30, color: '#a8a8b8' },
   { id: 'morningstar', name: 'MORNING STAR', dmg: 3, reach: 36, color: '#d8d8e8' },
   { id: 'flame', name: 'FLAME WHIP', dmg: 4.5, reach: 42, color: '#f8b800' },
+  { id: 'blood', name: 'BLOOD WHIP', dmg: 6, reach: 44, color: '#c03028' },
 ];
 
 export const SUBS = {
@@ -88,6 +89,31 @@ export const RELICS = [
   { id: 'fang', name: "VORLOK'S FANG", icon: 'relic_fang', manor: 'BRAMBLEWICK MANOR' },
   { id: 'eye', name: "VORLOK'S EYE", icon: 'relic_eye', manor: 'GRIMHOLLOW HALL' },
   { id: 'chalice', name: "VORLOK'S CHALICE", icon: 'relic_chalice', manor: 'RAVENMOOR KEEP' },
+];
+
+// Bestiary entries in display order. Bosses are "defeated" by save flag.
+export const BESTIARY = [
+  { type: 'zombie', name: 'ZOMBIE', icon: 'zombie1', lore: 'RISES NIGHTLY. FALLS EASILY.' },
+  { type: 'wolf', name: 'MOOR WOLF', icon: 'wolf1', lore: 'LUNGES WHEN YOU DRAW NEAR.' },
+  { type: 'bat', name: 'CAVE BAT', icon: 'bat2', lore: 'HANGS. WAITS. SWOOPS.' },
+  { type: 'crow', name: 'CARRION CROW', icon: 'crow1', lore: 'CLIFF CARRION WITH A GRUDGE.' },
+  { type: 'skeleton', name: 'SKELETON', icon: 'skeleton1', lore: 'THROWS ITS OWN SHINBONES.' },
+  { type: 'redskeleton', name: 'RED SKELETON', icon: 'redskel1', lore: 'DEATH IS A BRIEF INCONVENIENCE.' },
+  { type: 'ghost', name: 'GHOST', icon: 'ghost', lore: 'WALLS MEAN NOTHING TO GRIEF.' },
+  { type: 'wraith', name: 'WRAITH', icon: 'wraith', lore: 'GRIEF, BUT FASTER.' },
+  { type: 'merman', name: 'MERMAN', icon: 'merman', lore: 'LEAPS FROM STILL WATER.' },
+  { type: 'mudman', name: 'MUDMAN', icon: 'mudman1', lore: 'THE MARSH GIVEN APPETITE.' },
+  { type: 'crab', name: 'SNAPCLAW', icon: 'crab1', lore: 'STRIKE WHEN IT REARS.' },
+  { type: 'spider', name: 'CRYPT SPIDER', icon: 'spider', lore: 'DROPS FROM THE DARK.' },
+  { type: 'fireskull', name: 'FIRE SKULL', icon: 'fireskull1', lore: 'A SKULL THAT REMEMBERS BURNING.' },
+  { type: 'knight', name: 'HOLLOW KNIGHT', icon: 'knight1', lore: 'EMPTY ARMOR, FULL OF SPITE.' },
+  { type: 'mummy', name: 'MUMMY', icon: 'mummy1', lore: 'WRAPPED FOR A JOURNEY IT REFUSES.' },
+  { type: 'batlord', name: 'THE BAT LORD', icon: 'batlord2', lore: 'FIRST WARDEN OF THE FANG.', boss: 'boss_manor1' },
+  { type: 'gravelord', name: 'THE GRAVELORD', icon: 'gravelord1', lore: 'THE BONE-KING BELOW THE CRYPT.', boss: 'boss_catacombs' },
+  { type: 'reaper', name: 'THE REAPER', icon: 'reaper', lore: 'GRIMHOLLOW\'S PATIENT HARVESTER.', boss: 'boss_manor2' },
+  { type: 'bonedragon', name: 'BONE DRAGON', icon: 'dragonhead', lore: 'RAVENMOOR\'S COILED SENTINEL.', boss: 'boss_manor3' },
+  { type: 'vorlok', name: 'COUNT VORLOK', icon: 'vorlok1', lore: 'THE COUNT. TWICE-KILLED, TWICE-RISEN.', boss: 'won' },
+  { type: 'nyxara', name: 'NYXARA', icon: 'nyxara1', lore: 'THE BLOOD MOON MADE FLESH.', boss: 'boss_moonwell' },
 ];
 
 export const LEVELS = [0, 40, 110, 220, 380, 600, 900, 1300, 1800, 2500];
@@ -189,8 +215,11 @@ function zWestwood() {
   return {
     id: 'westwood', name: 'WHISPERING WOODS', theme: 'forest', music: 'day',
     map: b.rows(), left: 'graveyard', right: 'hollow',
-    doors: [], npcs: [
-      { x: 96, sprite: 'villager_m', name: 'WOODSMAN KOL', lines: ['WOLVES LUNGE WHEN YOU DRAW NEAR.', 'STAND YOUR GROUND AND WHIP THE LEAP.'] },
+    doors: [
+      { x: 52, kind: 'zone', to: 'moonwell', tox: 3, label: 'MOON WELL', moonlock: true },
+    ],
+    npcs: [
+      { x: 96, sprite: 'villager_m', name: 'WOODSMAN KOL', lines: ['WOLVES LUNGE WHEN YOU DRAW NEAR.', 'STAND YOUR GROUND AND WHIP THE LEAP.', 'THE OLD WELL ON THE HILL HUMS AT NIGHT.', 'I DON\'T DRINK FROM IT NO MORE.'] },
     ],
     spawns: [['wolf', 20], ['wolf', 86], ['bat', 36, 3], ['bat', 70, 2], ['zombie', 50]],
     ambient: { day: ['zombie'], night: ['zombie', 'zombie', 'bat'], max: 4, rate: 150 },
@@ -437,6 +466,22 @@ function zCatacombs() {
   };
 }
 
+function zMoonwell() {
+  const b = shell(mk(60, 15));
+  b.plat(10, 4, 8).plat(26, 4, 7).plat(44, 4, 8);
+  b.candles(11, 8, 20, 34, 50).candles(7, 11, 45).candles(6, 27);
+  b.deco('c', 11, 16, 40).deco('c', 10, 16, 40).deco('c', 9, 16, 40);
+  b.deco('g', 11, 24, 30);
+  return {
+    id: 'moonwell', name: 'THE MOON WELL', theme: 'well', music: 'night', indoor: true,
+    map: b.rows(),
+    doors: [{ x: 3, kind: 'zone', to: 'westwood', tox: 50, label: 'CLIMB OUT' }],
+    npcs: [],
+    spawns: [],
+    boss: { type: 'nyxara', x: 40, y: 4, trigger: { x0: 8, x1: 58, y0: 1, y1: 14 }, orbX: 30, orbY: 11, relic: null, drop: 'bloodwhip' },
+  };
+}
+
 function zCastle() {
   const b = shell(mk(120, 24));
   b.fill(15, 15, 70, 15, '#');
@@ -467,7 +512,7 @@ function zCastle() {
 }
 
 export const ZONES = {};
-for (const z of [zHollow(), zWestwood(), zGraveyard(), zMarsh(), zBridge(), zVireton(), zCliffs(), zManor1(), zManor2(), zManor3(), zCatacombs(), zCastle()]) {
+for (const z of [zHollow(), zWestwood(), zGraveyard(), zMarsh(), zBridge(), zVireton(), zCliffs(), zManor1(), zManor2(), zManor3(), zCatacombs(), zMoonwell(), zCastle()]) {
   z.w = z.map[0].length;
   z.h = z.map.length;
   ZONES[z.id] = z;
