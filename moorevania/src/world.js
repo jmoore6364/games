@@ -46,6 +46,7 @@ export const ITEMS = {
   tonic: { name: 'MOOR TONIC', price: 30, desc: 'DRINK TO MEND HALF YOUR WOUNDS.', kind: 'consumable', icon: 'tonic', max: 9 },
   laurel: { name: 'LAUREL', price: 40, desc: 'FIVE SECONDS OF PROTECTION.', kind: 'consumable', icon: 'laurel_i', max: 9 },
   garlic: { name: 'GARLIC', price: 25, desc: 'THE OLD WIVES SWEAR BY IT.', kind: 'consumable', icon: 'garlic_i', max: 3 },
+  ash: { name: 'HOLY ASH', price: 60, desc: 'SCATTERS. SCOURS THE SCREEN OF EVIL.', kind: 'consumable', icon: 'holy_i', max: 3 },
   dagger: { name: 'DAGGER', price: 20, desc: 'FLIES STRAIGHT AND FAST. 1 HEART.', kind: 'sub', icon: 'dagger_i' },
   axe: { name: 'BATTLE AXE', price: 60, desc: 'ARCS OVERHEAD. 2 HEARTS.', kind: 'sub', icon: 'axe_i' },
   holywater: { name: 'HOLY WATER', price: 50, desc: 'BURNS WHERE IT LANDS. 2 HEARTS.', kind: 'sub', icon: 'holy_i' },
@@ -75,6 +76,11 @@ export const SHOPS = {
     name: 'THE PALE TRADER', keeper: 'shade',
     greet: 'EVEN A SHADE MUST EAT. BUY SOMETHING... PLEASE.',
     stock: ['flamewhip', 'tonic', 'laurel'],
+  },
+  port: {
+    name: 'THE FISH EXCHANGE', keeper: 'smith',
+    greet: 'FRESH OFF THE LAKE. THE ASH? DON\'T ASK WHOSE.',
+    stock: ['ash', 'tonic', 'stake', 'laurel'],
   },
 };
 
@@ -159,7 +165,7 @@ function zHollow() {
       { x: 92, kind: 'msg', label: 'HOUSE', msg: 'THE DOOR IS BARRED FROM WITHIN. YOU HEAR PRAYING.' },
     ],
     npcs: [
-      { x: 30, sprite: 'villager_f', name: 'MARTA', lines: ['STAY OFF THE ROADS AT NIGHT, HUNTER.', 'THE DEAD ARE JEALOUS OF THE LIVING.'] },
+      { x: 30, sprite: 'villager_f', name: 'MARTA', lines: ['STAY OFF THE ROADS AT NIGHT, HUNTER.', 'THE DEAD ARE JEALOUS OF THE LIVING.', 'POOR VIRETON STILL CLINGS ON PAST', 'THE BONEBRIDGE, HALF UNDER THE LAKE.'] },
       { x: 56, sprite: 'villager_m', name: 'OLD PYOTR', lines: ['A RELIC ORB CANNOT BE CRACKED BY ANY WHIP.', 'ONLY AN OAK STAKE. LENA SELLS THEM.', 'BUY ONE BEFORE YOU ENTER A MANOR.'] },
       { x: 84, sprite: 'child', name: 'WEE INGA', lines: ['GARLIC IN THE GRAVEYARD SUMMONS A FAIRY!', 'HONEST! MY COUSIN SAW IT!'] },
       { x: 102, sprite: 'elder', name: 'ELDER OSWIN', lines: ['THREE MANORS, THREE RELICS, HUNTER:', 'BRAMBLEWICK PAST THE GRAVEYARD, WEST.', 'GRIMHOLLOW ON THE LAKE ISLE, EAST.', 'RAVENMOOR ATOP THE WIDOW\'S CLIFFS.', 'ONLY THEN WILL THE CASTLE GATE OPEN.'] },
@@ -250,13 +256,15 @@ function zBridge() {
   b.candles(7, 12, 30, 46, 64, 82, 98);
   return {
     id: 'bridge', name: 'BONEBRIDGE', theme: 'bridge', music: 'day',
-    map: b.rows(), left: 'marsh', right: 'cliffs',
+    map: b.rows(), left: 'marsh', right: 'vireton',
     doors: [
       { x: 54, kind: 'zone', to: 'manor2', tox: 3, label: 'GRIMHOLLOW HALL' },
     ],
     npcs: [],
     spawns: [['bat', 20, 3], ['bat', 44, 2], ['bat', 78, 3], ['merman', 30, 11], ['merman', 70, 11], ['merman', 90, 11]],
     ambient: { day: ['bat'], night: ['bat', 'merman'], max: 3, rate: 180 },
+    // the ferryman's strongbox, washed up on the isle below the deck
+    chests: [{ x: 58, y: 11, contents: 'bell' }],
   };
 }
 
@@ -274,7 +282,7 @@ function zCliffs() {
   b.candles(12, 8).candles(10, 20).candles(8, 40, 70).candles(6, 88).candles(4, 106);
   return {
     id: 'cliffs', name: "WIDOW'S CLIFFS", theme: 'cliff', music: 'day',
-    map: b.rows(), left: 'bridge',
+    map: b.rows(), left: 'vireton',
     doors: [
       { x: 90, kind: 'zone', to: 'manor3', tox: 3, label: 'RAVENMOOR KEEP' },
       { x: 112, kind: 'zone', to: 'castle', tox: 3, label: 'CASTLE VORLOK', lockRelics: 3 },
@@ -284,6 +292,38 @@ function zCliffs() {
     ],
     spawns: [['wolf', 10], ['crow', 25, 9], ['crow', 62, 7], ['fireskull', 75, 5], ['fireskull', 105, 2]],
     ambient: { day: ['crow'], night: ['bat', 'ghost'], max: 3, rate: 170 },
+  };
+}
+
+function zVireton() {
+  const b = mk(120);
+  b.ground(0, 119, 12);
+  // the drowned quarter: flooded street sections
+  for (const [p0, p1] of [[18, 24], [40, 46], [86, 92]]) {
+    b.fill(p0, 12, p1, 13, '~');
+  }
+  // plank walks over the water
+  b.plat(19, 5, 10).plat(41, 5, 10).plat(87, 5, 10);
+  // the dock
+  b.deco('f', 11, 2, 3, 4).deco('|', 11, 8).deco('|', 10, 8);
+  b.deco('f', 11, 52, 53, 116, 117);
+  b.candles(11, 12, 36, 56, 80, 96, 113).candles(9, 21, 43, 89);
+  return {
+    id: 'vireton', name: 'VIRETON, THE DROWNED QUARTER', theme: 'port', music: 'port', safe: true,
+    map: b.rows(), left: 'bridge', right: 'cliffs',
+    doors: [
+      { x: 30, kind: 'msg', label: 'PETRA\'S HOUSE', msg: 'THE WIDOW IS OUT FRONT, WATCHING THE LAKE.' },
+      { x: 70, kind: 'shop', shop: 'port', label: 'FISH EXCHANGE' },
+      { x: 100, kind: 'church', label: 'CHAPEL' },
+    ],
+    npcs: [
+      { x: 34, sprite: 'villager_f', name: 'WIDOW PETRA', quest: 'bell' },
+      { x: 60, sprite: 'villager_m', name: 'FISHERMAN ODD', lines: ['SNAPCLAWS SHRUG OFF A WHIP TO THE SHELL.', 'STRIKE WHEN THEY REAR UP TO PINCH.'] },
+      { x: 82, sprite: 'child', name: 'LITTLE TOMAS', lines: ['THE OLD QUARTER SANK IN GRANDPA\'S DAY.', 'FISH SWIM THROUGH THE PARLORS NOW.'] },
+      { x: 110, sprite: 'villager_m', name: 'SOGGY LUKAS', lines: ['I SAW A CROWNED SKELETON DANCING', 'UNDER THE GRAVEYARD. NOBODY BELIEVES ME.', '...HAVE YOU SEEN MY BOOT?'] },
+    ],
+    spawns: [['crab', 14], ['crab', 50], ['merman', 43, 12], ['bat', 76, 4]],
+    ambient: { day: [], night: ['zombie', 'merman'], max: 3, rate: 170 },
   };
 }
 
@@ -427,7 +467,7 @@ function zCastle() {
 }
 
 export const ZONES = {};
-for (const z of [zHollow(), zWestwood(), zGraveyard(), zMarsh(), zBridge(), zCliffs(), zManor1(), zManor2(), zManor3(), zCatacombs(), zCastle()]) {
+for (const z of [zHollow(), zWestwood(), zGraveyard(), zMarsh(), zBridge(), zVireton(), zCliffs(), zManor1(), zManor2(), zManor3(), zCatacombs(), zCastle()]) {
   z.w = z.map[0].length;
   z.h = z.map.length;
   ZONES[z.id] = z;

@@ -810,6 +810,59 @@ def('chest', [
   '.mmmmmmmmmm.',
 ]);
 
+def('crab1', [
+  '.oo..........oo.',
+  'oOo..........oOo',
+  'oo....OOOO....oo',
+  '.oo.OOooooOO.oo.',
+  '..ooOokookOoo...',
+  '...OooooooooO...',
+  '..O.O.O..O.O.O..',
+  '..O..O.O.O..O...',
+]);
+
+def('crab2', [
+  '.oo..........oo.',
+  'oOo..........oOo',
+  'oo....OOOO....oo',
+  '.oo.OOooooOO.oo.',
+  '..ooOokookOoo...',
+  '...OooooooooO...',
+  '..O..O.OO.O..O..',
+  '...O.O....O.O...',
+]);
+
+def('crab_up', [
+  'oo............oo',
+  'oOo..........oOo',
+  '.oo...OOOO...oo.',
+  '..oo.OooooO.oo..',
+  '...ooOkookOoo...',
+  '....OoossooO....',
+  '....OooooooO....',
+  '...O.O.O..O.O...',
+  '...O.O.O..O.O...',
+  '..O..O.O..O..O..',
+]);
+
+def('bell_i', [
+  '...mm...',
+  '..yYYy..',
+  '..yYYy..',
+  '.yYYYYy.',
+  '.yYYYYy.',
+  'yyyyyyyy',
+  '...yy...',
+]);
+
+def('whistle_i', [
+  '.mmm....',
+  'mMMmm...',
+  'mMMMmmmm',
+  '.mmMMMMm',
+  '...mmmm.',
+]);
+
 // ============================== BOSSES ==============================
 
 def('batlord1', [
@@ -1378,6 +1431,7 @@ const THEME_SOLID = {
   manor3: ['#7a4a4a', '#583232', '#8c5a5a'],
   castle: ['#4a4258', '#332e40', '#5a5069'],
   catacomb: ['#4e4638', '#383226', '#5e5644'],
+  port: ['#5e6a62', '#46504a', '#6e7a72'],
 };
 
 export function drawTile(ctx, ch, theme, px, py, t, above) {
@@ -1613,7 +1667,7 @@ export function drawBG(ctx, theme, camX, camY, t, nightBlend, W, H) {
 
   // near layer per theme
   const nearCol = lerpC(
-    { town: '#4a5a70', forest: '#2a4a30', grave: '#3a4250', marsh: '#3a4a30', bridge: '#2a3a55', cliff: '#4a4248' }[theme] || '#3a4250',
+    { town: '#4a5a70', forest: '#2a4a30', grave: '#3a4250', marsh: '#3a4a30', bridge: '#2a3a55', cliff: '#4a4248', port: '#3a4a52' }[theme] || '#3a4250',
     '#0c1020', nightBlend * 0.85);
   ctx.fillStyle = nearCol;
   const nOff = camX * 0.4;
@@ -1646,6 +1700,20 @@ export function drawBG(ctx, theme, camX, camY, t, nightBlend, W, H) {
       ctx.beginPath();
       ctx.moveTo(x, H - hh - 8); ctx.lineTo(x + 30, H - hh - 26); ctx.lineTo(x + 60, H - hh - 8);
       ctx.fill();
+    }
+  } else if (theme === 'port') {
+    // stilt shacks and masts along the waterline
+    for (let i = -1; i < W / 64 + 2; i++) {
+      const gx = Math.floor(nOff / 64) + i;
+      const x = gx * 64 - nOff;
+      const hh = 26 + hash(gx * 9) * 20;
+      ctx.fillRect(x + 8, H - hh - 22, 36, hh);
+      ctx.fillRect(x + 12, H - 22, 3, 22);
+      ctx.fillRect(x + 36, H - 22, 3, 22);
+      ctx.beginPath();
+      ctx.moveTo(x + 4, H - hh - 22); ctx.lineTo(x + 26, H - hh - 36); ctx.lineTo(x + 48, H - hh - 22);
+      ctx.fill();
+      if (hash(gx * 17) > 0.55) ctx.fillRect(x + 54, H - 88 - hash(gx) * 20, 2, 80);
     }
   } else if (theme === 'cliff') {
     for (let i = -1; i < W / 52 + 2; i++) {
