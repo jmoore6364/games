@@ -19,6 +19,8 @@ export class Input {
       if (k === 'r') this.pressed.restart = true;
       if (k === 'arrowleft' || k === 'a') this.pressed.left = true;
       if (k === 'arrowright' || k === 'd') this.pressed.right = true;
+      if (k === 'arrowup' || k === 'w') this.pressed.up = true;
+      if (k === 'arrowdown' || k === 's') this.pressed.down = true;
       if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(e.key.toLowerCase()) || e.key.startsWith('Arrow')) {
         e.preventDefault();
       }

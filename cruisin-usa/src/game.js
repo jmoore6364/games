@@ -33,6 +33,7 @@ const CARS = [
   { name: 'MOORE WAGON', tag: 'LAUNCH + GRIP',  top: 0.94, accel: 1.2,  steer: 1.2,  pips: [3, 4, 5] },
 ];
 const TOUR_POINTS = [10, 8, 7, 6, 5, 4, 3, 2];
+const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ ';
 
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 function wrap(z, len) { return ((z % len) + len) % len; }
@@ -58,6 +59,10 @@ export class Game {
     this.state = 'title';
     this.flash = null;       // { text, sub, t }
     this.attractPos = 0;
+    this.weather = null;     // { kind: 'rain'|'sunset', sky?, fog? }
+    this.particles = [];
+    this.draft = 0;
+    this.drafting = false;
     this.loadCourse(0);
   }
 
@@ -138,11 +143,31 @@ export class Game {
 
   startRace() {
     this.resetRace();
+    this.particles = [];
+    this.draft = 0;
+    this.drafting = false;
+    // roll the weather: rain anywhere, golden-hour skies by day
+    const roll = Math.random();
+    if (roll < 0.22) {
+      this.weather = { kind: 'rain', sky: this.course.night ? null : ['#5a6a80', '#9aa8b8'], fog: this.course.night ? null : '#96a4b4' };
+    } else if (roll < 0.42 && !this.course.night) {
+      this.weather = { kind: 'sunset', sky: ['#ff7a3c', '#ffd9a0'], fog: '#ffd9a0' };
+    } else {
+      this.weather = null;
+    }
     this.state = 'countdown';
     this.countdown = 3.999;
     this.lastBeep = 4;
     this.sound.startEngine();
-    this.sound.startMusic();
+    this.sound.startMusic(this.course.music);
+  }
+
+  skyColors() {
+    return (this.weather && this.weather.sky) ? this.weather.sky : this.course.sky;
+  }
+
+  fogColor() {
+    return (this.weather && this.weather.fog) ? this.weather.fog : this.course.fog;
   }
 
   // --- helpers -----------------------------------------------------------------
@@ -190,8 +215,12 @@ export class Game {
           }
         }
         break;
+      case 'initials': this.updateInitials(); break;
+      case 'leaderboard':
+        if (this.input.consume('start')) this.goTitle();
+        break;
       case 'champion':
-        if (this.input.consume('start')) { this.mode = 'single'; this.state = 'title'; }
+        if (this.input.consume('start')) this.goTitle();
         break;
     }
     if (this.flash) {
@@ -199,6 +228,7 @@ export class Game {
       if (this.flash.t <= 0) this.flash = null;
     }
     this.shake = Math.max(0, this.shake - dt * 3);
+    this.updateParticles(dt);
   }
 
   updateTitle(dt) {
@@ -252,8 +282,39 @@ export class Game {
       this.applyTourPoints(this.state === 'finish');
       if (this.state === 'gameover') this.tourOver = true;
       this.state = 'standings';
+    } else if (this.state === 'finish' && this.qualifies(this.course.id, this.raceTime)) {
+      this.entry = { slot: 0, chars: [0, 0, 0] };
+      this.input.pressed = {};
+      this.state = 'initials';
     } else {
-      this.state = 'title';
+      this.goTitle();
+    }
+  }
+
+  goTitle() {
+    this.mode = 'single';
+    this.weather = null;
+    this.state = 'title';
+  }
+
+  updateInitials() {
+    const e = this.entry;
+    let d = 0;
+    if (this.input.consume('right') || this.input.consume('up')) d = 1;
+    if (this.input.consume('left') || this.input.consume('down')) d = -1;
+    if (d) {
+      e.chars[e.slot] = (e.chars[e.slot] + LETTERS.length + d) % LETTERS.length;
+      this.sound.blip(600, 0.05);
+    }
+    if (this.input.consume('start')) {
+      this.sound.blip(800, 0.08);
+      e.slot++;
+      if (e.slot >= 3) {
+        const ini = e.chars.map((c) => LETTERS[c]).join('').trimEnd() || 'AAA';
+        this.newEntry = { ini, time: parseFloat(this.raceTime.toFixed(2)) };
+        this.saveEntry(this.course.id, this.newEntry.ini, this.newEntry.time);
+        this.state = 'leaderboard';
+      }
     }
   }
 
@@ -285,7 +346,8 @@ export class Game {
     this.sound.setEngine(inp.accel ? 0.35 : 0.05, false);
     if (this.countdown <= 0) {
       this.state = 'race';
-      this.flash = { text: this.course.name, sub: `${this.course.laps} LAPS`, t: 2.2 };
+      const sub = this.weather?.kind === 'rain' ? 'RAIN — SLICK ROADS!' : `${this.course.laps} LAPS`;
+      this.flash = { text: this.course.name, sub, t: 2.2 };
     }
   }
 
@@ -308,21 +370,25 @@ export class Game {
       }
       this.steer = 0;
     } else {
-      const sdx = dx * this.stats.steer;
+      const grip = this.weather?.kind === 'rain' ? 0.88 : 1;
+      const sdx = dx * this.stats.steer * grip;
       if (inp.left) { this.playerX -= sdx; this.steer = Math.max(-1, this.steer - dt * 6); }
       else if (inp.right) { this.playerX += sdx; this.steer = Math.min(1, this.steer + dt * 6); }
       else this.steer *= Math.max(0, 1 - dt * 8);
 
       this.playerX -= dx * speedPct * playerSeg.curve * CENTRIFUGAL;
 
-      const maxSpd = MAX_SPEED * this.stats.top;
-      if (inp.accel) this.speed += ACCEL * this.stats.accel * (1 - (this.speed / maxSpd) * 0.25) * dt;
-      else if (inp.brake) this.speed += BRAKING * dt;
+      this.updateDraft(dt);
+      const maxSpd = MAX_SPEED * this.stats.top * (1 + 0.07 * this.draft);
+      if (inp.accel) {
+        this.speed += ACCEL * this.stats.accel * (this.drafting ? 1.3 : 1) * (1 - (this.speed / maxSpd) * 0.25) * dt;
+      } else if (inp.brake) this.speed += BRAKING * dt;
       else this.speed += DECEL * dt;
 
-      // hard cornering squeal
-      if (speedPct > 0.7 && Math.abs(playerSeg.curve) >= 4 && (inp.left || inp.right) && Math.random() < dt * 6) {
-        this.sound.skid();
+      // hard cornering squeal + tire smoke
+      if (speedPct > 0.7 && Math.abs(playerSeg.curve) >= 4 && (inp.left || inp.right)) {
+        if (Math.random() < dt * 6) this.sound.skid();
+        this.spawnSmoke();
       }
     }
 
@@ -331,6 +397,7 @@ export class Game {
     if (offroad) {
       if (this.speed > OFFROAD_LIMIT) this.speed += OFFROAD_DECEL * dt;
       this.shake = Math.max(this.shake, 0.25);
+      if (this.speed > 1500) this.spawnDust();
       // scenery collisions
       if (!this.flip && this.mercy <= 0) {
         for (const s of playerSeg.sprites) {
@@ -346,7 +413,7 @@ export class Game {
     }
 
     this.playerX = clamp(this.playerX, -2.2, 2.2);
-    this.speed = clamp(this.speed, 0, MAX_SPEED * this.stats.top);
+    this.speed = clamp(this.speed, 0, MAX_SPEED * this.stats.top * (1 + 0.07 * this.draft));
 
     // advance
     const prevTotal = this.totalDist;
@@ -381,7 +448,6 @@ export class Game {
       this.flash = null;
       this.finPos = this.playerRank();
       this.sound.finishFanfare();
-      this.saveBest();
     } else if (this.timeLeft <= 0) {
       this.timeLeft = 0;
       this.state = 'gameover';
@@ -391,10 +457,112 @@ export class Game {
     }
   }
 
+  updateDraft(dt) {
+    // tucked in behind a same-direction car at speed → slipstream builds
+    let drafting = false;
+    if (this.speed > MAX_SPEED * 0.62) {
+      const pz = wrap(this.position + PLAYER_Z, this.trackLength);
+      for (const car of this.cars) {
+        if (car.kind === 'oncoming') continue;
+        let rel = car.z - pz;
+        if (rel > this.trackLength / 2) rel -= this.trackLength;
+        if (rel < -this.trackLength / 2) rel += this.trackLength;
+        if (rel > CAR_LENGTH * 0.8 && rel < SEGMENT_LENGTH * 9 &&
+            Math.abs(this.playerX - car.offset) < 0.22) {
+          drafting = true;
+          break;
+        }
+      }
+    }
+    const wasFull = this.draft >= 1;
+    this.draft = clamp(this.draft + (drafting ? dt / 1.2 : -dt / 0.8), 0, 1);
+    this.drafting = drafting;
+    if (!wasFull && this.draft >= 1) this.sound.blip(980, 0.15, 'square', 0.18);
+  }
+
+  // --- particles (screen space) ----------------------------------------------
+
+  addParticle(p) {
+    if (this.particles.length < 240) this.particles.push(p);
+  }
+
+  spawnDust() {
+    const c = { coast: '#b09a6a', desert: '#d8b078', rockies: '#eef2f6', city: '#8a8a92' }[this.course.id] || '#b09a6a';
+    for (const side of [-1, 1]) {
+      this.addParticle({
+        x: W / 2 + side * 62 + (Math.random() - 0.5) * 20, y: H - 34,
+        vx: (Math.random() - 0.5) * 60, vy: -40 - Math.random() * 50, g: 0,
+        life: 0.5, max: 0.5, size: 5 + Math.random() * 5, color: c,
+      });
+    }
+  }
+
+  spawnSmoke() {
+    for (const side of [-1, 1]) {
+      this.addParticle({
+        x: W / 2 + side * 68, y: H - 28,
+        vx: side * 30 + (Math.random() - 0.5) * 40, vy: -25 - Math.random() * 35, g: 0,
+        life: 0.4, max: 0.4, size: 4 + Math.random() * 4, color: 'rgba(210,210,215,0.8)',
+      });
+    }
+  }
+
+  spawnDebris() {
+    for (let i = 0; i < 14; i++) {
+      this.addParticle({
+        x: W / 2 + (Math.random() - 0.5) * 90, y: H - 90,
+        vx: (Math.random() - 0.5) * 500, vy: -150 - Math.random() * 320, g: 800,
+        life: 1.1, max: 1.1, size: 3 + Math.random() * 4,
+        color: Math.random() < 0.5 ? '#d42222' : '#33333a',
+      });
+    }
+  }
+
+  updateParticles(dt) {
+    // rain streaks
+    if (this.weather?.kind === 'rain' &&
+        ['countdown', 'race', 'finish', 'gameover'].includes(this.state)) {
+      for (let i = 0; i < 6; i++) {
+        this.addParticle({
+          x: Math.random() * W, y: -10 - Math.random() * 30,
+          vx: -40 - this.steer * 60, vy: 850 + Math.random() * 250, g: 0,
+          life: 0.9, max: 0.9, rain: true,
+        });
+      }
+    }
+    for (const p of this.particles) {
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      p.vy += (p.g || 0) * dt;
+      p.life -= dt;
+      if (p.rain && p.y > H - 8) p.life = 0;
+    }
+    this.particles = this.particles.filter((p) => p.life > 0);
+  }
+
+  renderParticles() {
+    const ctx = this.ctx;
+    for (const p of this.particles) {
+      if (p.rain) {
+        ctx.strokeStyle = 'rgba(190,205,235,0.45)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(p.x + p.vx * 0.02, p.y + p.vy * 0.022);
+        ctx.stroke();
+      } else {
+        ctx.globalAlpha = clamp(p.life / p.max, 0, 1);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+        ctx.globalAlpha = 1;
+      }
+    }
+  }
+
   crashIntoScenery() {
     if (this.speed > MAX_SPEED * 0.6) {
       this.flip = { t: 0, dur: 1.1 };
       this.shake = 1;
+      this.spawnDebris();
       this.sound.crash();
     } else {
       this.speed *= 0.2;
@@ -471,6 +639,7 @@ export class Game {
         if (this.speed + car.speed > MAX_SPEED * 0.7) {
           this.flip = { t: 0, dur: 1.2 };
           this.shake = 1;
+          this.spawnDebris();
           this.sound.crash();
         } else {
           this.speed = 0;
@@ -494,16 +663,30 @@ export class Game {
     }
   }
 
-  saveBest() {
+  // top-5 local leaderboard per course (with migration from the old single-best key)
+  getBoard(id) {
     try {
-      const key = `cruisin-moore-best-${this.course.id}`;
-      const prev = parseFloat(localStorage.getItem(key));
-      if (!prev || this.raceTime < prev) localStorage.setItem(key, this.raceTime.toFixed(2));
-    } catch { /* private mode */ }
+      const board = JSON.parse(localStorage.getItem(`cruisin-moore-lb-${id}`)) || [];
+      const legacy = parseFloat(localStorage.getItem(`cruisin-moore-best-${id}`));
+      if (legacy && !board.some((e) => e.time === legacy)) {
+        board.push({ ini: '---', time: legacy });
+        board.sort((a, b) => a.time - b.time);
+      }
+      return board.slice(0, 5);
+    } catch { return []; }
   }
-  getBest(id) {
-    try { return parseFloat(localStorage.getItem(`cruisin-moore-best-${id}`)) || null; }
-    catch { return null; }
+  qualifies(id, time) {
+    const board = this.getBoard(id);
+    return board.length < 5 || time < board[board.length - 1].time;
+  }
+  saveEntry(id, ini, time) {
+    try {
+      const board = this.getBoard(id);
+      board.push({ ini, time });
+      board.sort((a, b) => a.time - b.time);
+      localStorage.setItem(`cruisin-moore-lb-${id}`, JSON.stringify(board.slice(0, 5)));
+      localStorage.removeItem(`cruisin-moore-best-${id}`);
+    } catch { /* private mode */ }
   }
 
   // --- render ------------------------------------------------------------------
@@ -520,6 +703,12 @@ export class Game {
     if (!inMenu) this.renderPlayer();
     ctx.restore();
 
+    if (this.weather?.kind === 'rain' && !inMenu) {
+      ctx.fillStyle = 'rgba(30,40,70,0.16)';
+      ctx.fillRect(0, 0, W, H);
+    }
+    this.renderParticles();
+
     switch (this.state) {
       case 'title': this.renderTitle(); break;
       case 'car': this.renderCarSelect(); break;
@@ -528,6 +717,8 @@ export class Game {
       case 'finish': this.renderHUD(); this.renderResults(true); break;
       case 'gameover': this.renderHUD(); this.renderResults(false); break;
       case 'standings': this.renderStandings(); break;
+      case 'initials': this.renderInitials(); break;
+      case 'leaderboard': this.renderLeaderboard(); break;
       case 'champion': this.renderChampion(); break;
     }
   }
@@ -537,9 +728,10 @@ export class Game {
     const course = this.course;
 
     // sky
+    const skyCols = this.skyColors();
     const sky = ctx.createLinearGradient(0, 0, 0, H * 0.55);
-    sky.addColorStop(0, course.sky[0]);
-    sky.addColorStop(1, course.sky[1]);
+    sky.addColorStop(0, skyCols[0]);
+    sky.addColorStop(1, skyCols[1]);
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, W, H);
 
@@ -651,7 +843,7 @@ export class Game {
     // fog
     if (seg.fog < 1) {
       ctx.globalAlpha = 1 - seg.fog;
-      ctx.fillStyle = c.fog;
+      ctx.fillStyle = this.fogColor();
       ctx.fillRect(0, p2.y, W, p1.y - p2.y);
       ctx.globalAlpha = 1;
     }
@@ -766,6 +958,18 @@ export class Game {
     this.text(String(mph), W - 24, H - 34, 44, '#fff', 'right');
     this.text('MPH', W - 24, H - 12, 14, '#ffb14a', 'right');
 
+    // draft meter
+    if (this.draft > 0.02) {
+      const dw = 120;
+      ctx.fillStyle = 'rgba(0,0,0,0.45)';
+      ctx.fillRect(W - 24 - dw, H - 92, dw, 10);
+      ctx.fillStyle = this.draft >= 1 ? '#7dff6a' : '#4aa8e8';
+      ctx.fillRect(W - 24 - dw, H - 92, dw * this.draft, 10);
+      if (this.draft >= 1 && Math.floor(this.raceTime * 6) % 2 === 0) {
+        this.text('DRAFT!', W - 24, H - 100, 16, '#7dff6a', 'right');
+      }
+    }
+
     // race progress bar with rival blips
     const total = this.trackLength * this.course.laps;
     const bx = W / 2 - 150, by = 14, bw = 300, bh = 8;
@@ -816,8 +1020,12 @@ export class Game {
       this.text('FINISH!', W / 2, H * 0.2 + 58, 44, '#7dff6a');
       this.text(`${this.finPos}${sup} PLACE`, W / 2, H * 0.2 + 110, 34, this.finPos === 1 ? '#ffe14a' : '#fff');
       this.text(`TIME  ${this.raceTime.toFixed(2)}`, W / 2, H * 0.2 + 152, 22, '#9adcff');
-      const best = this.getBest(this.course.id);
-      if (best) this.text(`BEST  ${best.toFixed(2)}`, W / 2, H * 0.2 + 182, 18, '#889');
+      const top = this.getBoard(this.course.id)[0];
+      if (this.mode === 'single' && this.qualifies(this.course.id, this.raceTime)) {
+        this.text('NEW TOP-5 TIME!', W / 2, H * 0.2 + 182, 18, '#7dff6a');
+      } else if (top) {
+        this.text(`BEST  ${top.time.toFixed(2)} ${top.ini}`, W / 2, H * 0.2 + 182, 18, '#889');
+      }
       if (this.finPos === 1) this.text('CRUIS-TACULAR!', W / 2, H * 0.2 + 214, 18, '#ff8ad8');
     } else {
       this.text('TIME UP', W / 2, H * 0.2 + 70, 48, '#ff4030');
@@ -852,8 +1060,8 @@ export class Game {
     } else {
       const c = this.course;
       this.text(c.name, W / 2, 305, 26, '#fff');
-      const best = this.getBest(c.id);
-      this.text(best ? `BEST TIME ${best.toFixed(2)}` : `${c.laps} LAPS · BEAT 7 RIVALS`, W / 2, 336, 15, '#9adcff');
+      const top = this.getBoard(c.id)[0];
+      this.text(top ? `BEST ${top.time.toFixed(2)} · ${top.ini}` : `${c.laps} LAPS · BEAT 7 RIVALS`, W / 2, 336, 15, '#9adcff');
     }
     this.text(`${this.menuIndex + 1}/${this.courses.length + 1}`, W / 2, 380, 14, '#889');
 
@@ -919,6 +1127,53 @@ export class Game {
     if (Math.floor(performance.now() / 500) % 2 === 0) {
       const last = this.tourOver || this.tourIndex >= this.courses.length - 1;
       this.text(last ? 'PRESS ENTER FOR FINAL RESULTS' : 'PRESS ENTER FOR NEXT RACE', W / 2, 478, 16, '#7dff6a');
+    }
+  }
+
+  renderInitials() {
+    const ctx = this.ctx;
+    ctx.fillStyle = 'rgba(8,8,20,0.85)';
+    ctx.fillRect(W / 2 - 240, 90, 480, 340);
+    ctx.strokeStyle = '#7dff6a'; ctx.lineWidth = 3;
+    ctx.strokeRect(W / 2 - 240, 90, 480, 340);
+    this.text('NEW TOP-5 TIME!', W / 2, 140, 32, '#7dff6a');
+    this.text(`${this.course.name} · ${this.raceTime.toFixed(2)}`, W / 2, 170, 16, '#9adcff');
+    this.text('ENTER YOUR INITIALS', W / 2, 210, 14, '#889');
+    for (let i = 0; i < 3; i++) {
+      const x = W / 2 + (i - 1) * 80;
+      const sel = i === this.entry.slot;
+      ctx.fillStyle = sel ? 'rgba(60,60,110,0.9)' : 'rgba(20,20,40,0.9)';
+      ctx.fillRect(x - 30, 235, 60, 70);
+      ctx.strokeStyle = sel ? '#ffe14a' : '#445'; ctx.lineWidth = 3;
+      ctx.strokeRect(x - 30, 235, 60, 70);
+      this.text(LETTERS[this.entry.chars[i]], x, 288, 44, sel ? '#ffe14a' : '#fff');
+      if (sel && Math.floor(performance.now() / 300) % 2 === 0) {
+        this.text('▲', x, 230, 14, '#ffb14a');
+        this.text('▼', x, 322, 14, '#ffb14a');
+      }
+    }
+    this.text('←→ LETTER · ENTER/GAS NEXT', W / 2, 400, 14, '#99a');
+  }
+
+  renderLeaderboard() {
+    const ctx = this.ctx;
+    ctx.fillStyle = 'rgba(8,8,20,0.85)';
+    ctx.fillRect(W / 2 - 240, 70, 480, 390);
+    ctx.strokeStyle = '#f8a800'; ctx.lineWidth = 3;
+    ctx.strokeRect(W / 2 - 240, 70, 480, 390);
+    this.text('TOP TIMES', W / 2, 116, 30, '#ffe14a');
+    this.text(this.course.name, W / 2, 142, 15, '#9adcff');
+    const board = this.getBoard(this.course.id);
+    board.forEach((e, i) => {
+      const y = 190 + i * 42;
+      const isNew = this.newEntry && e.ini === this.newEntry.ini && e.time === this.newEntry.time;
+      const col = isNew ? '#7dff6a' : '#fff';
+      this.text(`${i + 1}.`, W / 2 - 180, y, 22, isNew ? '#7dff6a' : '#889', 'left');
+      this.text(e.ini, W / 2 - 120, y, 22, col, 'left');
+      this.text(e.time.toFixed(2), W / 2 + 180, y, 22, isNew ? '#7dff6a' : '#9adcff', 'right');
+    });
+    if (Math.floor(performance.now() / 500) % 2 === 0) {
+      this.text('PRESS ENTER', W / 2, 440, 16, '#7dff6a');
     }
   }
 

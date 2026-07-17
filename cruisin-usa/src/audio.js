@@ -112,23 +112,25 @@ export class Sound {
 
   // --- music -------------------------------------------------------------------
 
-  startMusic() {
+  startMusic(opts = {}) {
     if (!this.ensure() || this.music) return;
+    const bpm = opts.bpm || 138;
+    const root = opts.root || 0; // semitone shift, varies per course
     const bass = [0, 0, 7, 0, 5, 5, 12, 5, 3, 3, 10, 3, 5, 5, 12, 7];   // semitones from A1
     const lead = [12, -1, 16, 19, -1, 16, 12, -1, 15, -1, 19, 22, 19, -1, 15, 12];
     const gainNode = this.ctx.createGain();
     gainNode.gain.value = 0.5;
     gainNode.connect(this.master);
     const state = { step: 0, gain: gainNode, timer: null };
-    const stepDur = 60 / 138 / 2; // 138 bpm, 8th notes
+    const stepDur = 60 / bpm / 2; // 8th notes
     const tick = () => {
       const t = this.ctx.currentTime;
       const s = state.step % 16;
       // bass
-      this.tone(gainNode, 55 * Math.pow(2, bass[s] / 12), t, stepDur * 0.9, 'triangle', 0.24);
+      this.tone(gainNode, 55 * Math.pow(2, (bass[s] + root) / 12), t, stepDur * 0.9, 'triangle', 0.24);
       // lead every other loop
       if (Math.floor(state.step / 16) % 2 === 1 && lead[s] >= 0) {
-        this.tone(gainNode, 220 * Math.pow(2, lead[s] / 12), t, stepDur * 0.8, 'square', 0.07);
+        this.tone(gainNode, 220 * Math.pow(2, (lead[s] + root) / 12), t, stepDur * 0.8, 'square', 0.07);
       }
       // hat
       if (s % 2 === 0) this.hat(gainNode, t, s % 4 === 0 ? 0.06 : 0.03);
