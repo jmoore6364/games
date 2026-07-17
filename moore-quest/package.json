@@ -1,0 +1,9 @@
+{
+  "name": "moore-quest",
+  "version": "0.1.0",
+  "description": "Moore Quest: The Ashen Road — a top-down JRPG in the Ultima / Final Fantasy tradition, vanilla JS + canvas",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
