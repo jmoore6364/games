@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Leisure Suit Moore: Looking for Love in Neon City</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<link rel="icon" href="data:,">
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: #0a0a1e;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    overflow: hidden;
+    touch-action: manipulation;
+    overscroll-behavior: none;
+  }
+  canvas {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    background: #000;
+    touch-action: manipulation;
+  }
+  #verbs {
+    display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; justify-content: center;
+  }
+  .vbtn {
+    padding: 6px 12px; border-radius: 4px;
+    background: rgba(255,255,255,0.10); border: 2px solid rgba(255,85,255,0.4);
+    color: #ccd; font: bold 12px monospace; letter-spacing: 1px;
+    user-select: none; -webkit-user-select: none; cursor: pointer;
+  }
+  .vbtn.on { background: #FF55FF; border-color: #FF55FF; color: #200020; }
+  #hint {
+    margin-top: 8px; text-align: center; color: #556; font: 11px monospace;
+    user-select: none; padding: 0 10px;
+  }
+</style>
+</head>
+<body>
+<canvas id="game" width="320" height="200"></canvas>
+<div id="verbs">
+  <div class="vbtn on" data-verb="walk">WALK</div>
+  <div class="vbtn" data-verb="look">LOOK</div>
+  <div class="vbtn" data-verb="do">DO</div>
+  <div class="vbtn" data-verb="talk">TALK</div>
+  <div class="vbtn" data-verb="bag">BAG</div>
+</div>
+<div id="hint">arrows walk &middot; type commands + Enter (e.g. "buy fizz", "pay bouncer", "dance") &middot; M mute<br>
+touch: pick a verb, then tap the scene &middot; stay out of the road</div>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
