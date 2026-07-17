@@ -46,8 +46,10 @@ down into the hive to burn the Moorlord Heart.
 | Pause | Enter | Start |
 | Mute | M | — |
 
-On touch devices an on-screen d-pad and buttons appear automatically
-(force them with `?touch=1`).
+On touch devices an on-screen joystick and buttons appear automatically
+(force them with `?touch=1`). The joystick gives full 8-way aim with one
+thumb — diagonals included — and LOCK is a tap-toggle there, so you can
+plant your feet and aim without needing a third finger.
 
 ## Run it
 

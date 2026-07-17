@@ -35,10 +35,21 @@
     user-select: none; -webkit-user-select: none; touch-action: none;
   }
   .tbtn.on { background: rgba(255,255,255,0.35); }
-  .b-left  { left: calc(14px + env(safe-area-inset-left, 0px));  bottom: calc(34px + env(safe-area-inset-bottom, 0px)); }
-  .b-right { left: calc(88px + env(safe-area-inset-left, 0px));  bottom: calc(34px + env(safe-area-inset-bottom, 0px)); }
-  .b-up    { left: calc(51px + env(safe-area-inset-left, 0px));  bottom: calc(100px + env(safe-area-inset-bottom, 0px)); }
-  .b-down  { left: calc(51px + env(safe-area-inset-left, 0px));  bottom: calc(0px + env(safe-area-inset-bottom, 0px)); height: 40px; }
+  .stick-zone {
+    position: absolute; pointer-events: auto;
+    left: calc(16px + env(safe-area-inset-left, 0px));
+    bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+    width: 128px; height: 128px; border-radius: 50%;
+    background: rgba(255,255,255,0.07); border: 2px solid rgba(255,255,255,0.25);
+    touch-action: none;
+  }
+  .stick-knob {
+    position: absolute; left: 50%; top: 50%;
+    width: 52px; height: 52px; border-radius: 50%;
+    transform: translate(-50%,-50%);
+    background: rgba(255,255,255,0.25); border: 2px solid rgba(255,255,255,0.4);
+    pointer-events: none;
+  }
   .b-lock  { right: calc(140px + env(safe-area-inset-right, 0px)); bottom: calc(96px + env(safe-area-inset-bottom, 0px)); font-size: 11px; }
   .b-fire  { right: calc(80px + env(safe-area-inset-right, 0px)); bottom: calc(34px + env(safe-area-inset-bottom, 0px)); font-size: 12px; }
   .b-jump  { right: calc(14px + env(safe-area-inset-right, 0px)); bottom: calc(64px + env(safe-area-inset-bottom, 0px)); font-size: 12px; }
