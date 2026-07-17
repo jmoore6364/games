@@ -1,0 +1,9 @@
+{
+  "name": "legend-of-moore",
+  "version": "0.1.0",
+  "description": "The Legend of Moore — an NES Zelda style top-down adventure, vanilla JS + canvas",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
