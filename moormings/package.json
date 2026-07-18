@@ -1,0 +1,10 @@
+{
+  "name": "moormings",
+  "version": "0.1.0",
+  "description": "Moormings — an Amiga-style Lemmings-like with pixel-destructible terrain, vanilla JS + canvas",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "verify": "node verify.js"
+  }
+}

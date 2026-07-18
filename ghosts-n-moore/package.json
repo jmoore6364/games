@@ -1,0 +1,9 @@
+{
+  "name": "ghosts-n-moore",
+  "version": "0.1.0",
+  "description": "Ghosts 'n Moore — a Ghosts 'n Goblins style arcade platformer, vanilla JS + canvas",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
