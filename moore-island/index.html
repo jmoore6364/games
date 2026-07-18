@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The Secret of Moore Island</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<link rel="icon" href="data:,">
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: #04060f;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+    touch-action: none;
+    overscroll-behavior: none;
+  }
+  canvas {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    background: #000;
+    touch-action: none;
+    cursor: none;
+  }
+  #hint {
+    position: fixed; bottom: 6px; left: 0; right: 0;
+    text-align: center; color: #445; font: 12px monospace;
+    user-select: none; pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<canvas id="game" width="320" height="200"></canvas>
+<div id="hint">click verb then object &nbsp;&middot;&nbsp; right-click / double-click = smart default verb &nbsp;&middot;&nbsp; Q W E A S D Z X C verbs &nbsp;&middot;&nbsp; Esc skip &nbsp;&middot;&nbsp; M mute &nbsp;&middot;&nbsp; auto-saves</div>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
