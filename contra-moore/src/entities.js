@@ -353,24 +353,24 @@ export function spawnEnemy(game, t, x, y, o = {}) {
   const e = Object.assign(base, o);
   switch (t) {
     case 'runner': e.vx = e.face * 1.1; e.hp = 1; break;
-    case 'rifle': e.hp = 2; e.w = 12; e.h = 14; e.timer = 40 + ((x >> 4) % 5) * 13; break;
-    case 'turret': e.hp = 6; e.w = 20; e.h = 16; break;
-    case 'cannon': e.hp = 10; e.w = 16; e.h = 20; break;
+    case 'rifle': e.hp = 1; e.w = 12; e.h = 14; e.timer = 40 + ((x >> 4) % 5) * 13; break;
+    case 'turret': e.hp = 6; e.w = 20; e.h = 16; e.noTouch = true; break;
+    case 'cannon': e.hp = 10; e.w = 16; e.h = 20; e.noTouch = true; break;
     case 'lobber': e.hp = 2; e.timer = 50; break;
     case 'flyer': e.hp = 1; e.w = 14; e.h = 8; e.t0 = Math.floor(x + y); break;
     case 'larva': e.hp = 1; e.w = 12; e.h = 6; e.vx = e.face * 0.7; break;
-    case 'pod': e.hp = 10; e.w = 18; e.h = 18; e.timer = 60; break;
+    case 'pod': e.hp = 10; e.w = 18; e.h = 18; e.timer = 60; e.noTouch = true; break;
     case 'roller': e.hp = 6; e.w = 16; e.h = 16; e.vx = -1.6; break;
     case 'capsule': e.hp = 1; e.w = 16; e.h = 10; e.noTouch = true; break;
     case 'pickup': e.w = 14; e.h = 10; e.noTouch = true; e.harmless = true; break;
     case 'nest': e.harmless = true; e.noTouch = true; e.invis = true; e.timer = 30; break;
-    // boss parts
-    case 'b_gun': e.hp = 14; e.w = 16; e.h = 16; e.boss = true; break;
-    case 'b_core': e.hp = 30; e.w = 16; e.h = 24; e.boss = true; break;
-    case 'b_idol': e.hp = 55; e.w = 44; e.h = 44; e.boss = true; break;
-    case 'b_tank': e.hp = 70; e.w = 56; e.h = 44; e.boss = true; break;
-    case 'b_heart': e.hp = 80; e.w = 22; e.h = 26; e.boss = true; break;
-    case 'b_mouth': e.hp = 18; e.w = 16; e.h = 14; e.boss = true; break;
+    // boss parts — emplacements, not monsters: their fire is the threat
+    case 'b_gun': e.hp = 14; e.w = 16; e.h = 16; e.boss = true; e.noTouch = true; break;
+    case 'b_core': e.hp = 30; e.w = 16; e.h = 24; e.boss = true; e.noTouch = true; break;
+    case 'b_idol': e.hp = 55; e.w = 44; e.h = 44; e.boss = true; e.noTouch = true; break;
+    case 'b_tank': e.hp = 70; e.w = 56; e.h = 44; e.boss = true; e.noTouch = true; break;
+    case 'b_heart': e.hp = 80; e.w = 22; e.h = 26; e.boss = true; e.noTouch = true; break;
+    case 'b_mouth': e.hp = 18; e.w = 16; e.h = 14; e.boss = true; e.noTouch = true; break;
   }
   game.enemies.push(e);
   return e;
@@ -428,29 +428,34 @@ export function updateEnemies(game) {
       case 'rifle': {
         gravityWalk(game, e);
         e.face = px < e.x ? -1 : 1;
-        if (e.timer % 130 === 0 && Math.abs(px - e.x) < 200) e.burst = 3;
-        if (e.burst > 0 && e.timer % 14 === 0) {
+        const d = game.diff || 0;
+        if (e.timer % (180 - d * 18) === 0 && Math.abs(px - e.x) < 140 + d * 30) {
+          e.burst = d >= 2 ? 3 : 2;
+        }
+        if (e.burst > 0 && e.timer % 16 === 0) {
           e.burst--;
-          fireEBullet(game, e.x + e.w / 2, e.y + 4, px, py);
+          fireEBullet(game, e.x + e.w / 2, e.y + 4, px, py, 1.6 + d * 0.2);
           game.sound.eshoot();
         }
         break;
       }
       case 'turret': {
-        // pop-up cycle: closed 70, open 110
-        const cyc = e.timer % 180;
-        e.open = cyc > 70;
-        if (e.open && cyc % 45 === 0) {
+        // pop-up cycle: closed, then open and firing
+        const d = game.diff || 0;
+        const cyc = e.timer % (200 - d * 10);
+        e.open = cyc > 85 - d * 5;
+        if (e.open && cyc % (64 - d * 6) === 0) {
           const oy = e.ceil ? e.y + e.h : e.y;
-          fireEBullet(game, e.x + e.w / 2, oy + (e.ceil ? -4 : 4), px, py, 1.9);
+          fireEBullet(game, e.x + e.w / 2, oy + (e.ceil ? -4 : 4), px, py, 1.5 + d * 0.15);
           game.sound.eshoot();
         }
         break;
       }
       case 'cannon': {
         const dir = e.side || -1;
-        if (e.timer % 150 < 45 && e.timer % 15 === 0) {
-          fireEBullet(game, e.x + e.w / 2 + dir * 10, e.y + 6, e.x + dir * 100, e.y + 6, 2.4);
+        const d = game.diff || 0;
+        if (e.timer % (170 - d * 10) < 45 && e.timer % 18 === 0) {
+          fireEBullet(game, e.x + e.w / 2 + dir * 10, e.y + 6, e.x + dir * 100, e.y + 6, 1.9 + d * 0.2);
           game.sound.eshoot();
         }
         break;
@@ -458,7 +463,8 @@ export function updateEnemies(game) {
       case 'lobber': {
         gravityWalk(game, e);
         e.face = px < e.x ? -1 : 1;
-        if (e.timer % 120 === 0 && Math.abs(px - e.x) < 190 || (game.stage.vertical && e.timer % 120 === 0 && Math.abs(py - e.y) < 200)) {
+        const lobCyc = 150 - (game.diff || 0) * 12;
+        if (e.timer % lobCyc === 0 && (Math.abs(px - e.x) < 190 || (game.stage.vertical && Math.abs(py - e.y) < 200))) {
           game.ebullets.push({
             x: e.x + e.w / 2, y: e.y, w: 4, h: 5,
             vx: (px > e.x ? 1 : -1) * (0.8 + Math.abs(px - e.x) / 220),

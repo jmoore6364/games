@@ -80,8 +80,8 @@ function buildJungle() {
     { t: 'capsule', x: 190, d: 'S' },
   ];
   const zones = [
-    { x0: 4, x1: 92, rate: 130 },
-    { x0: 104, x1: 200, rate: 105 },
+    { x0: 4, x1: 92, rate: 200 },
+    { x0: 104, x1: 200, rate: 160 },
   ];
   return {
     key: 'jungle', theme: 'jungle', vertical: false, g, spawns, zones,
@@ -124,7 +124,7 @@ function buildFalls() {
     { t: 'capsule', x: 0, d: 'S', scrollY: (H - 80) * TILE },
     { t: 'capsule', x: 0, d: 'B', scrollY: (H - 115) * TILE },
   );
-  const zones = [{ y0: 30 * TILE, y1: (H - 10) * TILE, rate: 150, flyer: true }];
+  const zones = [{ y0: 30 * TILE, y1: (H - 10) * TILE, rate: 180, flyer: true }];
   return {
     key: 'falls', theme: 'falls', vertical: true, g, spawns, zones,
     start: { x: 48, y: (H - 6) * TILE }, boss: 'idol',
@@ -179,7 +179,7 @@ function buildBase() {
     { t: 'roller', x: 190, row: 12 },
     { t: 'capsule', x: 184, d: 'S' },
   ];
-  const zones = [{ x0: 8, x1: 190, rate: 120 }];
+  const zones = [{ x0: 8, x1: 190, rate: 140 }];
   return {
     key: 'base', theme: 'base', vertical: false, g, spawns, zones,
     start: { x: 32, y: 150 }, boss: 'tank',
