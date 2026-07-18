@@ -1,0 +1,9 @@
+{
+  "name": "moore-type",
+  "version": "0.1.0",
+  "description": "Moore-Type — an R-Type / Gradius style horizontal shmup, TurboGrafx-16 flavored, vanilla JS + canvas",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
