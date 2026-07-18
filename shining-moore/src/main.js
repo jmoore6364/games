@@ -935,10 +935,10 @@ class Game {
       ctx.fillStyle = (i + (this.frame >> 4)) % 5 ? '#283058' : '#8890b8';
       ctx.fillRect(x, y, 1, 1);
     }
-    ctx.drawImage(this.emblem, VIEW_W / 2 - 48, 18, 96, 128);
-    text('SHINING', VIEW_W / 2, 44, '#f8d838', 22, 'center');
-    text('MOORE', VIEW_W / 2, 70, '#f8f8f8', 22, 'center');
-    text('A MOOREGARD TACTICS TALE', VIEW_W / 2, 150, '#8890b8', 8, 'center');
+    ctx.drawImage(this.emblem, VIEW_W / 2 - 33, 6, 66, 88);
+    text('SHINING', VIEW_W / 2 - 40, 100, '#f8d838', 20, 'center');
+    text('MOORE', VIEW_W / 2 + 58, 100, '#f8f8f8', 20, 'center');
+    text('A MOOREGARD TACTICS TALE', VIEW_W / 2, 126, '#8890b8', 8, 'center');
     const opts = this.hasSave ? ['NEW GAME', 'CONTINUE'] : ['NEW GAME'];
     opts.forEach((o, i) => {
       text(o, VIEW_W / 2, 170 + i * 14, i === this.titleSel ? '#f8d838' : '#fff', 10, 'center');
