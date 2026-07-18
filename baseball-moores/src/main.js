@@ -13,10 +13,162 @@ const ctx = canvas.getContext('2d');
 ctx.imageSmoothingEnabled = false;
 
 const PAL = {
-  sky: '#5aa0e0', grass: '#3aa63a', grassD: '#2e8a2e', dirt: '#c88a4a', dirtD: '#a86a30',
-  line: '#f4f4f0', wall: '#204020', night: '#0a1020', ink: '#101018',
-  hud: '#101820', hudT: '#f8f8e0', gold: '#f8d838', red: '#e04030',
+  sky: '#5aa0e0', grass: '#4aae42', grassD: '#3a9636', grassL: '#58bc4e',
+  grassFoul: '#317f2c', dirt: '#c8924e', dirtD: '#a8702f', dirtL: '#d8a860',
+  line: '#f4f4ee', wall: '#254a2a', wallCap: '#f0e8d0', night: '#0a1020', ink: '#101018',
+  stand: '#5a5666', standD: '#403c4c', hud: '#0c141c', hudT: '#f8f8e0',
+  gold: '#f8d838', red: '#e04030',
 };
+
+function mkCanvas(w, h) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+  return { c, g };
+}
+
+// clean pitch-type labels (fixes the old "CURVEL" bug)
+function pitchLabel(t) {
+  return t === 'fast' ? 'FASTBALL'
+    : t === 'change' ? 'CHANGE-UP'
+    : t === 'curveL' ? 'CURVE ←'
+    : t === 'curveR' ? 'CURVE →' : t.toUpperCase();
+}
+
+// ---- crowd/stands strip painter (rows of little spectator dots) ----
+function paintStands(g, x0, y0, w, h, seed) {
+  const rng = makeRNG(seed);
+  g.fillStyle = PAL.standD; g.fillRect(x0, y0, w, h);
+  const cols = ['#d86868', '#68a0d8', '#e0d060', '#d0d0d8', '#7fbf7f', '#c890d0', '#e0a050'];
+  const rows = Math.max(2, (h / 3) | 0);
+  for (let r = 0; r < rows; r++) {
+    const yy = y0 + 1 + r * 3;
+    for (let x = x0 + 1 + (r % 2); x < x0 + w - 1; x += 3) {
+      if (rng() < 0.82) {
+        g.fillStyle = rng() < 0.5 ? PAL.stand : cols[(rng() * cols.length) | 0];
+        g.fillRect(x, yy, 2, 2);
+      }
+    }
+  }
+}
+
+// ================= offscreen field backgrounds (built once) =================
+let DUEL_BG = null, FIELD_BG = null;
+
+// The pitch/bat "duel" ballpark: ONE continuous field seen from behind the
+// pitcher looking toward home plate at the bottom. No seam, no wireframe.
+function buildDuelBG() {
+  const { c, g } = mkCanvas(W, H);
+  const topY = 16;             // below HUD
+  const wallY = 40;            // wall base line
+  // --- foul territory (darker grass) fills everything under the wall
+  g.fillStyle = PAL.grassFoul; g.fillRect(0, topY, W, H - topY);
+  // --- fair wedge: apex at home plate, opening upward toward the wall
+  const HPx = 128, HPy = 196;
+  g.fillStyle = PAL.grass;
+  g.beginPath();
+  g.moveTo(HPx, HPy); g.lineTo(6, wallY); g.lineTo(250, wallY); g.closePath(); g.fill();
+  // --- mowed stripes inside the fair wedge (subtle two-tone bands)
+  g.save();
+  g.beginPath(); g.moveTo(HPx, HPy); g.lineTo(6, wallY); g.lineTo(250, wallY); g.closePath(); g.clip();
+  for (let i = 0; i < 16; i++) {
+    if (i % 2 === 0) continue;
+    g.fillStyle = PAL.grassL;
+    const yy = wallY + i * 11;
+    g.globalAlpha = 0.5; g.fillRect(0, yy, W, 6); g.globalAlpha = 1;
+  }
+  g.restore();
+  // --- outfield wall + crowd at the very top
+  paintStands(g, 0, topY, W, wallY - topY - 4, 4242);
+  g.fillStyle = PAL.wall; g.fillRect(0, wallY - 4, W, 6);
+  g.fillStyle = PAL.wallCap; g.fillRect(0, wallY - 5, W, 1);
+  // scoreboard / ad panel centered on the wall
+  g.fillStyle = '#182028'; g.fillRect(96, topY + 1, 64, 14);
+  g.fillStyle = '#f8d838'; g.fillRect(97, topY + 2, 62, 2);
+  g.fillStyle = '#3a4a5a';
+  for (let i = 0; i < 5; i++) g.fillRect(100 + i * 12, topY + 6, 8, 6);
+  // --- chalk foul lines from home plate outward (perspective V)
+  g.strokeStyle = PAL.line; g.lineWidth = 2; g.lineCap = 'round';
+  g.beginPath();
+  g.moveTo(HPx - 3, HPy); g.lineTo(8, wallY);
+  g.moveTo(HPx + 3, HPy); g.lineTo(248, wallY);
+  g.stroke();
+  // --- pitcher's mound (tan dirt circle, mid-upper center)
+  const MX = 128, MY = 104;
+  g.fillStyle = PAL.dirt; g.beginPath(); g.ellipse(MX, MY, 34, 15, 0, 0, 7); g.fill();
+  g.fillStyle = PAL.dirtL; g.beginPath(); g.ellipse(MX, MY - 2, 30, 11, 0, 0, 7); g.fill();
+  g.fillStyle = PAL.dirtD; g.beginPath(); g.ellipse(MX, MY + 6, 34, 9, 0, 0, 7); g.fill();
+  g.fillStyle = '#eceae0'; g.fillRect(MX - 6, MY + 1, 12, 3); // rubber
+  // --- home-plate dirt area (bottom), continuous rounded patch
+  g.fillStyle = PAL.dirt;
+  g.beginPath(); g.ellipse(HPx, 214, 84, 42, 0, 0, 7); g.fill();
+  g.fillStyle = PAL.dirtL;
+  g.beginPath(); g.ellipse(HPx, 210, 72, 32, 0, 0, 7); g.fill();
+  // batter's boxes (chalk rectangles either side of the plate)
+  g.strokeStyle = 'rgba(248,248,238,0.85)'; g.lineWidth = 1;
+  g.strokeRect(92.5, 180.5, 22, 34);
+  g.strokeRect(141.5, 180.5, 22, 34);
+  // home plate (white pentagon)
+  g.fillStyle = PAL.line;
+  g.beginPath();
+  g.moveTo(HPx - 7, HPy - 4); g.lineTo(HPx + 7, HPy - 4);
+  g.lineTo(HPx + 7, HPy + 1); g.lineTo(HPx, HPy + 6); g.lineTo(HPx - 7, HPy + 1);
+  g.closePath(); g.fill();
+  g.strokeStyle = '#c8c8be'; g.lineWidth = 1; g.stroke();
+  DUEL_BG = c;
+}
+
+// The fielding "diamond" view from behind home plate looking out.
+function buildFieldBG(HOME, BASES_XY) {
+  const { c, g } = mkCanvas(W, H);
+  // grass base + mowed stripes
+  g.fillStyle = PAL.grass; g.fillRect(0, 0, W, H);
+  for (let i = 0; i < 14; i++) if (i % 2) { g.fillStyle = PAL.grassL; g.globalAlpha = 0.45; g.fillRect(0, 22 + i * 15, W, 8); }
+  g.globalAlpha = 1;
+  // crowd + outfield wall arc across the top
+  paintStands(g, 0, 6, W, 16, 909);
+  g.strokeStyle = PAL.wall; g.lineWidth = 5;
+  g.beginPath(); g.arc(HOME.x, HOME.y, 152, Math.PI * 1.16, Math.PI * 1.84); g.stroke();
+  g.strokeStyle = PAL.wallCap; g.lineWidth = 1;
+  g.beginPath(); g.arc(HOME.x, HOME.y, 149, Math.PI * 1.16, Math.PI * 1.84); g.stroke();
+  // dirt base-paths (fat chalk-edged strip around the diamond)
+  const pts = [HOME, BASES_XY[0], BASES_XY[1], BASES_XY[2]];
+  g.strokeStyle = PAL.dirt; g.lineWidth = 12; g.lineJoin = 'round';
+  g.beginPath();
+  g.moveTo(HOME.x, HOME.y);
+  g.lineTo(BASES_XY[0].x, BASES_XY[0].y); g.lineTo(BASES_XY[1].x, BASES_XY[1].y);
+  g.lineTo(BASES_XY[2].x, BASES_XY[2].y); g.closePath(); g.stroke();
+  // infield dirt around home + mound
+  g.fillStyle = PAL.dirt;
+  g.beginPath();
+  g.moveTo(HOME.x, HOME.y + 6);
+  g.lineTo(BASES_XY[0].x + 8, BASES_XY[0].y);
+  g.lineTo(BASES_XY[1].x, BASES_XY[1].y - 8);
+  g.lineTo(BASES_XY[2].x - 8, BASES_XY[2].y);
+  g.closePath(); g.fill();
+  // grass cutout in the middle of the infield (keeps the diamond look)
+  g.fillStyle = PAL.grass;
+  g.beginPath();
+  g.moveTo(HOME.x, HOME.y - 6);
+  g.lineTo(BASES_XY[0].x - 6, BASES_XY[0].y);
+  g.lineTo(BASES_XY[1].x, BASES_XY[1].y + 6);
+  g.lineTo(BASES_XY[2].x + 6, BASES_XY[2].y);
+  g.closePath(); g.fill();
+  // pitcher's mound
+  g.fillStyle = PAL.dirtL; g.beginPath(); g.ellipse(HOME.x, HOME.y - 36, 11, 8, 0, 0, 7); g.fill();
+  // chalk foul lines
+  g.strokeStyle = PAL.line; g.lineWidth = 1;
+  g.beginPath(); g.moveTo(HOME.x, HOME.y); g.lineTo(232, 54); g.moveTo(HOME.x, HOME.y); g.lineTo(24, 54); g.stroke();
+  // bases
+  for (const b of BASES_XY) { g.fillStyle = PAL.line; g.save(); g.translate(b.x, b.y); g.rotate(Math.PI / 4); g.fillRect(-4, -4, 8, 8); g.restore(); }
+  // home plate
+  g.fillStyle = PAL.line;
+  g.beginPath();
+  g.moveTo(HOME.x - 4, HOME.y - 3); g.lineTo(HOME.x + 4, HOME.y - 3);
+  g.lineTo(HOME.x + 4, HOME.y + 1); g.lineTo(HOME.x, HOME.y + 4); g.lineTo(HOME.x - 4, HOME.y + 1);
+  g.closePath(); g.fill();
+  FIELD_BG = c;
+}
 
 // ---- text helpers ----
 function txt(s, x, y, size = 8, color = '#fff', align = 'left') {
@@ -399,7 +551,6 @@ class Match {
     this.phase = 'hr'; this.hrT = 0;
     this.sound.hrFanfare();
     this.crowd = 1;
-    this.flash('HOME RUN!', PAL.gold);
     this.fx = [];
     for (let i = 0; i < 24; i++) this.fx.push({ x: 40 + Math.random() * 176, y: 20 + Math.random() * 80, t: Math.random() * 30, hue: Math.random() });
     gs.checkWalkoff();
@@ -514,102 +665,79 @@ class Match {
   }
 
   drawDuel() {
-    // catcher's view: dirt + zone box, pitcher top, batter side
-    ctx.fillStyle = PAL.grass; ctx.fillRect(0, 0, W, 120);
-    ctx.fillStyle = PAL.grassD; for (let i = 0; i < W; i += 16) { ctx.fillRect(i, 0, 8, 120); }
-    ctx.fillStyle = '#2e8a2e'; ctx.fillRect(0, 0, W, 120);
-    // dirt mound area
-    ctx.fillStyle = PAL.dirt; ctx.beginPath(); ctx.ellipse(128, 92, 40, 16, 0, 0, 7); ctx.fill();
-    // batter's box dirt
-    ctx.fillStyle = PAL.dirt; ctx.fillRect(70, 150, 116, 62);
-    ctx.fillStyle = PAL.dirtD; ctx.fillRect(70, 150, 116, 3);
-    // home plate
-    ctx.fillStyle = PAL.line; ctx.fillRect(120, 196, 16, 8);
-    // batter's boxes lines
-    ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 1;
-    ctx.strokeRect(84, 176, 24, 30); ctx.strokeRect(148, 176, 24, 30);
+    if (!DUEL_BG) buildDuelBG();
+    ctx.drawImage(DUEL_BG, 0, 0);
 
     const gs = this.gs;
     const pitchSpr = teamSpr(gs.fieldingTeam());
     const batSpr = teamSpr(gs.battingTeam());
-    // pitcher (small, on mound)
-    const pw = (this.phase === 'flight' && this.t < 6) ? pitchSpr.pitchThrow : pitchSpr.pitchWind;
-    ctx.drawImage(pw, 120, 74);
 
-    // strike zone box
-    const zx = 128, zy = 150, zw = 22, zh = 26;
-    ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 1;
-    ctx.strokeRect(zx - zw, zy - zh, zw * 2, zh * 2);
-    // grid
-    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-    ctx.beginPath(); ctx.moveTo(zx - zw / 3, zy - zh); ctx.lineTo(zx - zw / 3, zy + zh);
-    ctx.moveTo(zx + zw / 3, zy - zh); ctx.lineTo(zx + zw / 3, zy + zh);
-    ctx.moveTo(zx - zw, zy - zh / 3); ctx.lineTo(zx + zw, zy - zh / 3);
-    ctx.moveTo(zx - zw, zy + zh / 3); ctx.lineTo(zx + zw, zy + zh / 3); ctx.stroke();
+    // strike-zone geometry (anchored just above the plate)
+    const zx = 128, zy = 168, zw = 15, zh = 20;
+    const MX = 128, MY = 104;               // mound centre
+    const handX = 128, handY = 96;          // release point
 
-    // aim reticle when pitching (human)
-    if (this.phase === 'pitch') {
-      const ax = zx + this.aimX * zw, ay = zy + this.aimY * zh;
-      if (this.pitHuman() !== 0) {
-        ctx.strokeStyle = PAL.gold; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.arc(ax, ay, 5, 0, 7); ctx.stroke();
-        ctx.fillStyle = PAL.gold; ctx.fillRect(ax - 1, ay - 1, 2, 2);
-        txtO(this.pType.toUpperCase(), 128, 40, 9, PAL.gold, 'center');
-        txtO('DPAD aim  A type  B pitch', 128, 216, 7, '#e0e0e0', 'center');
-      }
+    // --- umpire (behind the plate, drawn first so catcher overlaps) ---
+    ctx.drawImage(SPR.umpire, 128 - SPR.umpire.width / 2, 206);
+    // --- catcher (back-view crouch behind plate) ---
+    ctx.drawImage(pitchSpr.catcher, 128 - pitchSpr.catcher.width / 2, 190);
+
+    // --- pitcher on the mound (back view) ---
+    let pImg = pitchSpr.pitchSet;
+    if (this.phase === 'flight' && this.t < 10) pImg = pitchSpr.pitchThrow;
+    else if (this.phase === 'pitch' && this.pitHuman() === 0 && this.windT > this.cpuThrowDelay * 0.55) pImg = pitchSpr.pitchWind;
+    else if (this.phase === 'pitch' && this.pitHuman() !== 0 && this.windT > 0 && (this.windT >> 3) % 2) pImg = pitchSpr.pitchWind;
+    ctx.drawImage(pImg, MX - pImg.width / 2, MY + 10 - pImg.height);
+
+    // --- subtle strike-zone hint (thin translucent frame, only when useful) ---
+    const showZone = (this.phase === 'pitch' && this.pitHuman() !== 0) ||
+      (this.phase === 'flight' && this.batHuman() !== 0);
+    if (showZone) {
+      ctx.strokeStyle = 'rgba(240,240,255,0.35)'; ctx.lineWidth = 1;
+      ctx.strokeRect(zx - zw + 0.5, zy - zh + 0.5, zw * 2 - 1, zh * 2 - 1);
+      ctx.strokeStyle = 'rgba(120,200,255,0.5)';
+      ctx.strokeRect(zx - zw + 2.5, zy - zh + 2.5, zw * 2 - 5, zh * 2 - 5);
     }
 
-    // batter — right-handed box (left side of plate visually)
-    const rhb = true;
-    const bx = (rhb ? 96 : 160) + this.batBoxX * 8;
-    const by = 168;
+    // --- batter (RH, in the left box), with swing/bunt frames ---
+    const bx = 108 + this.batBoxX * 7, by = 196;
     let bs = batSpr.batStance;
     if (this.bunt && this.swung) bs = batSpr.batBunt;
     else if (this.swingAnimT > 0) { bs = batSpr.batSwing; this.swingAnimT--; }
-    if (rhb) ctx.drawImage(bs, bx - 7, by - 8);
-    else { ctx.save(); ctx.translate(bx + 7, by - 8); ctx.scale(-1, 1); ctx.drawImage(bs, 0, 0); ctx.restore(); }
+    ctx.drawImage(bs, Math.round(bx - bs.width / 2), Math.round(by - bs.height + 4));
 
-    // catcher
-    ctx.drawImage(pitchSpr.catch, 121, 200);
+    // --- aim reticle + pitch label for human pitcher ---
+    if (this.phase === 'pitch' && this.pitHuman() !== 0) {
+      const ax = zx + this.aimX * zw, ay = zy + this.aimY * zh;
+      ctx.strokeStyle = PAL.gold; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(ax, ay, 5, 0, 7); ctx.stroke();
+      ctx.fillStyle = PAL.gold; ctx.fillRect(ax - 1, ay - 1, 2, 2);
+      txtO(pitchLabel(this.pType), 128, 34, 10, PAL.gold, 'center');
+      txtO('aim  ·  Z type  ·  X pitch', 128, 220, 7, '#e6ecf4', 'center');
+    } else if (this.phase === 'flight' && this.batHuman() !== 0) {
+      txtO('X swing  ·  ↓+X bunt', 128, 220, 7, '#e6ecf4', 'center');
+    }
 
-    // ball in flight
+    // --- pitched ball, travelling from the hand down toward the plate ---
     if (this.phase === 'flight' && this.pitch) {
-      const prog = Math.min(1.05, this.t / this.pitch.frames);
-      const startX = 128, startY = 84;
+      const prog = Math.min(1.06, this.t / this.pitch.frames);
       const endX = zx + this.pitch.aimX * zw, endY = zy + this.pitch.aimY * zh;
-      const bow = (this.pitch.curve || 0) * Math.sin(prog * Math.PI) * 6;
-      const bxp = startX + (endX - startX) * prog + bow;
-      const byp = startY + (endY - startY) * prog + (this.pitch.drop || 0) * prog * prog * 8;
-      const size = 3 + prog * 4;
-      ctx.fillStyle = '#f8f8f0';
-      ctx.beginPath(); ctx.arc(bxp, byp, size / 1.5, 0, 7); ctx.fill();
-      ctx.strokeStyle = '#d84028'; ctx.lineWidth = 1; ctx.stroke();
+      const bow = (this.pitch.curve || 0) * Math.sin(prog * Math.PI) * 8;
+      const bxp = handX + (endX - handX) * prog + bow;
+      const byp = handY + (endY - handY) * prog + (this.pitch.drop || 0) * prog * prog * 10;
+      // drop-shadow on the field (grows as the ball nears the plate)
+      const sy = 196, shScale = 0.4 + prog * 0.6;
+      ctx.fillStyle = 'rgba(0,0,0,0.22)';
+      ctx.beginPath(); ctx.ellipse(bxp, sy, 4 * shScale, 1.8 * shScale, 0, 0, 7); ctx.fill();
+      // the ball itself (bigger as it approaches)
+      const img = prog > 0.5 ? SPR.ballBig : SPR.ball;
+      ctx.drawImage(img, Math.round(bxp - img.width / 2), Math.round(byp - img.height / 2));
     }
   }
 
   drawField() {
-    // overhead diamond
-    ctx.fillStyle = PAL.grass; ctx.fillRect(0, 0, W, H);
-    // mow stripes
-    ctx.fillStyle = PAL.grassD;
-    for (let i = 0; i < 14; i++) if (i % 2) ctx.fillRect(0, i * 16, W, 8);
-    // outfield wall arc
-    ctx.strokeStyle = PAL.wall; ctx.lineWidth = 4;
-    ctx.beginPath(); ctx.arc(HOME.x, HOME.y, 150, Math.PI * 1.18, Math.PI * 1.82); ctx.stroke();
-    // infield dirt diamond
-    ctx.fillStyle = PAL.dirt;
-    ctx.beginPath();
-    ctx.moveTo(HOME.x, HOME.y);
-    ctx.lineTo(BASES_XY[0].x + 6, BASES_XY[0].y);
-    ctx.lineTo(BASES_XY[1].x, BASES_XY[1].y - 6);
-    ctx.lineTo(BASES_XY[2].x - 6, BASES_XY[2].y);
-    ctx.closePath(); ctx.fill();
-    // foul lines
-    ctx.strokeStyle = PAL.line; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(HOME.x, HOME.y); ctx.lineTo(226, 60); ctx.moveTo(HOME.x, HOME.y); ctx.lineTo(30, 60); ctx.stroke();
-    // bases
-    for (const b of BASES_XY) { ctx.fillStyle = PAL.line; ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(Math.PI / 4); ctx.fillRect(-4, -4, 8, 8); ctx.restore(); }
-    ctx.fillStyle = PAL.line; ctx.fillRect(HOME.x - 4, HOME.y - 3, 8, 6);
+    if (!FIELD_BG) buildFieldBG(HOME, BASES_XY);
+    ctx.drawImage(FIELD_BG, 0, 0);
 
     const gs = this.gs;
     const defSpr = teamSpr(gs.fieldingTeam());
@@ -620,8 +748,13 @@ class Match {
         const f = this.play.fielders[k];
         const active = k === this.play.activePos;
         const fd = this.play.fdir || { x: 0, y: -1 };
+        // soft ground shadow under every fielder
+        ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.beginPath(); ctx.ellipse(f.x, f.y + 1, 6, 2.2, 0, 0, 7); ctx.fill();
         drawFieldPlayer(ctx, defSpr, f.x, f.y, active ? fd.x : 0, active ? fd.y : 1, active, this.t / 5, active && this.t % 20 < 3 ? 'catch' : '');
-        if (active) { ctx.strokeStyle = PAL.gold; ctx.lineWidth = 1; ctx.strokeRect(f.x - 8, f.y - 15, 16, 17); }
+        if (active) {
+          ctx.strokeStyle = PAL.gold; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.ellipse(f.x, f.y + 1, 8, 3, 0, 0, 7); ctx.stroke();
+        }
       }
       // landing marker for flies
       if (this.play.isFly && !this.play.resolved) {
@@ -644,8 +777,10 @@ class Match {
     // ball + shadow
     if (this.ballPos) {
       const b = this.ballPos;
-      ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(b.x, b.y, 3, 1.5, 0, 0, 7); ctx.fill();
-      ctx.drawImage(SPR.ball, Math.round(b.x - 2), Math.round(b.y - b.z - 2));
+      const sc = Math.max(0.5, 1.4 - b.z * 0.03);
+      ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.beginPath(); ctx.ellipse(b.x, b.y, 3 * sc, 1.6 * sc, 0, 0, 7); ctx.fill();
+      const img = b.z > 14 ? SPR.ballBig : SPR.ball;
+      ctx.drawImage(img, Math.round(b.x - img.width / 2), Math.round(b.y - b.z - img.height / 2));
     }
     // HR fireworks
     if (this.phase === 'hr') {
@@ -662,35 +797,58 @@ class Match {
   drawHUD() {
     const gs = this.gs;
     ctx.fillStyle = PAL.hud; ctx.fillRect(0, 0, W, 16);
+    ctx.fillStyle = '#1c2a38'; ctx.fillRect(0, 15, W, 1);
     const a = gs.teams[0], h = gs.teams[1];
-    txt(a.short, 4, 12, 9, a.colors.main);
-    txt(String(gs.score[0]), 40, 12, 9, PAL.hudT);
-    txt(h.short, 60, 12, 9, h.colors.main);
-    txt(String(gs.score[1]), 96, 12, 9, PAL.hudT);
-    // inning
+    // team abbreviations + scores, highlight side at bat
+    ctx.fillStyle = gs.half === 0 ? 'rgba(248,216,56,0.16)' : 'transparent';
+    if (gs.half === 0) ctx.fillRect(1, 1, 52, 14);
+    else { ctx.fillStyle = 'rgba(248,216,56,0.16)'; ctx.fillRect(55, 1, 52, 14); }
+    txt(a.short, 4, 12, 9, a.colors.main === '#404048' ? '#c8c8d8' : a.colors.main);
+    txtO(String(gs.score[0]), 44, 12, 9, PAL.hudT, 'right');
+    txt(h.short, 58, 12, 9, h.colors.main === '#404048' ? '#c8c8d8' : h.colors.main);
+    txtO(String(gs.score[1]), 100, 12, 9, PAL.hudT, 'right');
+    // inning with up/down arrow
     const arrow = gs.half === 0 ? '▲' : '▼';
-    txt(arrow + gs.inning, 120, 12, 9, PAL.gold, 'center');
-    // count / outs
-    txt(`B${gs.balls} S${gs.strikes}`, 150, 12, 9, PAL.hudT);
+    txt(arrow, 116, 12, 8, PAL.gold);
+    txt(String(gs.inning), 126, 12, 9, PAL.gold);
+    // count
+    txt(`B ${gs.balls}`, 140, 12, 8, '#a8d0f8');
+    txt(`S ${gs.strikes}`, 162, 12, 8, '#f8d8a0');
     // outs dots
-    for (let i = 0; i < 3; i++) { ctx.fillStyle = i < gs.outs ? PAL.red : '#405060'; ctx.fillRect(196 + i * 7, 5, 5, 5); }
-    txt('OUT', 216, 12, 7, '#90a0b0');
-    // bases diamond mini
-    const bx = 240, by = 8;
-    const drawBase = (dx, dy, on) => { ctx.save(); ctx.translate(bx + dx, by + dy); ctx.rotate(Math.PI / 4); ctx.fillStyle = on ? PAL.gold : '#405060'; ctx.fillRect(-2.5, -2.5, 5, 5); ctx.restore(); };
-    drawBase(4, 0, gs.bases[0]); drawBase(0, -4, gs.bases[1]); drawBase(-4, 0, gs.bases[2]);
+    for (let i = 0; i < 3; i++) { ctx.fillStyle = i < gs.outs ? PAL.red : '#38424e'; ctx.fillRect(186 + i * 6, 5, 4, 6); }
+    txt('O', 206, 12, 8, '#8a99a8');
+    // bases diamond (lights up occupied bases)
+    const bx = 236, by = 8;
+    const drawB = (dx, dy, on) => {
+      ctx.save(); ctx.translate(bx + dx, by + dy); ctx.rotate(Math.PI / 4);
+      ctx.fillStyle = on ? PAL.gold : '#2c3843'; ctx.fillRect(-3, -3, 6, 6);
+      ctx.strokeStyle = on ? '#fff' : '#48545e'; ctx.lineWidth = 1; ctx.strokeRect(-3, -3, 6, 6);
+      ctx.restore();
+    };
+    drawB(6, 0, gs.bases[0]); drawB(0, -6, gs.bases[1]); drawB(-6, 0, gs.bases[2]);
     // batter name strip
     if (this.phase === 'pitch' || this.phase === 'flight') {
       const b = gs.batter();
-      ctx.fillStyle = 'rgba(16,24,32,0.7)'; ctx.fillRect(0, 16, 96, 10);
-      txt(`AB ${b.name}`, 3, 24, 7, '#f0f0e0');
+      ctx.fillStyle = 'rgba(10,18,26,0.78)'; ctx.fillRect(0, 16, 104, 11);
+      ctx.fillStyle = PAL.gold; ctx.fillRect(0, 16, 2, 11);
+      txt(`AT BAT  ${b.name}`, 5, 24, 7, '#f2f2e4');
     }
   }
 
   drawMsg() {
     const alpha = Math.min(1, this.msgT / 20);
+    // pop-in scale for the first few frames
+    const grow = this.msgT > 44 ? 1.12 - (this.msgT - 44) * 0.01 : 1;
+    const size = Math.round(17 * grow);
     ctx.globalAlpha = alpha;
-    txtO(this.msg, 128, 70, 16, this.msgColor || '#fff', 'center');
+    const x = 128, y = 74;
+    ctx.font = `bold ${size}px "Courier New", monospace`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    // thick black outline
+    ctx.fillStyle = '#000';
+    for (let dx = -2; dx <= 2; dx++) for (let dy = -2; dy <= 2; dy++) if (dx || dy) ctx.fillText(this.msg, x + dx, y + dy);
+    // colored fill
+    ctx.fillStyle = this.msgColor || '#fff'; ctx.fillText(this.msg, x, y);
     ctx.globalAlpha = 1;
   }
 
