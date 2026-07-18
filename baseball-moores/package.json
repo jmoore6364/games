@@ -1,0 +1,10 @@
+{
+  "name": "baseball-moores",
+  "version": "0.1.0",
+  "description": "Baseball Moores — a Baseball Stars (NES) style arcade baseball game with team management, vanilla JS + canvas",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "verify": "node verify.mjs"
+  }
+}
