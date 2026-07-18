@@ -3,7 +3,8 @@ import { buildCourses, SEGMENT_LENGTH } from '../src/track.js';
 
 // sprite names game.js can resolve — keep in sync with sprites.js atlas
 const KNOWN_SPRITES = new Set([
-  'palm', 'pine', 'bush', 'bushDry', 'cactus', 'rock', 'mesa', 'lamp',
+  'palm', 'pine', 'oak0', 'oak1', 'oak2', 'barn', 'willow', 'reeds',
+  'deadTree', 'lavaRock', 'bush', 'bushDry', 'cactus', 'rock', 'mesa', 'lamp',
   'building0', 'building1', 'building2',
   'billboard0', 'billboard1', 'billboard2', 'billboardNeon0', 'billboardNeon1',
   'archStart', 'archCheck',

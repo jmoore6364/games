@@ -231,6 +231,94 @@ function buildCity() {
   });
 }
 
+function buildForest() {
+  const b = new Builder(505);
+  b.straight(LEN.MEDIUM);
+  b.curve(LEN.MEDIUM, CURVE.EASY, HILL.LOW);
+  b.rollingHills();
+  b.curve(LEN.LONG, -CURVE.MEDIUM, 0);
+  b.hill(LEN.MEDIUM, HILL.MEDIUM);
+  b.sCurves();
+  b.curve(LEN.MEDIUM, CURVE.MEDIUM, -HILL.LOW);
+  b.straight(LEN.MEDIUM);
+  b.curve(LEN.SHORT, -CURVE.HARD, HILL.LOW);
+  b.rollingHills();
+  b.curve(LEN.LONG, CURVE.EASY, -HILL.MEDIUM);
+  b.straight(LEN.LONG);
+  b.downhillToEnd();
+  b.scatter(['oak0', 'oak1', 'oak2', 'oak0', 'pine', 'bush', 'barn'], 0.3, 1.25, 4.5);
+  b.billboards(['billboard0', 'billboard1', 'billboard2'], 235);
+  return finalize(b, {
+    id: 'forest', name: 'AUTUMN VALLEY', bg: 'forest', laps: 2, music: { bpm: 128, root: 5 },
+    timeStart: 70, timeBonus: 26,
+    sky: ['#7ba4c8', '#cfe0ea'], fog: '#cfe0ea',
+    grass: ['#8bb85a', '#7faa50'], rumble: ['#ffffff', '#c83a2a'],
+    road: ['#6a6a70', '#646470'], lane: '#ffffff',
+    night: false,
+  });
+}
+
+function buildBayou() {
+  const b = new Builder(606);
+  b.straight(LEN.LONG);
+  b.sCurves();
+  b.straight(LEN.MEDIUM);
+  b.curve(LEN.SHORT, CURVE.HARD, 0);
+  b.curve(LEN.SHORT, -CURVE.HARD, 0);      // tight technical flat kinks
+  b.curve(LEN.SHORT, CURVE.HARD, 0);
+  b.straight(LEN.LONG);
+  b.curve(LEN.MEDIUM, -CURVE.MEDIUM, HILL.LOW);  // low levee
+  b.sCurves();
+  b.curve(LEN.LONG, CURVE.EASY, 0);
+  b.curve(LEN.SHORT, -CURVE.HARD, 0);
+  b.straight(LEN.LONG);
+  b.curve(LEN.MEDIUM, CURVE.MEDIUM, -HILL.LOW);
+  b.straight(LEN.LONG);
+  b.downhillToEnd();
+  b.scatter(['willow', 'willow', 'reeds', 'reeds', 'bush', 'rock'], 0.32, 1.2, 4.2);
+  b.billboards(['billboard0', 'billboard1', 'billboard2'], 250);
+  return finalize(b, {
+    id: 'bayou', name: 'BAYOU RUN', bg: 'bayou', laps: 2, music: { bpm: 118, root: -5 },
+    timeStart: 68, timeBonus: 25,
+    sky: ['#9aa86a', '#d6d69a'], fog: '#c6c88a',
+    grass: ['#5a6e3a', '#516434'], rumble: ['#ffffff', '#2c2c2c'],
+    road: ['#5e5a50', '#585448'], lane: '#e8e0b0',
+    night: false,
+  });
+}
+
+function buildVolcano() {
+  const b = new Builder(707);
+  b.straight(LEN.MEDIUM);
+  b.hill(LEN.MEDIUM, HILL.HIGH);
+  b.curve(LEN.SHORT, CURVE.HARD, HILL.LOW);      // steep hard climb-turn
+  b.curve(LEN.SHORT, -CURVE.HARD, -HILL.LOW);
+  b.hill(LEN.MEDIUM, HILL.HIGH);
+  b.sCurves();
+  b.curve(LEN.MEDIUM, -CURVE.HARD, -HILL.MEDIUM);
+  b.curve(LEN.SHORT, CURVE.HARD, HILL.MEDIUM);
+  b.rollingHills();
+  b.curve(LEN.MEDIUM, CURVE.MEDIUM, -HILL.HIGH);
+  b.straight(LEN.MEDIUM);
+  b.curve(LEN.LONG, -CURVE.EASY, 0);
+  b.sCurves();
+  b.straight(LEN.MEDIUM);
+  b.downhillToEnd();
+  b.scatter(['deadTree', 'deadTree', 'lavaRock', 'lavaRock', 'rock', 'mesa'], 0.28, 1.3, 4.8);
+  b.billboards(['billboardNeon0', 'billboardNeon1'], 240);
+  return finalize(b, {
+    id: 'volcano', name: 'INFERNO PASS', bg: 'volcano', laps: 2, music: { bpm: 150, root: -7 },
+    timeStart: 66, timeBonus: 25,
+    sky: ['#2a0a12', '#7a2418'], fog: '#4a1810',
+    grass: ['#2e2228', '#282026'], rumble: ['#ff7a28', '#3a3030'],
+    road: ['#3a3038', '#342a32'], lane: '#ff8a3c',
+    night: true,
+  });
+}
+
 export function buildCourses() {
-  return [buildCoast(), buildDesert(), buildRockies(), buildCity()];
+  return [
+    buildCoast(), buildDesert(), buildForest(), buildBayou(),
+    buildRockies(), buildVolcano(), buildCity(),
+  ];
 }

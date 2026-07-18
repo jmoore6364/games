@@ -218,6 +218,90 @@ function pine() {
   });
 }
 
+function oak(kind) { // autumn tree — 0 orange, 1 red, 2 gold
+  const canopy = ['#e07b28', '#c8452a', '#e0a828'][kind % 3];
+  const shade = ['#b85e18', '#9c3320', '#b8861a'][kind % 3];
+  return mk(46, 56, (g) => {
+    R(g, 20, 34, 6, 22, '#6b4a26');                      // trunk
+    R(g, 21, 34, 2, 22, '#835a30');
+    g.fillStyle = shade;
+    g.beginPath(); g.arc(23, 24, 18, 0, 7); g.fill();
+    g.fillStyle = canopy;
+    g.beginPath(); g.arc(15, 20, 12, 0, 7); g.fill();
+    g.beginPath(); g.arc(31, 20, 12, 0, 7); g.fill();
+    g.beginPath(); g.arc(23, 13, 12, 0, 7); g.fill();
+    R(g, 11, 16, 3, 3, '#f0b858'); R(g, 31, 14, 3, 3, '#f0b858'); // leaf glints
+  });
+}
+
+function barn() {
+  return mk(72, 54, (g) => {
+    R(g, 6, 24, 60, 30, '#a83228');                      // walls
+    R(g, 6, 24, 60, 4, '#8a2820');
+    g.fillStyle = '#6b4a30';                             // roof
+    g.beginPath(); g.moveTo(2, 24); g.lineTo(36, 6); g.lineTo(70, 24); g.closePath(); g.fill();
+    g.fillStyle = '#7c5638'; g.fillRect(2, 22, 68, 3);
+    R(g, 28, 34, 16, 20, '#7a231c');                     // door
+    R(g, 35, 34, 2, 20, '#5a1812');
+    g.strokeStyle = '#e8e0d0'; g.lineWidth = 1.5;        // white X trim
+    g.beginPath(); g.moveTo(28, 34); g.lineTo(44, 54); g.moveTo(44, 34); g.lineTo(28, 54); g.stroke();
+    R(g, 12, 32, 8, 8, '#e8d088'); R(g, 52, 32, 8, 8, '#e8d088');
+  });
+}
+
+function willow() { // bayou moss-draped tree
+  return mk(48, 60, (g) => {
+    R(g, 22, 30, 5, 30, '#4a3a28');
+    g.fillStyle = '#3f6b3a';
+    g.beginPath(); g.arc(24, 20, 16, 0, 7); g.fill();
+    g.beginPath(); g.arc(12, 24, 10, 0, 7); g.fill();
+    g.beginPath(); g.arc(36, 24, 10, 0, 7); g.fill();
+    g.strokeStyle = '#8a9a62'; g.lineWidth = 2;          // hanging moss
+    for (let x = 8; x <= 40; x += 5) {
+      g.beginPath(); g.moveTo(x, 28); g.lineTo(x + 1, 30 + 12 + (x % 3) * 5); g.stroke();
+    }
+  });
+}
+
+function reeds() {
+  return mk(30, 28, (g) => {
+    g.strokeStyle = '#7a9a4a'; g.lineWidth = 2;
+    for (let i = 0; i < 9; i++) {
+      const x = 3 + i * 3;
+      g.beginPath(); g.moveTo(x, 28); g.lineTo(x + (i % 2 ? 3 : -3), 28 - 15 - (i % 3) * 4); g.stroke();
+    }
+    R(g, 9, 9, 2, 5, '#8a6a3a'); R(g, 18, 7, 2, 5, '#8a6a3a'); // cattails
+  });
+}
+
+function deadTree() { // charred volcano snag
+  return mk(40, 54, (g) => {
+    R(g, 18, 18, 5, 36, '#2a2420');
+    g.strokeStyle = '#2a2420'; g.lineWidth = 3;
+    g.beginPath();
+    g.moveTo(20, 30); g.lineTo(7, 18);
+    g.moveTo(20, 26); g.lineTo(33, 11);
+    g.moveTo(20, 34); g.lineTo(31, 26);
+    g.moveTo(20, 21); g.lineTo(14, 7);
+    g.stroke();
+    g.fillStyle = 'rgba(255,120,40,0.5)'; g.fillRect(13, 50, 15, 4);
+  });
+}
+
+function lavaRock() {
+  return mk(40, 26, (g) => {
+    R(g, 4, 12, 32, 14, '#2a2228');
+    R(g, 8, 7, 22, 8, '#3a3038');
+    R(g, 12, 4, 10, 4, '#443a44');
+    g.fillStyle = 'rgba(255,110,40,0.32)'; g.fillRect(6, 18, 28, 6);
+    g.strokeStyle = '#ff7a28'; g.lineWidth = 1.5;        // glowing cracks
+    g.beginPath();
+    g.moveTo(10, 24); g.lineTo(16, 16); g.lineTo(22, 22);
+    g.moveTo(24, 13); g.lineTo(30, 20);
+    g.stroke();
+  });
+}
+
 function cactus() {
   return mk(32, 48, (g) => {
     R(g, 14, 6, 6, 42, '#3e8e41');
@@ -410,6 +494,85 @@ export function buildBackground(course) {
         g.fillRect(i * cw + cw / 2 - 1, y - 6, 2, 6);    // treetop spike
       }
     });
+  } else if (course.bg === 'forest') {
+    far = layer(W, H, (g) => {
+      // hazy rolling hills
+      for (const [color, base, amp, k, off] of [
+        ['#8fae7a', 96, 30, 2, 0.5], ['#7a9e68', 122, 26, 4, 3.0],
+      ]) {
+        g.fillStyle = color;
+        for (let x = 0; x < W; x++) {
+          const t = (x / W) * Math.PI * 2;
+          const y = base - amp * Math.max(0, Math.sin(t * k + off)) - 10 * Math.sin(t * 6 + off);
+          g.fillRect(x, y, 1, H - y);
+        }
+      }
+    });
+    near = layer(W, H, (g) => {
+      // autumn tree line
+      const cols = 96, cw = W / cols;
+      for (let i = 0; i < cols; i++) {
+        const col = ['#c8642a', '#a83e24', '#c89a2a', '#4a7a3a'][Math.floor(colHash(i, cols, 31) * 4)];
+        const y = 150 - 18 * colHash(i, cols, 32);
+        g.fillStyle = col;
+        g.beginPath(); g.arc(i * cw + cw / 2, y, cw * 0.95, 0, 7); g.fill();
+        g.fillRect(i * cw, y, cw + 1, H - y);
+      }
+    });
+  } else if (course.bg === 'bayou') {
+    far = layer(W, H, (g) => {
+      // distant murky treeline
+      g.fillStyle = '#3a5442';
+      for (let x = 0; x < W; x++) {
+        const t = (x / W) * Math.PI * 2;
+        const y = 100 - 20 * Math.max(0, Math.sin(t * 3 + 1)) - 12 * Math.abs(Math.sin(t * 8));
+        g.fillRect(x, y, 1, H - y);
+      }
+      // still water
+      g.fillStyle = '#4a5e48'; g.fillRect(0, 140, W, H - 140);
+      g.fillStyle = 'rgba(190,205,150,0.16)';
+      for (let i = 0; i < 60; i++) g.fillRect(colHash(i, 60, 41) * W, 144 + colHash(i, 60, 42) * 50, 8, 1);
+    });
+    near = layer(W, H, (g) => {
+      // cypress silhouettes
+      g.fillStyle = '#26382c';
+      const n = 12;
+      for (let i = 0; i < n; i++) {
+        const x = colHash(i, n, 43) * W;
+        g.fillRect(x, 120, 5, H - 120);
+        g.beginPath(); g.arc(x + 2, 122, 14, 0, 7); g.fill();
+      }
+    });
+  } else if (course.bg === 'volcano') {
+    far = layer(W, H, (g) => {
+      // ash-haze ridges
+      g.fillStyle = '#3a2028';
+      for (let x = 0; x < W; x++) {
+        const t = (x / W) * Math.PI * 2;
+        const y = 112 - 30 * Math.abs(Math.sin(t * 2 + 0.6)) - 14 * Math.sin(t * 5);
+        g.fillRect(x, y, 1, H - y);
+      }
+      // the cone
+      const cx = 300;
+      g.fillStyle = '#241820';
+      g.beginPath(); g.moveTo(cx - 90, H); g.lineTo(cx, 30); g.lineTo(cx + 90, H); g.closePath(); g.fill();
+      g.fillStyle = 'rgba(255,90,26,0.15)'; g.beginPath(); g.arc(cx, 40, 42, 0, 7); g.fill();
+      g.fillStyle = '#ff5a1a';                            // crater
+      g.beginPath(); g.moveTo(cx - 14, 44); g.lineTo(cx, 30); g.lineTo(cx + 14, 44); g.closePath(); g.fill();
+      g.strokeStyle = '#ff7a28'; g.lineWidth = 2;         // lava flow
+      g.beginPath(); g.moveTo(cx, 40); g.lineTo(cx - 8, 92); g.lineTo(cx + 4, H); g.stroke();
+    });
+    near = layer(W, H, (g) => {
+      // charred rock ridge + embers
+      g.fillStyle = '#1c161a';
+      const cols = 80, cw = W / cols;
+      for (let i = 0; i < cols; i++) {
+        const y = 158 - 16 * colHash(i, cols, 51) - 8 * Math.abs(Math.sin(i * 0.7));
+        g.fillRect(i * cw, y, cw + 1, H - y);
+      }
+      g.fillStyle = '#ff7a28';
+      for (let i = 0; i < 40; i++) g.fillRect(colHash(i, 40, 52) * W, 150 + colHash(i, 40, 53) * 40, 2, 2);
+    });
   } else { // city night
     far = layer(W, H, (g) => {
       // stars
@@ -461,6 +624,14 @@ export function buildSprites(night) {
   return {
     palm:          { img: palm(),                         worldW: 1500 },
     pine:          { img: pine(),                         worldW: 1300 },
+    oak0:          { img: oak(0),                         worldW: 1450 },
+    oak1:          { img: oak(1),                         worldW: 1450 },
+    oak2:          { img: oak(2),                         worldW: 1450 },
+    barn:          { img: barn(),                         worldW: 2700 },
+    willow:        { img: willow(),                       worldW: 1550 },
+    reeds:         { img: reeds(),                         worldW: 750 },
+    deadTree:      { img: deadTree(),                     worldW: 1250 },
+    lavaRock:      { img: lavaRock(),                     worldW: 1150 },
     bush:          { img: pineBush(false),                worldW: 800 },
     bushDry:       { img: pineBush(true),                 worldW: 800 },
     cactus:        { img: cactus(),                       worldW: 900 },
