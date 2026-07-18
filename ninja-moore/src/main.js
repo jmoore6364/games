@@ -2,7 +2,7 @@
 
 import { Input, initTouch } from './input.js';
 import { Sound } from './audio.js';
-import { initSprites, drawSprite, drawTile, drawBoom, THEMES, SPR } from './sprites.js';
+import { initSprites, drawSprite, drawTile, drawBoom, THEMES } from './sprites.js';
 import { TILE, T, ACTS, tileAt } from './levels.js';
 import {
   Player, spawnEnemy, updateEnemies, drawEnemies, damageEnemy, enemyHitboxes,
