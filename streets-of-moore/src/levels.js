@@ -19,7 +19,7 @@ const B = (t, x, y, drop) => ({ t, x, y, drop });
 
 export const STAGES = [
   {
-    name: 'ROUND 1', title: 'DOWNTOWN NIGHT', key: 'downtown', width: 1400, music: 'club1',
+    name: 'ROUND 1', title: 'DOWNTOWN NIGHT', key: 'downtown', width: 1440, music: 'club1',
     story: ['Rain on neon. The Syndicate', 'runs Moore City now, and the', 'police stopped answering.', '', 'Two fighters did not.'],
     breakables: [
       B('booth', 210, 160, 'apple'), B('crate', 470, 195, 'money'),
@@ -34,7 +34,7 @@ export const STAGES = [
     ],
   },
   {
-    name: 'ROUND 2', title: 'THE BRIDGE', key: 'bridge', width: 1400, music: 'club2',
+    name: 'ROUND 2', title: 'THE BRIDGE', key: 'bridge', width: 1460, music: 'club2',
     story: ['The harbor bridge, half-built', 'and full of holes. Syndicate', 'bikers use it as a race track.', '', 'Mind the gaps.'],
     holes: [
       { x: 560, w: 56, y0: GROUND_TOP + 2, y1: GROUND_TOP + 34 },
@@ -52,7 +52,7 @@ export const STAGES = [
     ],
   },
   {
-    name: 'ROUND 3', title: 'AMUSEMENT PIER', key: 'pier', width: 1400, music: 'club3',
+    name: 'ROUND 3', title: 'AMUSEMENT PIER', key: 'pier', width: 1460, music: 'club3',
     story: ['A pirate ship rots in the bay', 'behind the shuttered funfair.', 'The Syndicate collects the', 'ticket money now.', 'Closing time.'],
     breakables: [
       B('crate', 260, 195, 'apple'), B('barrel', 520, 165, 'money'),
@@ -82,7 +82,7 @@ export const STAGES = [
     triggers: [],
   },
   {
-    name: 'FINAL ROUND', title: 'SYNDICATE TOWER', key: 'tower', width: 1200, music: 'club3',
+    name: 'FINAL ROUND', title: 'SYNDICATE TOWER', key: 'tower', width: 1360, music: 'club3',
     story: ['Top floor. White carpet,', 'stolen art, a long oak desk.', '', 'Mr. Moore X is expecting you.', 'He is not worried.'],
     breakables: [
       B('crate', 250, 195, 'chicken'), B('barrel', 560, 165, 'money'),

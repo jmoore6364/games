@@ -24,9 +24,9 @@ export const CHARS = {
     key: 'axel', actor: 'ax', name: 'MOORE HAMMER', mirror: 'axd',
     hpMax: 56, spd: 1.5, spdY: 1.05, reach: 26, jumpV: 4.4,
     combo: [
-      { su: 4, act: 4, rec: 6, dmg: 3, kb: 1.0, pose: 'jab' },
-      { su: 4, act: 4, rec: 7, dmg: 3, kb: 1.2, pose: 'jab2' },
-      { su: 5, act: 4, rec: 9, dmg: 4, kb: 1.6, pose: 'hook', heavy: true },
+      { su: 4, act: 4, rec: 6, dmg: 3, kb: 0.5, pose: 'jab' },
+      { su: 4, act: 4, rec: 7, dmg: 3, kb: 0.6, pose: 'jab2' },
+      { su: 5, act: 4, rec: 9, dmg: 4, kb: 0.9, pose: 'hook', heavy: true },
       { su: 5, act: 5, rec: 13, dmg: 6, kb: 3.0, pose: 'upper', down: true, heavy: true },
     ],
     grabDmg: 3, throwDmg: 10, blitz: 'upper', blitzName: 'MOORE UPPER',
@@ -36,9 +36,9 @@ export const CHARS = {
     key: 'blaze', actor: 'bl', name: 'LUNA MOORE', mirror: 'bld',
     hpMax: 46, spd: 1.85, spdY: 1.25, reach: 22, jumpV: 4.7,
     combo: [
-      { su: 3, act: 3, rec: 5, dmg: 2, kb: 0.9, pose: 'jab' },
-      { su: 3, act: 3, rec: 6, dmg: 3, kb: 1.0, pose: 'jab2' },
-      { su: 4, act: 4, rec: 8, dmg: 3, kb: 1.4, pose: 'kick', heavy: true },
+      { su: 3, act: 3, rec: 5, dmg: 2, kb: 0.4, pose: 'jab' },
+      { su: 3, act: 3, rec: 6, dmg: 3, kb: 0.5, pose: 'jab2' },
+      { su: 4, act: 4, rec: 8, dmg: 3, kb: 0.8, pose: 'kick', heavy: true },
       { su: 4, act: 5, rec: 11, dmg: 5, kb: 2.6, pose: 'kick', down: true, heavy: true },
     ],
     grabDmg: 2, throwDmg: 8, blitz: 'flykick', blitzName: 'LUNA KICK',
@@ -53,7 +53,7 @@ export const WEAPONS = {
 };
 
 const GRABBABLE = ['seek', 'wind', 'hurt', 'block'];
-const COMBO_LINK = 20; // frames after a hit ends in which X continues the chain
+const COMBO_LINK = 24; // frames after a hit ends in which X continues the chain
 
 // ======================= PLAYER =======================
 
@@ -280,7 +280,7 @@ export class Player {
         heavy: c.heavy, weapon: c.weaponT,
       });
       if (hit && c.weaponT) this.wearWeapon(game, hit);
-      this.x += this.face * 0.4;
+      this.x += this.face * 0.5;
     }
     if (this.st >= c.su + c.act + c.rec) {
       const last = c.weaponT ? this.combo >= 1 : this.combo >= 3;
@@ -800,7 +800,7 @@ export function damageEnemy(game, e, dmg, fromX, opts = {}) {
     if (e.knife) { e.knife = false; game.dropItem('knife', e.x, e.y, 2.4); }
     game.sound.thud();
   } else if (e.state !== 'grabbed') {
-    e.state = 'hurt'; e.st = 0; e.vx = dir * (opts.kb || 1.2);
+    e.state = 'hurt'; e.st = 0; e.vx = dir * (opts.kb || 1.2) * 0.6;
   }
   return true;
 }
