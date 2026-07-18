@@ -66,6 +66,19 @@ Count forever.
   and it drinks: every landed blow restores a sliver of your health.
 - Old saves keep working; kill counts start fresh.
 
+### v1.4 — The Frost Peaks
+
+- **Frostreach Pass**: a snowbound region above Widow's Cliffs — falling
+  snow, frosted pines, slick ice you slide across, and a frostbitten
+  hermit with regrets.
+- **Coldrose Hall**: a fourth manor of frozen floors and falling icicles,
+  ruled by **the Winter Baron** and his dashing charges.
+- **New enemies**: snowball-hurling yetis and frostwisps whose bolts chill
+  your legs.
+- **The Frost Fang**: the Baron's prize — a sub-weapon that freezes lesser
+  monsters into ice statues (harmless, and half again as fragile).
+- The world map grows northward; old saves keep working.
+
 ## Controls
 
 | Action | Keys |

@@ -7,7 +7,7 @@ import { TILE, WHIPS, SUBS, atkMult } from './world.js';
 export const rects = (a, b) =>
   a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 
-const SOLID = (ch) => ch === '#' || ch === '%' || ch === '*';
+const SOLID = (ch) => ch === '#' || ch === '%' || ch === '*' || ch === 'I';
 
 function ladderTop(g, tx, ty) {
   return g.tile(tx, ty) === 'H' && g.tile(tx, ty - 1) !== 'H';
@@ -82,6 +82,7 @@ export class Player {
     this.crouch = false;
     this.invuln = 0;
     this.laurelT = 0;
+    this.slowT = 0;
     this.waterT = 0;
     this.animT = 0;
     this.deadT = 0;
@@ -128,6 +129,7 @@ export class Player {
     this.animT++;
     if (this.invuln > 0) this.invuln--;
     if (this.laurelT > 0) this.laurelT--;
+    if (this.slowT > 0) this.slowT--;
 
     if (this.state === 'dead') {
       this.deadT++;
@@ -190,14 +192,22 @@ export class Player {
 
     // normal
     const inWater = g.tile(cx, cyMid) === '~' || g.tile(cx, Math.floor((this.y + this.h - 2) / TILE)) === '~';
-    const speed = inWater ? 0.65 : 1.3;
+    let speed = inWater ? 0.65 : 1.3;
+    if (this.slowT > 0) speed *= 0.55; // frost-chilled
 
     this.crouch = this.grounded && inp.down('down') && !onLadder;
-    if (this.crouch) {
-      this.vx = 0;
-    } else if (inp.down('left')) { this.vx = -speed; this.dir = -1; }
-    else if (inp.down('right')) { this.vx = speed; this.dir = 1; }
-    else this.vx = 0;
+    let target = 0;
+    if (this.crouch) target = 0;
+    else if (inp.down('left')) { target = -speed; this.dir = -1; }
+    else if (inp.down('right')) { target = speed; this.dir = 1; }
+
+    const underCh = g.tile(cx, Math.floor((this.y + this.h + 1) / TILE));
+    if (this.grounded && underCh === 'I') {
+      this.vx += (target - this.vx) * 0.06; // slick footing
+      if (Math.abs(this.vx) < 0.02 && target === 0) this.vx = 0;
+    } else {
+      this.vx = target;
+    }
 
     if (inp.pressed('jump') && this.grounded && !this.crouch) {
       this.vy = -5.25;
@@ -235,7 +245,7 @@ export class Player {
     // remember safe footing for water-death respawn
     if (this.grounded && !inWater) {
       const under = g.tile(cx, Math.floor((this.y + this.h + 2) / TILE));
-      if (under === '#' || under === '%' || under === '=') this.lastSafe = { x: this.x, y: this.y };
+      if (under === '#' || under === '%' || under === '=' || under === 'I') this.lastSafe = { x: this.x, y: this.y };
     }
   }
 
@@ -336,6 +346,9 @@ const STATS = {
   mummy:     { hp: 8, dmg: 7, exp: 15, hearts: 3, w: 10, h: 18 },
   redskeleton: { hp: 5, dmg: 6, exp: 12, hearts: 2, w: 10, h: 18 },
   crab:      { hp: 4, dmg: 5, exp: 8, hearts: 2, w: 14, h: 8 },
+  yeti:      { hp: 10, dmg: 7, exp: 18, hearts: 3, w: 16, h: 17 },
+  frostwisp: { hp: 3, dmg: 5, exp: 9, hearts: 2, w: 11, h: 11 },
+  winterbaron: { hp: 90, dmg: 11, exp: 300, hearts: 0, w: 14, h: 21, boss: true },
   wraith:    { hp: 4, dmg: 6, exp: 10, hearts: 2, w: 12, h: 11 },
   gravelord: { hp: 55, dmg: 9, exp: 150, hearts: 0, w: 18, h: 22, boss: true },
   batlord:   { hp: 42, dmg: 8, exp: 120, hearts: 15, w: 26, h: 15, boss: true },
@@ -393,6 +406,12 @@ export function damageEnemy(g, e, dmg) {
     g.spark(e.x + e.w / 2, e.y, '#d8d8e8');
     return false;
   }
+  // frozen enemies shatter easier
+  if (e.frozenT > 0) {
+    dmg *= 1.5;
+    e.frozenT = Math.min(e.frozenT, 20);
+    g.spark(e.x + e.w / 2, e.y + 2, '#a8d8ee');
+  }
   e.hp -= dmg;
   e.hitT = 8;
   // red skeletons collapse into bones and rise again
@@ -420,6 +439,12 @@ export function damageEnemy(g, e, dmg) {
 }
 
 export function updateEnemy(g, e) {
+  if (e.frozenT > 0) { // iced solid
+    e.frozenT--;
+    if (e.hitT > 0) e.hitT--;
+    if (e.frozenT === 0) g.burst(e.x + e.w / 2, e.y + e.h / 2, 5, '#a8d8ee');
+    return;
+  }
   e.t++;
   if (e.hitT > 0) e.hitT--;
   const p = g.player;
@@ -552,6 +577,49 @@ export function updateEnemy(g, e) {
           g.sound.throwSub();
         }
         if (e.stateT > 22) e.state = 0;
+      }
+      physics(g, e);
+      break;
+    }
+    case 'yeti': {
+      e.vx = Math.sign(dx) * 0.3;
+      e.dir = Math.sign(e.vx) || e.dir;
+      if (e.hitWall || !ledgeAhead(g, e)) { e.vx = 0; e.hitWall = false; }
+      if (e.t % 160 === 0 && Math.abs(dx) < 170) {
+        g.addProj({ kind: 'snowball', owner: 'enemy', x: ecx, y: e.y + 2, vx: Math.sign(dx) * (1.3 + Math.random() * 0.8), vy: -3.6, dmg: e.dmg, grav: true });
+        g.sound.throwSub();
+      }
+      physics(g, e);
+      break;
+    }
+    case 'frostwisp': {
+      const sp = 0.7;
+      const len = Math.hypot(dx, dy) || 1;
+      e.x += (dx / len) * sp + Math.sin(e.t / 13) * 0.4;
+      e.y += (dy / len) * sp * 0.6 + Math.sin(e.t / 9) * 0.5;
+      if (e.t % 150 === 70 && Math.abs(dx) < 200) {
+        g.addProj({ kind: 'frostbolt', owner: 'enemy', x: ecx, y: ecy, vx: (dx / len) * 1.8, vy: (dy / len) * 1.8, dmg: e.dmg });
+        g.sound.throwSub();
+      }
+      if (g.frame % 6 === 0) g.spark(ecx, ecy + 4, '#a8d8ee');
+      break;
+    }
+    case 'winterbaron': {
+      if (e.state === 0) {
+        e.vx = Math.sign(dx) * 0.4;
+        e.dir = Math.sign(e.vx) || e.dir;
+        if (e.t % 130 === 0 && Math.abs(dx) < 200) { e.state = 1; e.stateT = 0; e.vx = Math.sign(dx) * 2.6; }
+        if (e.t % 170 === 90) {
+          // icicles form over the hunter's head
+          const roomTop = (e.roomTopY !== undefined ? e.roomTopY : e.y - 60);
+          for (const off of [-24, 0, 24]) {
+            g.addProj({ kind: 'icicle', owner: 'enemy', x: pcx + off, y: roomTop + 8, vx: 0, vy: 0, delay: 34, dmg: e.dmg });
+          }
+          g.sound.throwSub();
+        }
+      } else {
+        if (++e.stateT > 40) { e.state = 0; e.vx = 0; }
+        if (e.hitWall) { e.vx *= -1; e.hitWall = false; }
       }
       physics(g, e);
       break;
@@ -793,6 +861,13 @@ export function drawEnemy(g, ctx, e) {
       } else put(f2 ? 'redskel1' : 'redskel2', 16, 18);
       break;
     case 'gravelord': put((Math.floor(e.t / 10) & 1) ? 'gravelord1' : 'gravelord2', 24, 22); break;
+    case 'yeti': put(f2 ? 'yeti1' : 'yeti2', 20, 17); break;
+    case 'frostwisp':
+      ctx.globalAlpha = 0.8 + Math.sin(e.t / 7) * 0.15;
+      put('frostwisp', 12, 11);
+      ctx.globalAlpha = 1;
+      break;
+    case 'winterbaron': put((Math.floor(e.t / 9) & 1) ? 'winterbaron1' : 'winterbaron2', 16, 21); break;
     case 'merman': put('merman', 16, 16); break;
     case 'mudman': put(f2 ? 'mudman1' : 'mudman2', 16, 12); break;
     case 'spider': {
@@ -833,12 +908,24 @@ export function drawEnemy(g, ctx, e) {
     }
     case 'demon': put((Math.floor(e.t / 8) & 1) ? 'demon1' : 'demon2', 32, 22); break;
   }
+
+  // frozen solid: encased in a block of ice
+  if (e.frozenT > 0) {
+    ctx.fillStyle = 'rgba(140,208,255,0.45)';
+    ctx.fillRect(e.x - 3, e.y - 3, e.w + 6, e.h + 6);
+    ctx.fillStyle = 'rgba(232,246,255,0.8)';
+    ctx.fillRect(e.x - 3, e.y - 3, e.w + 6, 2);
+  }
 }
 
 // ============================== PROJECTILES ==============================
 
 export function updateProj(g, pr) {
   pr.t = (pr.t || 0) + 1;
+  if (pr.kind === 'icicle') {
+    if (pr.t < pr.delay) return; // forming — a shimmer, not yet falling
+    pr.vy = 3.4;
+  }
   if (pr.grav) pr.vy += 0.22;
   if (pr.kind === 'cross') {
     pr.vx -= pr.dir * 0.09;
@@ -854,6 +941,9 @@ export function updateProj(g, pr) {
   const tx = Math.floor(pr.x / TILE), ty = Math.floor(pr.y / TILE);
   const ch = g.tile(tx, ty);
   if (SOLID(ch)) {
+    if (pr.kind === 'icicle') {
+      g.burst(pr.x, pr.y, 5, '#a8d8ee');
+    }
     if (pr.kind === 'holywater') {
       g.addProj({ kind: 'flame', owner: 'player', x: pr.x - 6, y: ty * TILE - 14, w: 14, h: 14, dmg: pr.dmg, t: 0 });
       g.sound.flame();
@@ -916,6 +1006,41 @@ export function drawProj(g, ctx, pr) {
       ctx.arc(x, y, 3.5, 0, 7);
       ctx.fill();
       if (g.frame % 3 === 0) g.spark(x - pr.vx * 3, y - pr.vy * 3, '#e85818');
+      break;
+    }
+    case 'snowball': {
+      ctx.fillStyle = '#f0f4fa';
+      ctx.beginPath(); ctx.arc(x, y, 3.5, 0, 7); ctx.fill();
+      ctx.fillStyle = '#b8c8d8';
+      ctx.fillRect(x - 1, y, 2, 1);
+      break;
+    }
+    case 'frostbolt': {
+      ctx.fillStyle = (g.frame & 2) ? '#a8d8ee' : '#e8f6ff';
+      ctx.beginPath(); ctx.arc(x, y, 3, 0, 7); ctx.fill();
+      if (g.frame % 3 === 0) g.spark(x - pr.vx * 3, y - pr.vy * 3, '#a8d8ee');
+      break;
+    }
+    case 'iceshard': {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(pr.t / 5);
+      drawSprite(ctx, 'ice_i', -4, -3, false);
+      ctx.restore();
+      break;
+    }
+    case 'icicle': {
+      if (pr.t < pr.delay) {
+        if (g.frame & 2) {
+          ctx.fillStyle = 'rgba(168,216,238,0.5)';
+          ctx.fillRect(x - 2, y - 2, 4, 6);
+        }
+      } else {
+        ctx.fillStyle = '#c8e8f8';
+        ctx.beginPath();
+        ctx.moveTo(x - 3, y - 6); ctx.lineTo(x + 3, y - 6); ctx.lineTo(x, y + 5);
+        ctx.fill();
+      }
       break;
     }
     case 'beam': {
