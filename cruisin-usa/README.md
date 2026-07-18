@@ -40,6 +40,11 @@ caught and you're BUSTED, sitting still while the clock runs. And once
 you set a course record, a translucent **ghost** of that run races you
 on every attempt, with a live gap readout under the progress bar.
 
+Press **2** on the title screen for **two-player split screen**: player 1
+on arrows (top view), player 2 on WASD (bottom view), each with their own
+car, timer, draft, cops, and wipeouts — you appear in each other's world,
+trade paint when you touch, and the race ends in a head-to-head verdict.
+
 ## Controls
 
 | Key | Action |
@@ -48,8 +53,12 @@ on every attempt, with a live gap readout under the progress bar.
 | ↑ / W | Gas |
 | ↓ / S | Brake |
 | Enter | Start / continue (or tap GAS on touch) |
+| 2 | Toggle two-player split screen (title screen) |
 | R | Restart race |
 | M | Mute |
+
+In split screen, arrows drive player 1 and WASD drives player 2; a second
+gamepad drives player 2 too.
 
 Gamepad (standard mapping: stick/dpad to steer, A or right trigger for gas,
 B or left trigger for brake) and on-screen touch controls on mobile are
