@@ -25,12 +25,12 @@ export const LEVELS = [
     id: 1, tier: 0, title: 'Just Dig!', theme: 'moss',
     rate: 50, spawn: 10, quota: 8, time: 240,
     skills: { digger: 10 },
-    hatch: { x: 200, y: 70 }, exit: { x: 500, y: 140 },
+    hatch: { x: 200, y: 80 }, exit: { x: 500, y: 140 },
     terrain: [
       { op: 'rect', x: 0, y: 140, w: 640, h: 20 },
-      { op: 'rect', x: 120, y: 90, w: 200, h: 30 },
-      { op: 'rect', x: 120, y: 80, w: 8, h: 10 },
-      { op: 'rect', x: 312, y: 80, w: 8, h: 10 },
+      { op: 'rect', x: 120, y: 96, w: 200, h: 30 },
+      { op: 'rect', x: 120, y: 86, w: 8, h: 10 },
+      { op: 'rect', x: 312, y: 86, w: 8, h: 10 },
     ],
     hazards: [],
     solution: [

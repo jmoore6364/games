@@ -51,7 +51,7 @@ class Game {
     this.levelIdx = 0;
     this.particles = [];
     this.demoFolk = [];
-    for (let i = 0; i < 7; i++) this.demoFolk.push({ x: -20 - i * 34, f: i * 5 });
+    for (let i = 0; i < 9; i++) this.demoFolk.push({ x: (i * 41) % 330 - 10, f: i * 5 });
 
     // terrain render buffers
     this.tCanvas = document.createElement('canvas');
@@ -542,15 +542,17 @@ class Game {
 
     // marching demo
     for (const f of this.demoFolk) {
-      f.x += 0.25;
+      f.x += 0.35;
       if (f.x > VIEW_W + 12) f.x = -14;
       const spr = SPR[((this.frame + f.f) >> 3) & 1 ? 'walk1' : 'walk2'][0];
       ctx.drawImage(spr, f.x | 0, 150 - 13);
     }
 
+    ctx.fillStyle = '#10240c';
+    ctx.fillRect(0, 168, VIEW_W, 32);
     if ((this.frame >> 5) % 2) text(ctx, 'CLICK TO START', VIEW_W / 2, 106, '#f8f8f8', 10, 'center');
-    text(ctx, 'save the little green-haired folk', VIEW_W / 2, 176, '#556', 7, 'center');
-    text(ctx, 'M mute - Esc menus', VIEW_W / 2, 188, '#556', 7, 'center');
+    text(ctx, 'save the little green-haired folk', VIEW_W / 2, 174, '#7a9', 7, 'center');
+    text(ctx, 'M mute - Esc menus', VIEW_W / 2, 186, '#7a9', 7, 'center');
   }
 
   drawSelect() {
@@ -603,7 +605,7 @@ class Game {
       ctx.strokeRect(xs[i] - 35.5, 128.5, 71, 19);
       text(ctx, opts[i], xs[i], 133, '#f8f8f8', 9, 'center');
     }
-    text(ctx, won ? 'Enter = next' : 'Enter = retry', VIEW_W / 2, 160, '#556', 7, 'center');
+    text(ctx, won ? 'Enter = next' : 'Enter = retry', VIEW_W / 2, 156, '#889', 7, 'center');
   }
 }
 

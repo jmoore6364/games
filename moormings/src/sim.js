@@ -291,7 +291,6 @@ export class Sim {
   }
 
   checkZones(m) {
-    if (!this.active(m) || m.job === 'blocker') { /* blockers sit still, already placed safe */ }
     if (m.job === 'splat' || m.job === 'drown' || m.job === 'burn' || m.job === 'exiting' || !m.alive) return;
     // fell out of the world
     if (m.y >= H - 1) { m.alive = false; this.dead++; this.ev('splat', m.x, H - 2); return; }
