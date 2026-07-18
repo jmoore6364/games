@@ -127,6 +127,9 @@ class Game {
       if (b.drop === 'bloodwhip' && this.save.whip < 4) {
         this.pickups.push({ kind: 'bloodwhip', x: b.orbX * TILE + 3, y: b.orbY * TILE + 6, vy: 0, ttl: 1e9 });
       }
+      if (b.drop === 'frostfang' && !this.save.subs.includes('ice')) {
+        this.pickups.push({ kind: 'frostfang', x: b.orbX * TILE + 3, y: b.orbY * TILE + 6, vy: 0, ttl: 1e9 });
+      }
     }
     if (z.id === 'moonwell') this.save.flags.seen_moonwell = true;
     // treasure chests
@@ -220,6 +223,7 @@ class Game {
     if (s.sub === 'axe') this.addProj({ kind: 'axe', owner: 'player', x: px, y: py, vx: p.dir * 1.7, vy: -4.6, grav: true, dmg: 3 * dmgBase });
     if (s.sub === 'holywater') this.addProj({ kind: 'holywater', owner: 'player', x: px, y: py, vx: p.dir * 1.5, vy: -2.2, grav: true, dmg: 1.4 * dmgBase });
     if (s.sub === 'cross') this.addProj({ kind: 'cross', owner: 'player', x: px, y: py + 2, vx: p.dir * 2.9, vy: 0, dir: p.dir, dmg: 2 * dmgBase });
+    if (s.sub === 'ice') this.addProj({ kind: 'iceshard', owner: 'player', x: px, y: py + 2, vx: p.dir * 3.0, vy: 0, dmg: 1.5 * dmgBase });
   }
 
   drown() {
@@ -271,6 +275,12 @@ class Game {
       this.writeSave();
       return;
     }
+    if (z.boss && z.boss.drop === 'frostfang') {
+      this.pickups.push({ kind: 'frostfang', x: z.boss.orbX * TILE + 3, y: z.boss.orbY * TILE + 6, vy: 0, ttl: 1e9 });
+      this.showBanner('THE HALL\'S CHILL SOFTENS...');
+      this.writeSave();
+      return;
+    }
     if (e.type === 'demon') {
       this.save.flags.won = true;
       this.endTimer = 200;
@@ -318,7 +328,7 @@ class Game {
       if (this.bossActive) s.playMusic('boss');
       else if (this.zone.indoor) s.playMusic(this.zone.music === 'cata' || this.zone.music === 'night' ? this.zone.music : 'manor');
       else if (this.night) s.playMusic('night');
-      else s.playMusic(this.zone.music === 'town' || this.zone.music === 'port' ? this.zone.music : 'day');
+      else s.playMusic(['town', 'port', 'frost'].includes(this.zone.music) ? this.zone.music : 'day');
     }
     s.updateMusic();
     inp.endFrame();
@@ -460,6 +470,7 @@ class Game {
       const ty = Math.floor((p.y + p.h - 1) / TILE);
       if (tx >= tr.x0 && tx <= tr.x1 && ty >= tr.y0 && ty <= tr.y1) {
         const boss = spawnEnemy(this, zb.type, zb.x, zb.y);
+        boss.roomTopY = tr.y0 * TILE;
         boss.clampRoom = (g, e) => {
           e.x = Math.max(tr.x0 * TILE, Math.min(e.x, tr.x1 * TILE - e.w));
           e.y = Math.max(tr.y0 * TILE, Math.min(e.y, tr.y1 * TILE - e.h));
@@ -485,8 +496,8 @@ class Game {
       if (e.dead) continue;
       if (!e.clampRoom) e.clampRoom = () => {};
       updateEnemy(this, e);
-      // contact damage (collapsed bone piles are harmless)
-      if (!e.collapsed && rects({ x: e.x, y: e.y, w: e.w, h: e.h }, p.hurtbox())) {
+      // contact damage (collapsed bone piles and ice statues are harmless)
+      if (!e.collapsed && !e.frozenT && rects({ x: e.x, y: e.y, w: e.w, h: e.h }, p.hurtbox())) {
         p.hurt(this, e.dmg, e.x + e.w / 2);
       }
       // despawn far-away ambient enemies
@@ -509,13 +520,18 @@ class Game {
           if (rects(r, { x: e.x, y: e.y, w: e.w, h: e.h })) {
             const tick = pr.kind === 'flame' ? (pr.t % 12 === 0) : true;
             if (tick && damageEnemy(this, e, pr.dmg)) {
-              if (pr.kind === 'dagger' || pr.kind === 'holywater') pr.dead = true;
+              if (pr.kind === 'iceshard' && !e.boss && !e.dead) {
+                e.frozenT = 130;
+                this.sound.stairs();
+              }
+              if (pr.kind === 'dagger' || pr.kind === 'holywater' || pr.kind === 'iceshard') pr.dead = true;
             }
           }
         }
       } else {
         if (rects(r, p.hurtbox())) {
           p.hurt(this, pr.dmg, pr.x);
+          if (pr.kind === 'frostbolt') p.slowT = 110;
           pr.dead = true;
         }
         // whip can destroy enemy shots
@@ -537,7 +553,7 @@ class Game {
         const ty = Math.floor((pk.y + 8) / TILE);
         const tx = Math.floor((pk.x + 4) / TILE);
         const ch = this.tile(tx, ty);
-        if (ch === '#' || ch === '%' || ch === '*' || ch === '=') { pk.y = ty * TILE - 8; pk.vy = 0; }
+        if (ch === '#' || ch === '%' || ch === '*' || ch === '=' || ch === 'I') { pk.y = ty * TILE - 8; pk.vy = 0; }
       }
       if (rects({ x: pk.x, y: pk.y, w: 9, h: 9 }, p.hurtbox())) this.takePickup(pk);
     }
@@ -634,6 +650,14 @@ class Game {
         this.sound.relic();
         this.burst(pk.x + 5, pk.y + 4, 20, '#c03028');
         this.showBanner('THE BLOOD WHIP! IT DRINKS SO YOU MAY LIVE.');
+        this.writeSave();
+        break;
+      case 'frostfang':
+        if (!s.subs.includes('ice')) s.subs.push('ice');
+        if (!s.sub) s.sub = 'ice';
+        this.sound.relic();
+        this.burst(pk.x + 5, pk.y + 4, 20, '#a8d8ee');
+        this.showBanner('THE FROST FANG! WINTER FIGHTS FOR YOU NOW.');
         this.writeSave();
         break;
       case 'chest': {
@@ -1051,7 +1075,7 @@ class Game {
     // pickups
     for (const pk of this.pickups) {
       const bob = pk.kind === 'orb' ? Math.sin(this.frame / 16) * 2 : 0;
-      const name = { heart: 'heart_s', bigheart: 'heart_b', tonic: 'tonic', laurel: 'laurel_i', orb: 'orb', amulet: 'amulet_i', chest: 'chest', bloodwhip: 'bloodwhip_i' }[pk.kind];
+      const name = { heart: 'heart_s', bigheart: 'heart_b', tonic: 'tonic', laurel: 'laurel_i', orb: 'orb', amulet: 'amulet_i', chest: 'chest', bloodwhip: 'bloodwhip_i', frostfang: 'ice_i' }[pk.kind];
       if (pk.kind === 'orb' && (this.frame & 15) === 0) this.spark(pk.x + 6, pk.y + 4, '#e8d8f8');
       if (pk.kind === 'amulet' && (this.frame & 15) === 0) this.spark(pk.x + 5, pk.y + 3, '#48c8d8');
       if (pk.kind === 'bloodwhip' && (this.frame & 7) === 0) this.spark(pk.x + 5, pk.y + 3, '#c03028');
@@ -1075,6 +1099,18 @@ class Game {
     }
 
     ctx.restore();
+
+    // snowfall in the frost peaks
+    if (this.zone.theme === 'frost' || this.zone.theme === 'ice') {
+      const n = this.zone.theme === 'frost' ? 46 : 16;
+      for (let i = 0; i < n; i++) {
+        const sp = 0.5 + (i % 3) * 0.25;
+        const sx = ((i * 137) % VIEW_W + Math.sin(this.frame / 50 + i) * 14 + this.frame * 0.2 * ((i % 4) - 1.5)) % VIEW_W;
+        const sy = (i * 61 + this.frame * sp) % VIEW_H;
+        ctx.fillStyle = `rgba(240,246,255,${0.35 + (i % 3) * 0.2})`;
+        ctx.fillRect((sx + VIEW_W) % VIEW_W, sy, i % 3 === 0 ? 2 : 1, i % 3 === 0 ? 2 : 1);
+      }
+    }
 
     // night tint over the world
     if (!this.zone.indoor && this.nightBlend > 0) {
@@ -1363,6 +1399,7 @@ class Game {
       cliffs: [316, 132, 'CLIFFS'],
       castle: [340, 62, 'CASTLE'], manor1: [64, 98, 'BRAMBLEWICK'], catacombs: [64, 170, 'CATACOMBS'],
       manor2: [232, 98, 'GRIMHOLLOW'], manor3: [316, 98, 'RAVENMOOR'],
+      frostpass: [278, 62, 'FROSTREACH'], coldrose: [232, 62, 'COLDROSE'],
     };
     ctx.strokeStyle = '#5a5a68';
     const line = (a, b) => {
@@ -1376,6 +1413,7 @@ class Game {
     line('marsh', 'bridge'); line('bridge', 'vireton'); line('vireton', 'cliffs');
     line('graveyard', 'manor1'); line('graveyard', 'catacombs');
     line('bridge', 'manor2'); line('cliffs', 'manor3'); line('cliffs', 'castle');
+    line('cliffs', 'frostpass'); line('frostpass', 'coldrose');
     if (nodes.moonwell) line('westwood', 'moonwell');
     const relicAt = { manor1: 'fang', manor2: 'eye', manor3: 'chalice' };
     for (const [id, [x, y, label]] of Object.entries(nodes)) {
@@ -1429,7 +1467,7 @@ class Game {
     drawSprite(ctx, 'zombie1', VIEW_W / 2 + 44, 178, true);
     text(ctx, 'A SIMON\'S QUEST STYLE ADVENTURE · ORIGINAL ART & MUSIC', VIEW_W / 2, 216, '#556', 7, 'center');
     text(ctx, 'M: MUTE', VIEW_W / 2, 228, '#445', 7, 'center');
-    text(ctx, 'v1.3 THE BLOOD MOON', 6, 228, '#445', 7);
+    text(ctx, 'v1.4 THE FROST PEAKS', 6, 228, '#445', 7);
   }
 
   renderStory(pages, title) {

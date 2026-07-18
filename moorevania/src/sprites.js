@@ -1079,6 +1079,122 @@ def('demon2', [
   '........ppp......ppp............',
 ]);
 
+def('yeti1', [
+  '.....WWWWWW.........',
+  '....WWWWWWWW........',
+  '...WWWkWWkWWW.......',
+  '...WWWWWWWWWW.......',
+  '...WWWKKKKWWW.......',
+  '..WWWWWWWWWWWW......',
+  '.WWWWWWWWWWWWWW.....',
+  '.WWWWWWWWWWWWWW.....',
+  'WWWWWWWWWWWWWWWW....',
+  'WWW.WWWWWWWW.WWW....',
+  'WWW.WWWWWWWW.WWW....',
+  'AWW.WWWWWWWW.WWA....',
+  '....WWWWWWWW........',
+  '....WWW..WWW........',
+  '....WWW..WWW........',
+  '...WWWW..WWWW.......',
+  '...AWW....WWA.......',
+  '....................',
+]);
+
+def('yeti2', [
+  '.....WWWWWW.........',
+  '....WWWWWWWW........',
+  '...WWWkWWkWWW.......',
+  '...WWWWWWWWWW.......',
+  '...WWWKKKKWWW.......',
+  '..WWWWWWWWWWWW......',
+  '.WWWWWWWWWWWWWW.....',
+  'WWWWWWWWWWWWWWWW....',
+  'WWW.WWWWWWWWW.WW....',
+  'WW..WWWWWWWWW..W....',
+  'WA..WWWWWWWWW..A....',
+  '....WWWWWWWW........',
+  '....WWWWWWWW........',
+  '...WWWW.WWWW........',
+  '...WWW...WWW........',
+  '..WWWW...WWWW.......',
+  '..AWW.....WWA.......',
+  '....................',
+]);
+
+def('frostwisp', [
+  '....cc......',
+  '..ccWWcc....',
+  '.ccWWWWcc...',
+  '.cWWkkWWc...',
+  'ccWWWWWWcc..',
+  'ccWWWWWWcc..',
+  '.cWWWWWWc...',
+  '.ccWWWWcc...',
+  '..cc.Wcc....',
+  '....c.c.....',
+  '.....c......',
+]);
+
+def('winterbaron1', [
+  '....c.c.c.......',
+  '....ccccc.......',
+  '....AAAAAA......',
+  '...AAAAAAAA.....',
+  '...AkAAAAkA.....',
+  '...AAAAAAAA.....',
+  '....AAAAAA......',
+  '...cAAAAAAc.....',
+  '..ccAAAAAAcc....',
+  '..cAAAAAAAAc....',
+  '..c.AAAAAA.c....',
+  '..c.AAAAAA.c....',
+  '..ccAAAAAAcc....',
+  '....AAAAAA......',
+  '....AAAAAA......',
+  '....AA..AA......',
+  '....AA..AA......',
+  '....AA..AA......',
+  '...cAA..AAc.....',
+  '...cc....cc.....',
+  '..ccc....ccc....',
+  '................',
+]);
+
+def('winterbaron2', [
+  '....c.c.c.......',
+  '....ccccc.......',
+  '....AAAAAA......',
+  '...AAAAAAAA.....',
+  '...AkAAAAkA.....',
+  '...AAAAAAAA.....',
+  '....AAAAAA......',
+  '...cAAAAAAc.....',
+  '..ccAAAAAAcc....',
+  '..cAAAAAAAAc....',
+  '..c.AAAAAA.c....',
+  '..c.AAAAAA.c....',
+  '..ccAAAAAAcc....',
+  '....AAAAAA......',
+  '...AAA..AAA.....',
+  '...AA....AA.....',
+  '...AA....AA.....',
+  '..cAA....AAc....',
+  '..cc......cc....',
+  '.ccc......ccc...',
+  '................',
+  '................',
+]);
+
+def('ice_i', [
+  '...c....',
+  '..ccc...',
+  '..cWc...',
+  '.ccWcc..',
+  '.cWWWc..',
+  'ccWWWcc.',
+  '.ccccc..',
+]);
+
 def('nyxara1', [
   '....WWW.............',
   '...WWWWWW...........',
@@ -1495,6 +1611,8 @@ const THEME_SOLID = {
   catacomb: ['#4e4638', '#383226', '#5e5644'],
   port: ['#5e6a62', '#46504a', '#6e7a72'],
   well: ['#4e5a72', '#38425a', '#5e6a86'],
+  frost: ['#8a9ab0', '#6a7a90', '#a8b8d0'],
+  ice: ['#5a7a9a', '#42607e', '#6e90b2'],
 };
 
 export function drawTile(ctx, ch, theme, px, py, t, above) {
@@ -1519,6 +1637,9 @@ export function drawTile(ctx, ch, theme, px, py, t, above) {
         } else if (theme === 'grave') {
           ctx.fillStyle = '#4a6a48';
           ctx.fillRect(px, py, T, 2);
+        } else if (theme === 'frost') {
+          ctx.fillStyle = '#f0f4fa';
+          ctx.fillRect(px, py, T, 3);
         }
       }
       break;
@@ -1588,6 +1709,17 @@ export function drawTile(ctx, ch, theme, px, py, t, above) {
       ctx.fillRect(px, py + 14, T, 2);
       break;
     }
+    case 'I': {
+      ctx.fillStyle = '#a8d8ee';
+      ctx.fillRect(px, py, T, T);
+      ctx.fillStyle = '#7ab8da';
+      ctx.fillRect(px, py + 12, T, 4);
+      ctx.fillRect(px + 5, py + 3, 1, 6);
+      ctx.fillRect(px + 11, py + 6, 1, 5);
+      ctx.fillStyle = '#e8f6ff';
+      ctx.fillRect(px, py, T, 2);
+      break;
+    }
     case 't': {
       // floating candle, animated flame
       ctx.fillStyle = '#e8e0c8';
@@ -1654,9 +1786,9 @@ const SKY = {
 
 // phase: 0 day, 1 night; blend handles dusk.
 export function drawBG(ctx, theme, camX, camY, t, nightBlend, W, H) {
-  const indoor = theme === 'manor' || theme === 'manor2' || theme === 'manor3' || theme === 'castle' || theme === 'catacomb' || theme === 'well';
+  const indoor = theme === 'manor' || theme === 'manor2' || theme === 'manor3' || theme === 'castle' || theme === 'catacomb' || theme === 'well' || theme === 'ice';
   if (indoor) {
-    const base = { manor: '#241a14', manor2: '#161a26', manor3: '#241416', castle: '#16121e', catacomb: '#141008', well: '#0c1024' }[theme];
+    const base = { manor: '#241a14', manor2: '#161a26', manor3: '#241416', castle: '#16121e', catacomb: '#141008', well: '#0c1024', ice: '#101a28' }[theme];
     ctx.fillStyle = base;
     ctx.fillRect(0, 0, W, H);
     // faint arches
@@ -1742,7 +1874,7 @@ export function drawBG(ctx, theme, camX, camY, t, nightBlend, W, H) {
 
   // near layer per theme
   const nearCol = lerpC(
-    { town: '#4a5a70', forest: '#2a4a30', grave: '#3a4250', marsh: '#3a4a30', bridge: '#2a3a55', cliff: '#4a4248', port: '#3a4a52' }[theme] || '#3a4250',
+    { town: '#4a5a70', forest: '#2a4a30', grave: '#3a4250', marsh: '#3a4a30', bridge: '#2a3a55', cliff: '#4a4248', port: '#3a4a52', frost: '#8a9cb8' }[theme] || '#3a4250',
     '#0c1020', nightBlend * 0.85);
   ctx.fillStyle = nearCol;
   const nOff = camX * 0.4;
@@ -1796,6 +1928,23 @@ export function drawBG(ctx, theme, camX, camY, t, nightBlend, W, H) {
       const x = gx * 52 - nOff;
       const hh = 60 + hash(gx * 11) * 60;
       ctx.fillRect(x, H - hh, 52, hh);
+    }
+  } else if (theme === 'frost') {
+    // snowbound peaks and frosted pines
+    for (let i = -1; i < W / 56 + 2; i++) {
+      const gx = Math.floor(nOff / 56) + i;
+      const x = gx * 56 - nOff;
+      const hh = 55 + hash(gx * 11) * 55;
+      ctx.beginPath();
+      ctx.moveTo(x - 10, H); ctx.lineTo(x + 28, H - hh); ctx.lineTo(x + 66, H); ctx.fill();
+      ctx.fillStyle = lerpC('#eef2f8', '#2a3450', nightBlend * 0.8);
+      ctx.beginPath();
+      ctx.moveTo(x + 18, H - hh + 18); ctx.lineTo(x + 28, H - hh); ctx.lineTo(x + 38, H - hh + 18); ctx.fill();
+      ctx.fillStyle = nearCol;
+      if (hash(gx * 3) > 0.5) {
+        ctx.beginPath();
+        ctx.moveTo(x + 44, H); ctx.lineTo(x + 50, H - 34); ctx.lineTo(x + 56, H); ctx.fill();
+      }
     }
   } else if (theme === 'bridge') {
     // fog bank over the lake

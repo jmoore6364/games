@@ -40,6 +40,7 @@ export const SUBS = {
   axe: { name: 'BATTLE AXE', cost: 2, icon: 'axe_i' },
   holywater: { name: 'HOLY WATER', cost: 2, icon: 'holy_i' },
   cross: { name: 'GOLDEN CROSS', cost: 3, icon: 'cross_i' },
+  ice: { name: 'FROST FANG', cost: 2, icon: 'ice_i' },
 };
 
 export const ITEMS = {
@@ -108,11 +109,14 @@ export const BESTIARY = [
   { type: 'fireskull', name: 'FIRE SKULL', icon: 'fireskull1', lore: 'A SKULL THAT REMEMBERS BURNING.' },
   { type: 'knight', name: 'HOLLOW KNIGHT', icon: 'knight1', lore: 'EMPTY ARMOR, FULL OF SPITE.' },
   { type: 'mummy', name: 'MUMMY', icon: 'mummy1', lore: 'WRAPPED FOR A JOURNEY IT REFUSES.' },
+  { type: 'yeti', name: 'YETI', icon: 'yeti1', lore: 'THE PASS BELONGS TO IT. IT KNOWS.' },
+  { type: 'frostwisp', name: 'FROSTWISP', icon: 'frostwisp', lore: 'A BREATH THE WINTER NEVER EXHALED.' },
   { type: 'batlord', name: 'THE BAT LORD', icon: 'batlord2', lore: 'FIRST WARDEN OF THE FANG.', boss: 'boss_manor1' },
   { type: 'gravelord', name: 'THE GRAVELORD', icon: 'gravelord1', lore: 'THE BONE-KING BELOW THE CRYPT.', boss: 'boss_catacombs' },
   { type: 'reaper', name: 'THE REAPER', icon: 'reaper', lore: 'GRIMHOLLOW\'S PATIENT HARVESTER.', boss: 'boss_manor2' },
   { type: 'bonedragon', name: 'BONE DRAGON', icon: 'dragonhead', lore: 'RAVENMOOR\'S COILED SENTINEL.', boss: 'boss_manor3' },
   { type: 'vorlok', name: 'COUNT VORLOK', icon: 'vorlok1', lore: 'THE COUNT. TWICE-KILLED, TWICE-RISEN.', boss: 'won' },
+  { type: 'winterbaron', name: 'THE WINTER BARON', icon: 'winterbaron1', lore: 'COLDROSE HALL\'S FROZEN MASTER.', boss: 'boss_coldrose' },
   { type: 'nyxara', name: 'NYXARA', icon: 'nyxara1', lore: 'THE BLOOD MOON MADE FLESH.', boss: 'boss_moonwell' },
 ];
 
@@ -313,6 +317,7 @@ function zCliffs() {
     id: 'cliffs', name: "WIDOW'S CLIFFS", theme: 'cliff', music: 'day',
     map: b.rows(), left: 'vireton',
     doors: [
+      { x: 45, kind: 'zone', to: 'frostpass', tox: 3, label: 'FROSTREACH PASS' },
       { x: 90, kind: 'zone', to: 'manor3', tox: 3, label: 'RAVENMOOR KEEP' },
       { x: 112, kind: 'zone', to: 'castle', tox: 3, label: 'CASTLE VORLOK', lockRelics: 3 },
     ],
@@ -466,6 +471,65 @@ function zCatacombs() {
   };
 }
 
+function zFrostpass() {
+  const b = mk(120);
+  b.ground(0, 119, 12);
+  b.ground(30, 60, 10);
+  b.ground(70, 105, 8);
+  // slick ice patches on the walking surfaces
+  b.fill(18, 12, 26, 12, 'I');
+  b.fill(40, 10, 48, 10, 'I');
+  b.fill(78, 8, 86, 8, 'I');
+  b.fill(108, 12, 114, 12, 'I');
+  b.fill(64, 11, 66, 11, '^');
+  b.plat(14, 3, 9);
+  b.candles(11, 8, 27).candles(9, 35, 52).candles(7, 74, 95).candles(8, 15);
+  b.deco('f', 11, 4, 5);
+  return {
+    id: 'frostpass', name: 'FROSTREACH PASS', theme: 'frost', music: 'frost',
+    map: b.rows(),
+    doors: [
+      { x: 3, kind: 'zone', to: 'cliffs', tox: 47, label: 'DESCEND' },
+      { x: 100, kind: 'zone', to: 'coldrose', tox: 3, label: 'COLDROSE HALL' },
+    ],
+    npcs: [
+      { x: 20, sprite: 'hermit', name: 'FROSTBITTEN SVEN', lines: ['THE BARON\'S HALL FREEZES YOUR FOOTING.', 'HIS ICICLES FALL WHERE YOU STAND.', 'KEEP MOVING. I DIDN\'T.', 'I CAME FOR THE FROST FANG.', 'I STAYED BECAUSE... COLD.'] },
+    ],
+    spawns: [['yeti', 34], ['yeti', 82], ['frostwisp', 50, 5], ['frostwisp', 95, 3], ['crow', 65, 11]],
+    ambient: { day: ['crow'], night: ['wraith', 'bat'], max: 3, rate: 170 },
+  };
+}
+
+function zColdrose() {
+  const b = shell(mk(100, 24));
+  b.fill(1, 15, 50, 15, '#').fill(58, 15, 98, 15, '#');
+  b.fill(20, 9, 80, 9, '#');
+  b.ladder(10, 16, 20).put(10, 15, 'H');
+  b.ladder(74, 16, 20).put(74, 15, 'H');
+  b.ladder(30, 10, 14).put(30, 5 + 5, 'H').put(30, 9, 'H');
+  b.plat(52, 5, 12);
+  // frozen stretches of floor
+  b.fill(24, 15, 40, 15, 'I');
+  b.fill(60, 21, 80, 21, 'I');
+  b.fill(40, 9, 60, 9, 'I');
+  b.fill(44, 20, 46, 20, '^').fill(66, 14, 67, 14, '^');
+  b.fill(82, 13, 82, 14, '*');
+  b.candles(14, 86, 90);
+  b.candles(20, 6, 16, 26, 36, 64);
+  b.candles(14, 8, 18, 46, 62, 70);
+  b.candles(8, 24, 32, 48, 56, 64, 72);
+  b.deco('c', 20, 30, 54).deco('c', 19, 30, 54).deco('c', 18, 30, 54);
+  b.deco('w', 12, 14, 68).deco('w', 6, 40, 60);
+  return {
+    id: 'coldrose', name: 'COLDROSE HALL', theme: 'ice', music: 'manor', indoor: true,
+    map: b.rows(),
+    doors: [{ x: 3, kind: 'zone', to: 'frostpass', tox: 98, label: 'LEAVE' }],
+    npcs: [],
+    spawns: [['knight', 34], ['knight', 62, 14], ['frostwisp', 40, 12], ['frostwisp', 70, 6], ['yeti', 28, 8], ['redskeleton', 70], ['spider', 45, 1]],
+    boss: { type: 'winterbaron', x: 86, y: 19, trigger: { x0: 76, x1: 98, y0: 16, y1: 22 }, orbX: 88, orbY: 20, relic: null, drop: 'frostfang' },
+  };
+}
+
 function zMoonwell() {
   const b = shell(mk(60, 15));
   b.plat(10, 4, 8).plat(26, 4, 7).plat(44, 4, 8);
@@ -512,7 +576,7 @@ function zCastle() {
 }
 
 export const ZONES = {};
-for (const z of [zHollow(), zWestwood(), zGraveyard(), zMarsh(), zBridge(), zVireton(), zCliffs(), zManor1(), zManor2(), zManor3(), zCatacombs(), zMoonwell(), zCastle()]) {
+for (const z of [zHollow(), zWestwood(), zGraveyard(), zMarsh(), zBridge(), zVireton(), zCliffs(), zFrostpass(), zColdrose(), zManor1(), zManor2(), zManor3(), zCatacombs(), zMoonwell(), zCastle()]) {
   z.w = z.map[0].length;
   z.h = z.map.length;
   ZONES[z.id] = z;
@@ -525,7 +589,7 @@ export function tileAt(zone, tx, ty) {
   return zone.map[ty][tx];
 }
 
-export function isSolid(ch) { return ch === '#' || ch === '%' || ch === '*'; }
+export function isSolid(ch) { return ch === '#' || ch === '%' || ch === '*' || ch === 'I'; }
 
 // First solid row below open air in this column (skips a solid ceiling).
 export function findGround(zone, tx) {
