@@ -1,0 +1,9 @@
+{
+  "name": "speedmoore-2",
+  "version": "0.1.0",
+  "description": "Speedmoore 2 — a Speedball 2: Brutal Deluxe style future-sports game, vanilla JS + canvas",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
