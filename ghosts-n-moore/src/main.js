@@ -687,17 +687,17 @@ class Game {
     text(ctx, 'R.I.P', 56, 126, '#3a3a46', 9, 'center');
     text(ctx, 'MOORE', 56, 140, '#3a3a46', 8, 'center');
     // title
-    text(ctx, "GHOSTS 'N", VIEW_W / 2 + 20, 44, '#f83030', 20, 'center');
-    text(ctx, 'MOORE', VIEW_W / 2 + 20, 68, '#f8d838', 26, 'center');
-    text(ctx, 'ONE KNIGHT. TWO HITS. NO MERCY.', VIEW_W / 2, 102, '#99a', 8, 'center');
+    text(ctx, "GHOSTS 'N", VIEW_W / 2, 30, '#f83030', 20, 'center');
+    text(ctx, 'MOORE', VIEW_W / 2, 54, '#f8d838', 26, 'center');
+    text(ctx, 'ONE KNIGHT. TWO HITS. NO MERCY.', VIEW_W / 2, 90, '#99a', 8, 'center');
     if (this.frame % 60 < 40) {
-      text(ctx, this.touch ? 'TAP THROW TO START' : 'PUSH ENTER OR THROW', VIEW_W / 2 + 20, 150, '#f8f8f8', 9, 'center');
+      text(ctx, this.touch ? 'TAP THROW TO START' : 'PUSH ENTER OR THROW', VIEW_W / 2 + 30, 140, '#f8f8f8', 9, 'center');
     }
-    text(ctx, `HI SCORE ${String(this.hiScore).padStart(6, '0')}`, VIEW_W / 2 + 20, 166, '#a8a8c0', 8, 'center');
-    text(ctx, '© 19XX MOORE ARCADE', VIEW_W / 2, 212, '#556', 8, 'center');
+    text(ctx, `HI SCORE ${String(this.hiScore).padStart(6, '0')}`, VIEW_W / 2 + 30, 158, '#a8a8c0', 8, 'center');
+    text(ctx, '© 19XX MOORE ARCADE', VIEW_W / 2, 196, '#556', 8, 'center');
     // knight and a zombie by the stone
-    drawSprite(ctx, 'k_stand', 96, 160, false);
-    drawSprite(ctx, 'zomb1', 140 + Math.sin(this.frame / 40) * 4, 164, true);
+    drawSprite(ctx, 'k_stand', 92, 160, true);
+    drawSprite(ctx, 'zomb1', 148 + Math.sin(this.frame / 40) * 4, 164, true);
   }
 
   updateTitle() {

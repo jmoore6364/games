@@ -5,7 +5,7 @@ import { drawSprite, drawSpriteClip, drawPoof, SPR } from './sprites.js';
 
 export const GRAV = 0.22;
 const JUMPV = -4.35;
-const SPEED = 1.25;
+const SPEED = 1.3;
 const MAXFALL = 4.4;
 const CLIMB = 1.1;
 
