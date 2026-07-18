@@ -1,0 +1,9 @@
+{
+  "name": "bonks-moore-venture",
+  "version": "0.1.0",
+  "description": "Bonk's Moore-venture — a TurboGrafx-16 Bonk's Adventure style headbutt platformer, vanilla JS + canvas",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

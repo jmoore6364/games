@@ -1,0 +1,9 @@
+{
+  "name": "shining-moore",
+  "version": "0.1.0",
+  "description": "Shining Moore — a Sega Genesis style tactical RPG, vanilla JS + canvas",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

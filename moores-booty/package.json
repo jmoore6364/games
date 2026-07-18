@@ -1,0 +1,10 @@
+{
+  "name": "moores-booty",
+  "version": "0.1.0",
+  "description": "Moore's Booty — a Sid Meier's Pirates! style open-world pirate sandbox, vanilla JS + canvas",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node tests/test.js"
+  }
+}
