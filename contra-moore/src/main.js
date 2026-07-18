@@ -64,6 +64,7 @@ class Game {
     const src = STAGES[this.stageIdx];
     // fresh grid copy so exploded bridges come back on retry
     this.stage = { ...src, g: { w: src.g.w, h: src.g.h, d: Uint8Array.from(src.g.d) } };
+    this.diff = this.stageIdx; // 0..3 — later areas shoot faster and more often
     this.enemies = [];
     this.pbullets = [];
     this.ebullets = [];
@@ -172,7 +173,7 @@ class Game {
       return;
     }
     const p = new Player(this.lastSafe.x, this.lastSafe.y - 6);
-    p.invuln = 130;
+    p.invuln = 180;
     this.player = p;
   }
 
@@ -246,7 +247,9 @@ class Game {
         }
         return;
       }
-      const fromLeft = (this.frame % 4 === 0);
+      if (this.enemies.filter((e) => e.t === 'runner').length >= 3 + this.diff) return;
+      // only flank from behind if the player has room to see it coming
+      const fromLeft = (this.frame % 4 === 0) && this.player.x > this.camX + 80;
       const sx = fromLeft ? this.camX - 14 : this.camX + VIEW_W + 2;
       const col = Math.floor((sx + 7) / TILE);
       let row = -1;
