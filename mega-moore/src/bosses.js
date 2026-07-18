@@ -18,9 +18,10 @@ export const BOSSES = {
 const WDMG = { P: 1, T: 2, F: 1, G: 2, V: 2 };
 
 export class Boss {
-  constructor(game, id, x, y) {
+  constructor(game, id, x, y, arenaX) {
     this.id = id;
     this.def = BOSSES[id];
+    this.arenaX = arenaX;
     this.x = x; this.y = y;
     this.w = id === 'moorly' ? 28 : 16;
     this.h = id === 'moorly' ? 24 : 21;
@@ -50,8 +51,8 @@ export class Boss {
     if (this.hp <= 0) { this.hp = 0; this.dead = true; }
   }
 
-  arena(game) {
-    const x0 = game.stage.bossRoomX * TILE;
+  arena() {
+    const x0 = this.arenaX;
     return { x0: x0 + 4, x1: x0 + 240 - this.w - 4, floor: 13 * TILE };
   }
 
@@ -68,7 +69,7 @@ export class Boss {
     if (this.iv > 0) this.iv--;
     this.t++;
     const P = game.player;
-    const A = this.arena(game);
+    const A = this.arena();
     const dir = P.x + P.w / 2 > this.x + this.w / 2 ? 1 : -1;
 
     if (this.state === 'fall') {
@@ -241,8 +242,8 @@ export class Boss {
     const cx = A.x0 + 104;
     if (this.phase === 0) { // hover
       this.hover = (this.hover || 0) + 0.03 * speed;
-      this.x = cx + Math.sin(this.hover) * 88;
-      this.y = 3 * TILE + Math.sin(this.hover * 2.3) * 10;
+      this.x += (cx + Math.sin(this.hover) * 88 - this.x) * 0.12;
+      this.y += (3 * TILE + Math.sin(this.hover * 2.3) * 10 - this.y) * 0.08;
       this.face = dir;
       if (this.t > (this.hp <= 14 ? 90 : 140)) {
         this.t = 0; this.phase = 1;

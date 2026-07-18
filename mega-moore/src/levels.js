@@ -254,7 +254,8 @@ const STAGE_DEFS = {
       { x: 112, y: 9, dir: 'h', len: 16, on: 50, offd: 80, off: 0 },
     ],
     rushChunk: 5, // boss-rush refight room lives in chunk 5
-    checkpointX: 98,
+    checkpointX: 50, // before the rush room so it cannot be skipped by dying
+
   },
 };
 

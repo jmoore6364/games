@@ -279,6 +279,7 @@ class Game {
     this.boss = new Boss(this, bossId, ax + 116, -40, ax);
     this.boss.face = -1;
     this.bossBar = 0;
+    this.bossIntroName = 130;
     this.mode = 'intro';
     this.camX = ax;
     this.sound.playMusic('boss');
@@ -354,10 +355,12 @@ class Game {
     const P = this.player;
     const st = this.stage;
 
-    // pause menu
-    if (inp.pressed('start') && ['play', 'boss'].includes(this.mode) && !P.dead) {
-      this.paused = !this.paused;
-      if (this.paused) { this.menuSel = 0; this.sound.menuOpen(); } else { this.sound.pause(); }
+    // pause menu (opening consumes the press; updateMenu handles closing)
+    if (!this.paused && inp.pressed('start') && ['play', 'boss'].includes(this.mode) && !P.dead) {
+      this.paused = true;
+      this.menuSel = 0;
+      this.sound.menuOpen();
+      return;
     }
     if (this.paused) { this.updateMenu(); return; }
 
