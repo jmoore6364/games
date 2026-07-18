@@ -139,6 +139,10 @@ class Game {
     this.bs = 'intro';
     this.bsT = 1.8;
     this.anim = null;
+    this.mover = null;
+    this.cutin = null;
+    this.spellFx = null;
+    this.lvPanel = null;
     this.moveTiles = null;
     this.inspectU = null;
     this.floaties = [];

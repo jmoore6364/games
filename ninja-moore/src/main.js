@@ -569,7 +569,10 @@ class Game {
         if (t === T.EMPTY) continue;
         const sx = tx * TILE - this.camX, sy = ty * TILE - this.camY;
         const topOpen = tileAt(g, tx, ty - 1) !== T.SOLID;
-        drawTile(ctx, t, this.act.theme, sx, sy, this.frame, topOpen);
+        const interior = t === T.SOLID && !topOpen &&
+          tileAt(g, tx - 1, ty) === T.SOLID && tileAt(g, tx + 1, ty) === T.SOLID &&
+          tileAt(g, tx, ty + 1) === T.SOLID;
+        drawTile(ctx, t, this.act.theme, sx, sy, this.frame, topOpen, interior);
         // pit edge stripes: telegraph the drop
         if (!this.scene.vertical && t === T.SOLID && topOpen) {
           const leftPit = tx > 0 && !this.colFloor[tx - 1];
@@ -663,23 +666,23 @@ class Game {
     ctx.fillRect(0, 0, VIEW_W, VIEW_H);
     // huge moon
     ctx.fillStyle = '#f0f0d8';
-    ctx.beginPath(); ctx.arc(VIEW_W / 2, 96, 58, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(VIEW_W / 2, 108, 52, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#d8d8c0';
-    ctx.beginPath(); ctx.arc(VIEW_W / 2 - 18, 82, 9, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(VIEW_W / 2 + 22, 110, 6, 0, Math.PI * 2); ctx.fill();
-    // rooftops
+    ctx.beginPath(); ctx.arc(VIEW_W / 2 - 18, 94, 9, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(VIEW_W / 2 + 22, 122, 6, 0, Math.PI * 2); ctx.fill();
+    // rooftops; the center one is tall enough to stand against the moon
     ctx.fillStyle = '#0c0c1c';
     for (let i = 0; i < 9; i++) {
-      const hh = 30 + ((i * 29) % 34);
+      const hh = i === 4 ? 76 : 30 + ((i * 29) % 34);
       ctx.fillRect(i * 30, VIEW_H - 34 - hh, 31, hh + 34);
       ctx.fillRect(i * 30 + 4, VIEW_H - 40 - hh, 22, 6);
     }
     // the ninja on the tallest roof, silhouetted on the moon
-    drawSprite(ctx, 'p_stand', VIEW_W / 2 - 8, 118, false);
-    ctx.fillStyle = 'rgba(7,7,20,0.35)';
-    ctx.fillRect(VIEW_W / 2 - 10, 118, 20, 22);
+    drawSprite(ctx, 'p_stand', VIEW_W / 2 - 9, 110, false);
 
+    text(ctx, 'NINJA', VIEW_W / 2 + 1, 27, '#101010', 30, 'center');
     text(ctx, 'NINJA', VIEW_W / 2, 26, '#f82818', 30, 'center');
+    text(ctx, 'M O O R E', VIEW_W / 2 + 1, 59, '#101010', 16, 'center');
     text(ctx, 'M O O R E', VIEW_W / 2, 58, '#f8d838', 16, 'center');
     if (this.frame % 60 < 40) {
       text(ctx, this.touch ? 'TAP SLASH TO START' : 'PUSH ENTER OR SLASH', VIEW_W / 2, 172, '#f8f8f8', 9, 'center');

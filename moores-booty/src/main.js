@@ -443,6 +443,7 @@ class Game {
         W.defeatNemesis(st);
         W.removeShip(st, e);
         this.battleEnemy = null;
+        this.bannerT = 0;
         this.state = 'ending';
         this.sound.treasureFanfare();
         this.sound.playMusic('ending');
@@ -681,6 +682,7 @@ class Game {
     st.retired = true;
     this.retireInfo = W.careerScore(st);
     this.retireMarooned = marooned;
+    this.bannerT = 0;
     this.state = 'retire';
     this.sound.setWaves(false);
     this.sound.playMusic(marooned ? 'title' : 'ending');

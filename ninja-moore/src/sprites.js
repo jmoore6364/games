@@ -829,9 +829,14 @@ export const THEMES = {
 };
 
 // t: 1 solid, 2 platform, 5 spikes
-export function drawTile(ctx, t, themeKey, sx, sy, frame, topOpen) {
+export function drawTile(ctx, t, themeKey, sx, sy, frame, topOpen, interior = false) {
   const th = THEMES[themeKey];
   if (t === 1) {
+    if (interior) { // buried deep: flat, quiet
+      ctx.fillStyle = th.solidDark;
+      ctx.fillRect(sx, sy, 16, 16);
+      return;
+    }
     ctx.fillStyle = th.solid;
     ctx.fillRect(sx, sy, 16, 16);
     ctx.fillStyle = th.solidDark;
