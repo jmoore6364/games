@@ -99,7 +99,7 @@ export class Actor {
     this.walkPhase = 0;
     this.talking = false;
     this.onArrive = null;
-    this.speed = 46;
+    this.speed = 72;
   }
 
   walkTo(room, x, y, onArrive) {

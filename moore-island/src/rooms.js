@@ -50,8 +50,10 @@ function stars(g, seed, y0, y1, n = 60) {
 }
 
 function moon(g, x, y, r = 9) {
-  g.globalAlpha = 0.10; rc(g, x - r * 2.2, y - r * 2.2, r * 4.4, r * 4.4, '#9fc8e8');
-  g.globalAlpha = 0.12; rc(g, x - r * 1.5, y - r * 1.5, r * 3, r * 3, '#bfe0f8');
+  g.globalAlpha = 0.08; g.fillStyle = '#9fc8e8';
+  g.beginPath(); g.arc(x, y, r * 2.4, 0, 7); g.fill();
+  g.globalAlpha = 0.12; g.fillStyle = '#bfe0f8';
+  g.beginPath(); g.arc(x, y, r * 1.6, 0, 7); g.fill();
   g.globalAlpha = 1;
   g.fillStyle = '#e8f2ff';
   g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
@@ -1075,9 +1077,12 @@ export const ROOMS = {
       speckle(g, 153, 244, 52, 42, 46, '#3c5460', 60);
       g.fillStyle = '#4a6a5a';
       for (let i = 0; i < 8; i++) g.fillRect(248 + (i * 11) % 32, 58 + (i * 7) % 36, 3, 3);
+      // floor (before the props that sit on it)
+      dith(g, 0, 96, VIEW_W, 44, '#182030', '#121826');
+      speckle(g, 155, 0, 98, VIEW_W, 40, '#243048', 130);
       // grog crates
-      crate(g, 158, 100, 24, 16, '#3a3a2a'); crate(g, 172, 96, 22, 14, '#44442e');
-      g.fillStyle = '#8a8a5a'; g.font = '4px monospace'; g.textAlign = 'center'; g.fillText('GROG', 170, 88);
+      crate(g, 158, 112, 24, 16, '#3a3a2a'); crate(g, 174, 108, 22, 14, '#44442e');
+      g.fillStyle = '#8a8a5a'; g.font = '4px monospace'; g.textAlign = 'center'; g.textBaseline = 'top'; g.fillText('GROG', 170, 100);
       // glowing pool
       g.fillStyle = '#0e3a4a'; g.beginPath(); g.ellipse(50, 118, 30, 11, 0, 0, 7); g.fill();
       g.fillStyle = '#1a6a6a'; g.beginPath(); g.ellipse(50, 118, 24, 8, 0, 0, 7); g.fill();
@@ -1089,14 +1094,11 @@ export const ROOMS = {
       glow(g, 50, 116, 30, '#20a898', 0.09);
       // compass glint
       if (!S || !S.inv.includes('compass')) {
-        rc(g, 200, 92, 8, 6, '#2a4a3a');
+        rc(g, 198, 94, 10, 6, '#2a4a3a');
         g.globalAlpha = 0.6 + 0.4 * Math.sin(t * 4);
-        rc(g, 202, 90, 3, 3, '#a0ffd0');
+        rc(g, 201, 92, 3, 3, '#a0ffd0');
         g.globalAlpha = 1;
       }
-      // floor
-      dith(g, 0, 96, VIEW_W, 44, '#182030', '#121826');
-      speckle(g, 155, 0, 98, VIEW_W, 40, '#243048', 130);
       glow(g, 264, 90, 24, '#40d870', 0.05);
     },
   },

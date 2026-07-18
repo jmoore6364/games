@@ -12,6 +12,16 @@ export function initInput(canvas, handlers) {
   };
 
   let lastClick = 0;
+  let lastPos = { x: -99, y: -99 };
+
+  // double-click = quick second click NEAR the first one
+  const isDouble = (p, win) => {
+    const now = performance.now();
+    const dbl = now - lastClick < win && Math.hypot(p.x - lastPos.x, p.y - lastPos.y) < 10;
+    lastClick = now;
+    lastPos = p;
+    return dbl;
+  };
 
   canvas.addEventListener('mousemove', (e) => handlers.move(pos(e)));
 
@@ -20,10 +30,7 @@ export function initInput(canvas, handlers) {
     const p = pos(e);
     handlers.move(p);
     if (e.button === 2) { handlers.click(p, true); return; }
-    const now = performance.now();
-    const dbl = now - lastClick < 320;
-    lastClick = now;
-    handlers.click(p, dbl);
+    handlers.click(p, isDouble(p, 320));
   });
 
   canvas.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -32,10 +39,7 @@ export function initInput(canvas, handlers) {
     e.preventDefault();
     const p = pos(e);
     handlers.move(p);
-    const now = performance.now();
-    const dbl = now - lastClick < 340;
-    lastClick = now;
-    handlers.click(p, dbl);
+    handlers.click(p, isDouble(p, 360));
   }, { passive: false });
 
   window.addEventListener('keydown', (e) => {
