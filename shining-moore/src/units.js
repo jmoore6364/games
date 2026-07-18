@@ -251,12 +251,12 @@ export function rangeOf(u) {
 // XP for dealing dmg to / killing a target, scaled down when overleveled.
 export function xpForHit(u, target, dmg, kill) {
   const tl = target.level || 1;
-  let xp = kill ? 22 + tl * 3 : Math.min(20, 4 + Math.floor(dmg * 1.4));
+  let xp = kill ? 34 + tl * 7 : Math.min(30, 6 + Math.floor(dmg * 2));
   const over = u.level - tl - 2;
-  if (over > 0) xp = Math.max(1, Math.floor(xp / (1 + over * 0.6)));
-  return Math.min(70, xp);
+  if (over > 0) xp = Math.max(1, Math.floor(xp / (1 + over * 0.5)));
+  return Math.min(95, xp);
 }
 
 export function xpForHeal(u, amount) {
-  return Math.min(18, 8 + Math.floor(amount / 4));
+  return Math.min(24, 10 + Math.floor(amount / 2));
 }

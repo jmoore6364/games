@@ -1,0 +1,9 @@
+{
+  "name": "streets-of-moore",
+  "version": "0.1.0",
+  "description": "Streets of Moore — a Streets of Rage 2 style beat-'em-up, vanilla JS + canvas",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

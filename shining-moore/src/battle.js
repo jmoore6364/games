@@ -253,6 +253,7 @@ export class Battle {
       } else {
         let dmg = this.physDamage(a, d);
         if (this.rng() * 100 < a.crit) { r.crit = true; dmg = Math.floor(dmg * 1.8) + 1; }
+        if (counter) dmg = Math.max(1, Math.floor(dmg * 0.6));
         d.hp = Math.max(0, d.hp - dmg);
         r.dmg = dmg; r.hpAfter = d.hp;
         if (d.hp === 0) { r.kill = true; this.killUnit(d); }
@@ -331,7 +332,7 @@ export class Battle {
     if (sp.kind === 'heal' && results.length === 0 && u.side === 'player') totalXp = 3;
     const ev = {
       t: 'spell', id: u.id, spell: spellId, name: sp.name, kind: sp.kind,
-      center, tiles, results, xp: Math.min(70, totalXp), levelUps: [],
+      center, tiles, results, xp: Math.min(95, totalXp), levelUps: [],
     };
     if (u.side === 'player' && ev.xp > 0) ev.levelUps = grantXp(u, ev.xp, this.rng);
     this.events.push(ev);
