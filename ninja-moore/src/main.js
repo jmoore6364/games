@@ -326,9 +326,8 @@ class Game {
       if (this.timeLeft <= 0) killPlayer(this);
     }
 
-    const prevSlash = P.slashT;
     P.update(this, inp);
-    if (P.slashT === 12 && prevSlash <= 0) P.slashId = (P.slashId || 0) + 1;
+    if (P.slashT === 12) P.slashId = (P.slashId || 0) + 1; // a fresh swing hits everyone once
 
     // camera
     if (sc.vertical) {

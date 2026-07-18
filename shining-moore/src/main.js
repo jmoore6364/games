@@ -211,7 +211,7 @@ class Game {
     const findU = (id) => E.units.find((u) => u.id === id);
     if (ev.t === 'move') {
       this.mover = { u: findU(ev.id), path: ev.path, prog: 0 };
-      if (this.mover.u.side === 'enemy') this.sound.step();
+      if (this.mover.u.side === 'enemy') this.sound.footstep();
     } else if (ev.t === 'combat') {
       const au = findU(ev.a), du = findU(ev.d);
       this.cutin = { a: au, d: du, rounds: ev.rounds, ri: -1, xp: ev.xp, xpTo: ev.xpTo || (au.side === 'player' ? au.id : null), slide: 0 };
@@ -1138,6 +1138,7 @@ class Game {
 
 initSprites();
 const game = new Game();
+window.game = game; // exposed for tests / tinkering
 let last = performance.now();
 function loop(now) {
   const dt = Math.min(0.05, (now - last) / 1000);

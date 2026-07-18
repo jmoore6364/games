@@ -167,12 +167,11 @@ function a3s2() {
   const g = makeGrid(16, 52);
   const { fill, carve, plat } = helpers(g);
   fill();
-  carve(6, 9, 3, 47);          // the shaft
-  carve(2, 13, 44, 47);        // bottom chamber (floor = row 48)
+  carve(6, 9, 3, 47);          // the shaft (floor = row 48, walls x5/x10 all the way down)
   carve(2, 13, 1, 3);          // top chamber
   plat(6, 7, 38); plat(8, 9, 30); plat(6, 7, 22); plat(8, 9, 14);
   return {
-    g, startX: 4 * TILE, startY: 47 * TILE + 16 - 20, exit: 'top', vertical: true, time: 250,
+    g, startX: 7 * TILE, startY: 47 * TILE + 16 - 20, exit: 'top', vertical: true, time: 250,
     exitY: 2 * TILE,
     checkpointY: 22 * TILE, checkpointPos: { x: 6 * TILE + 4, y: 22 * TILE - 20 },
     spawns: [

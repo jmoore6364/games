@@ -109,7 +109,7 @@ export const FORCE = [
   { id: 'mira', name: 'MIRA', klass: 'healer', weapon: 'rod1', joinAfter: -1, face: 'mira' },
   { id: 'kael', name: 'KAEL', klass: 'knight', weapon: 'lance1', joinAfter: -1, face: 'kael' },
   { id: 'pip', name: 'PIP', klass: 'archer', weapon: 'bow1', joinAfter: 0, face: 'pip' },
-  { id: 'zin', name: 'ZIN', klass: 'mage', weapon: 'rod1', joinAfter: 1, face: 'zin' },
+  { id: 'zin', name: 'ZIN', klass: 'mage', weapon: 'rod1', joinAfter: 0, face: 'zin' },
   { id: 'sly', name: 'SLY', klass: 'wolf', weapon: 'claw1', joinAfter: 2, face: 'sly' },
   { id: 'aer', name: 'AER', klass: 'birdman', weapon: 'spear1', joinAfter: 3, face: 'aer' },
 ];

@@ -228,7 +228,7 @@ export class Sound {
   cancel() { this.tone('square', 500, 300, 0.08, 0.25); }
   deny() { this.tone('square', 160, 120, 0.16, 0.4); }
   buy() { this.tone('square', 800, 0, 0.06, 0.3); this.tone('square', 1200, 0, 0.08, 0.3, 0.07); }
-  step() { this.noise(0.03, 0.12, 2500); }
+  footstep() { this.noise(0.03, 0.12, 2500); }
   hit() { this.noise(0.09, 0.5, 900); this.tone('square', 300, 120, 0.1, 0.35); }
   crit() { this.noise(0.16, 0.6, 700); this.tone('sawtooth', 400, 80, 0.2, 0.5); }
   miss() { this.noise(0.06, 0.2, 3000); }

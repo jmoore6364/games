@@ -149,7 +149,8 @@ function buildFalls() {
     { t: 'goal', x: 114, row: 3 },
   ];
   smileys(spawns, 4, 16, 24);
-  smileys(spawns, 22, 42, 25); // over the pool surface
+  smileys(spawns, 22, 26, 25); // over the pool surface
+  smileys(spawns, 38, 42, 25);
   smileys(spawns, 30, 34, 27); // underwater, beneath the shelf
   smileys(spawns, 48, 58, 24);
   // a trail of smileys up the climb wall

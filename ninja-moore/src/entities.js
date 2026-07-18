@@ -61,6 +61,7 @@ export class Player {
     this.animT++;
     if (this.invuln > 0) this.invuln--;
     if (this.clingLock > 0) this.clingLock--;
+    if (this.wjT > 0) this.wjT--;
     if (this.slashT > 0) this.slashT--;
     if (this.dropT > 0) this.dropT--;
 
@@ -93,10 +94,11 @@ export class Player {
       this.face = -this.cling; // face away from wall
       if (inp.pressed('jump')) {
         // jump away; steer back mid-air for the same-wall climb tech
-        this.cling === 1 ? this.vx = -WJUMP_VX : this.vx = WJUMP_VX;
+        this.vx = this.cling === 1 ? -WJUMP_VX : WJUMP_VX;
         this.vy = JUMP + 0.1;
         this.cling = 0;
         this.clingLock = 7;
+        this.wjT = 16; // wall jumps are full, fixed height (the climb tech relies on it)
         game.sound.wallKick();
       } else if (inp.down('down') && inp.pressed('fire')) {
         this.cling = 0; // let go
@@ -126,7 +128,7 @@ export class Player {
         this.vx = Math.max(-AIRCAP, Math.min(AIRCAP, this.vx));
         this.face = dir;
       }
-      if (!inp.down('jump') && this.vy < -2) this.vy = -2; // variable jump height
+      if (!inp.down('jump') && this.vy < -2 && !(this.wjT > 0)) this.vy = -2; // variable jump height
     }
 
     // ---- attacks ----
