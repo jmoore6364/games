@@ -185,6 +185,23 @@ export function buildTextures() {
           return [0, 0, 0];
         });
         break;
+      case B.CHEST: {
+        // planks-toned box with a dark lid seam and a lumite latch
+        side = makeTile((u, v) => {
+          let f = 1.0 - (v / (TS - 1)) * 0.22 + h2(u, v, 4) * 0.12;
+          if (v === 2) f *= 0.6;                       // lid seam
+          if (u === 0 || u === TS - 1) f *= 0.8;       // edge banding
+          if ((u === 3 || u === 4) && v >= 2 && v <= 4) return [140, 224, 236]; // latch
+          return shade(base, f);
+        });
+        top = makeTile((u, v) => {
+          let f = 0.92 + h2(u, v, 8) * 0.16;
+          if (u === 0 || v === 0 || u === TS - 1 || v === TS - 1) f *= 0.78;
+          return shade(base, f);
+        });
+        bottom = gem(shade(base, 0.8), 4, 0.08);
+        break;
+      }
       default:
         top = side = bottom = gem(base, id, 0.1);
     }

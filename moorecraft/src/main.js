@@ -1,7 +1,7 @@
 // main.js — Moorecraft: The Shattered Sky.
 // Game loop, states, HUD, save/load, and the headless test hook (window.__moore).
 
-import { World, B, BLOCKS, isSolid } from './world.js';
+import { World, B, BLOCKS, isSolid, CHEST_SLOTS } from './world.js';
 import { Player } from './player.js';
 import { Renderer } from './render.js';
 import { Entities } from './entities.js';
@@ -13,7 +13,9 @@ import { buildTextures, drawItemIcon } from './sprites.js';
 const RW = 200, RH = 120;
 const DAY_LEN = 200; // seconds per full day-night cycle
 const REACH = 5;
-const SAVE_KEY = 'moorecraft_save_v1';
+const SAVE_KEY = 'moorecraft_save_v1';    // legacy single-save (migrated into a slot)
+const SLOTS_KEY = 'moorecraft_slots_v1';  // index of named save slots
+const SLOT_PREFIX = 'moorecraft_slot_';   // per-slot payload key prefix
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -43,7 +45,14 @@ class Game {
     this.renderer.setRes(RW, RH);
     this.state = 'title';
     this.titleSel = 0;
+    this.loadSel = 0;              // selection in the Load World list
+    this.activeSlot = null;       // id of the slot autosave writes to
+    this.worldName = '';
+    this.minimapOn = true;        // radar HUD toggle
+    this._miniCache = null; this._miniT = 0; this._miniCX = 0; this._miniCZ = 0;
+    this.openChest = null;        // {slots,key,x,y,z} when a chest UI is open
     this.seed = 1337;
+    this._migrateSaves();
     this.time = DAY_LEN * 0.25; // start morning
     this.mineAcc = 0; this.mineKey = '';
     this.swing = 0; this.placeCd = 0;
@@ -61,9 +70,55 @@ class Game {
     });
   }
 
-  hasSave() { try { return !!localStorage.getItem(SAVE_KEY); } catch { return false; } }
+  // ---------------- save slots ----------------
+  _readJSON(key, fallback) {
+    try { const v = localStorage.getItem(key); return v == null ? fallback : JSON.parse(v); }
+    catch { return fallback; }
+  }
+  _writeJSON(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); return true; } catch { return false; } }
 
-  newWorld(mode, seed) {
+  // Return the list of saved worlds (metadata only), newest-played first.
+  listSaves() {
+    const idx = this._readJSON(SLOTS_KEY, null);
+    if (!Array.isArray(idx)) return [];
+    return idx.slice().sort((a, b) => (b.lastPlayed || 0) - (a.lastPlayed || 0));
+  }
+  hasSave() { return this.listSaves().length > 0; }
+
+  // One-time migration: fold any legacy single-save into a named slot, and
+  // initialise the slot index so this never re-runs (even if all slots deleted).
+  _migrateSaves() {
+    try {
+      if (localStorage.getItem(SLOTS_KEY) != null) return; // already initialised
+      const idx = [];
+      const legacy = localStorage.getItem(SAVE_KEY);
+      if (legacy != null) {
+        const d = JSON.parse(legacy);
+        const id = 1;
+        d.name = 'Sky World 1';
+        this._writeJSON(SLOT_PREFIX + id, d);
+        idx.push({ id, name: d.name, mode: d.mode, seed: d.seed,
+          day: Math.floor((d.time ?? 0) / DAY_LEN) + 1, lastPlayed: Date.now() });
+      }
+      this._writeJSON(SLOTS_KEY, idx);
+    } catch {}
+  }
+
+  _nextSlotId() {
+    const idx = this._readJSON(SLOTS_KEY, []);
+    let max = 0; for (const s of idx) if (s.id > max) max = s.id;
+    return max + 1;
+  }
+  _autoName() {
+    const idx = this._readJSON(SLOTS_KEY, []);
+    let n = idx.length + 1;
+    const names = new Set(idx.map(s => s.name));
+    while (names.has('Sky World ' + n)) n++;
+    return 'Sky World ' + n;
+  }
+
+  // Create + register a fresh named world, then immediately persist it.
+  newWorld(mode, seed, name) {
     this.mode = mode;
     this.seed = seed | 0;
     this.world = new World(this.seed);
@@ -75,37 +130,77 @@ class Game {
     if (mode === 'creative') { this.inv.giveCreative(); this.player.flying = true; }
     else this.inv.giveStarter();
     this.time = DAY_LEN * 0.25;
+    this.worldName = name || this._autoName();
+    this.activeSlot = this._nextSlotId();
+    this.openChest = null;
     this.state = 'playing';
+    this.save(true);
+    return this.world.spawn;
   }
 
-  loadWorld() {
+  // Load a specific slot by id into the running game.
+  loadSlot(id) {
     try {
-      const d = JSON.parse(localStorage.getItem(SAVE_KEY));
-      this.mode = d.mode; this.seed = d.seed;
-      this.world = new World(d.seed); this.world.generate();
-      this.world.loadDiff(d.diff || []);
-      this.player = new Player(this.world.spawn);
-      this.player.creative = d.mode === 'creative';
-      this.player.x = d.px; this.player.y = d.py; this.player.z = d.pz;
-      this.player.yaw = d.yaw; this.player.pitch = d.pitch;
-      this.player.health = d.health ?? 20;
-      this.entities = new Entities();
-      this.inv = new Inventory(); this.inv.load(d.inv);
-      this.time = d.time ?? DAY_LEN * 0.25;
+      const d = this._readJSON(SLOT_PREFIX + id, null);
+      if (!d) return false;
+      this._applySave(d);
+      this.activeSlot = id;
+      this.worldName = d.name || 'Sky World';
+      this.openChest = null;
       this.state = 'playing';
       return true;
-    } catch (e) { return false; }
+    } catch { return false; }
   }
 
-  save() {
-    if (!this.world) return;
+  // Legacy hook: load the most-recently-played slot (Continue).
+  loadWorld() {
+    const list = this.listSaves();
+    if (!list.length) return false;
+    return this.loadSlot(list[0].id);
+  }
+
+  _applySave(d) {
+    this.mode = d.mode; this.seed = d.seed;
+    this.world = new World(d.seed); this.world.generate();
+    this.world.loadDiff(d.diff || []);
+    this.world.loadChests(d.chests || []);
+    this.player = new Player(this.world.spawn);
+    this.player.creative = d.mode === 'creative';
+    this.player.x = d.px; this.player.y = d.py; this.player.z = d.pz;
+    this.player.yaw = d.yaw; this.player.pitch = d.pitch;
+    this.player.health = d.health ?? 20;
+    this.player.flying = d.mode === 'creative';
+    this.entities = new Entities();
+    this.inv = new Inventory(); this.inv.load(d.inv);
+    this.time = d.time ?? DAY_LEN * 0.25;
+    this._miniCache = null;
+  }
+
+  deleteSlot(id) {
+    const idx = this._readJSON(SLOTS_KEY, []).filter(s => s.id !== id);
+    this._writeJSON(SLOTS_KEY, idx);
+    try { localStorage.removeItem(SLOT_PREFIX + id); } catch {}
+    if (this.activeSlot === id) this.activeSlot = null;
+  }
+
+  save(silent) {
+    if (!this.world || this.activeSlot == null) return;
     const p = this.player;
     const d = {
-      seed: this.seed, mode: this.mode, diff: this.world.serializeDiff(),
+      seed: this.seed, mode: this.mode, name: this.worldName,
+      diff: this.world.serializeDiff(), chests: this.world.serializeChests(),
       inv: this.inv.serialize(), px: p.x, py: p.y, pz: p.z, yaw: p.yaw, pitch: p.pitch,
       time: this.time, health: p.health,
     };
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify(d)); this.flash('Saved'); } catch {}
+    if (!this._writeJSON(SLOT_PREFIX + this.activeSlot, d)) return;
+    // update the slot index metadata
+    const idx = this._readJSON(SLOTS_KEY, []);
+    const meta = { id: this.activeSlot, name: this.worldName, mode: this.mode, seed: this.seed,
+      day: Math.floor(this.time / DAY_LEN) + 1, lastPlayed: Date.now() };
+    const at = idx.findIndex(s => s.id === this.activeSlot);
+    if (at >= 0) idx[at] = meta; else idx.push(meta);
+    this._writeJSON(SLOTS_KEY, idx);
+    if (!silent) this.flash('Saved');
   }
 
   flash(m) { this.msg = m; this.msgT = 2; }
@@ -117,15 +212,35 @@ class Game {
       if (code === 'Enter' || code === 'Space') this.titleSelect();
       return;
     }
+    if (this.state === 'load') {
+      const list = this.listSaves();
+      if (code === 'ArrowUp') this.loadSel = (this.loadSel + list.length) % (list.length + 1);
+      if (code === 'ArrowDown') this.loadSel = (this.loadSel + 1) % (list.length + 1);
+      if (code === 'Escape') this.state = 'title';
+      if (code === 'Enter' || code === 'Space') {
+        if (this.loadSel >= list.length) this.state = 'title';   // "back" row
+        else this.loadSlot(list[this.loadSel].id);
+      }
+      if (code === 'Delete' || code === 'KeyX') {
+        if (this.loadSel < list.length) { this.deleteSlot(list[this.loadSel].id); this.loadSel = 0; }
+      }
+      return;
+    }
     if (code === 'KeyM') { const m = this.sound.toggleMute(); this.flash(m ? 'Muted' : 'Sound on'); }
     if (this.state === 'playing') {
       if (code === 'KeyE') { this.openCraft(false); }
+      if (code === 'KeyI' || code === 'Tab') { this.state = 'invview'; }
+      if (code === 'KeyN') { this.minimapOn = !this.minimapOn; this.flash('minimap ' + (this.minimapOn ? 'on' : 'off')); }
       if (code === 'Escape') { this.save(); }
       if (code === 'KeyF') this.fireTether();
       if (code === 'KeyG') this.save();
       if (code === 'KeyP') { this.player.creative = !this.player.creative; this.flash('creative ' + this.player.creative); }
     } else if (this.state === 'inventory') {
       if (code === 'KeyE' || code === 'Escape') this.state = 'playing';
+    } else if (this.state === 'invview') {
+      if (code === 'KeyI' || code === 'Tab' || code === 'KeyE' || code === 'Escape') this.state = 'playing';
+    } else if (this.state === 'chest') {
+      if (code === 'KeyE' || code === 'Escape') this.closeChest();
     } else if (this.state === 'dead') {
       if (code === 'Enter' || code === 'Space') { this.player.respawn(); this.state = 'playing'; }
     }
@@ -134,12 +249,49 @@ class Game {
   titleSelect() {
     if (this.titleSel === 0) this.newWorld('survival', this.seed);
     else if (this.titleSel === 1) this.newWorld('creative', this.seed);
-    else if (this.titleSel === 2) { if (!this.loadWorld()) this.newWorld('survival', this.seed); }
+    else if (this.titleSel === 2) { this.loadSel = 0; this.state = 'load'; }
   }
 
   openCraft(full) {
     this.craftFull = full;
     this.state = 'inventory';
+  }
+
+  // ---------------- chest storage UI ----------------
+  openChestAt(t) {
+    const slots = this.world.chestAt(t.bx, t.by, t.bz, true);
+    this.openChest = { slots, x: t.bx, y: t.by, z: t.bz };
+    this.state = 'chest';
+    this.sound.place();
+  }
+  closeChest() {
+    this.openChest = null;
+    this.state = 'playing';
+    this.save(true);
+  }
+  // move one stack from the player inventory (invIdx) into the open chest
+  _chestStow(invIdx) {
+    const c = this.openChest; if (!c) return;
+    const s = this.inv.slots[invIdx]; if (!s) return;
+    const stack = ITEMS[s.id] ? ITEMS[s.id].stack : 64;
+    let count = s.count;
+    // fill matching stacks then empties in the chest
+    for (const cs of c.slots) if (cs && cs.id === s.id && cs.count < stack) {
+      const take = Math.min(count, stack - cs.count); cs.count += take; count -= take; if (count <= 0) break;
+    }
+    if (count > 0) for (let i = 0; i < c.slots.length && count > 0; i++) {
+      if (!c.slots[i]) { const take = Math.min(count, stack); c.slots[i] = { id: s.id, count: take }; count -= take; }
+    }
+    if (count <= 0) this.inv.slots[invIdx] = null; else s.count = count;
+    this.sound.pickup();
+  }
+  // move one stack from the open chest (chestIdx) into the player inventory
+  _chestTake(chestIdx) {
+    const c = this.openChest; if (!c) return;
+    const cs = c.slots[chestIdx]; if (!cs) return;
+    const left = this.inv.add(cs.id, cs.count);
+    if (left <= 0) c.slots[chestIdx] = null; else cs.count = left;
+    this.sound.pickup();
   }
 
   fireTether() {
@@ -230,6 +382,12 @@ class Game {
       if (this.input.consumeClickL()) this._craftClick();
       const hk = this.input.consumeHotbar();
       if (hk >= 0 && hk < 9) this.inv.sel = hk;
+    } else if (this.state === 'load') {
+      if (this.input.consumeClickL()) this._loadClick();
+    } else if (this.state === 'chest') {
+      if (this.input.consumeClickL()) this._chestClick();
+    } else if (this.state === 'invview') {
+      if (this.input.consumeClickL()) this._invViewClick();
     }
     this.input.consumeClickR();
   }
@@ -275,6 +433,12 @@ class Game {
   _breakBlock(t, drop) {
     const id = t.hitId;
     const def = BLOCKS[id];
+    // breaking a chest spills its contents as drops so nothing is ever lost
+    if (id === B.CHEST) {
+      if (this.openChest && this.openChest.x === t.bx && this.openChest.y === t.by && this.openChest.z === t.bz) this.closeChest();
+      const c = this.world.removeChest(t.bx, t.by, t.bz);
+      if (c) for (const s of c) if (s) this.entities.spawnDrop(t.bx + 0.5, t.by + 0.6, t.bz + 0.5, s.id, s.count);
+    }
     this.world.set(t.bx, t.by, t.bz, B.AIR);
     this.world.recomputeLight();
     this.sound.breakBlock(Math.max(0.4, def.hard));
@@ -289,9 +453,10 @@ class Game {
 
   _doPlace(dt) {
     const inp = this.input, p = this.player;
-    // open crafting table on click
+    // open crafting table / chest on interact click
     if (inp.consumeClickR()) {
       if (this.target && this.target.hitId === B.TABLE) { this.openCraft(true); return; }
+      if (this.target && this.target.hitId === B.CHEST) { this.openChestAt(this.target); return; }
     }
     if (!inp.rightDown || this.placeCd > 0 || !this.target) return;
     // eat apple
@@ -339,6 +504,33 @@ class Game {
     }
   }
 
+  _inRect(r, mx, my) { return r && mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h; }
+
+  _loadClick(mx = this.input._lastClickX ?? 0, my = this.input._lastClickY ?? 0) {
+    if (this._inRect(this._backRect, mx, my)) { this.state = 'title'; return; }
+    if (this._loadRects) for (const r of this._loadRects) {
+      if (this._inRect(r.del, mx, my)) { this.deleteSlot(r.id); this.loadSel = 0; return; }
+      if (this._inRect(r, mx, my)) { this.loadSlot(r.id); return; }
+    }
+  }
+
+  _chestClick(mx = this.input._lastClickX ?? 0, my = this.input._lastClickY ?? 0) {
+    if (this._inRect(this._closeRect, mx, my)) { this.closeChest(); return; }
+    if (this._chestBoxRects) for (const r of this._chestBoxRects) if (this._inRect(r, mx, my)) { this._chestTake(r.i); return; }
+    if (this._chestInvRects) for (const r of this._chestInvRects) if (this._inRect(r, mx, my)) { this._chestStow(r.i); return; }
+  }
+
+  _invViewClick(mx = this.input._lastClickX ?? 0, my = this.input._lastClickY ?? 0) {
+    if (this._inRect(this._closeRect, mx, my)) { this.state = 'playing'; return; }
+    if (this._invViewRects) for (const r of this._invViewRects) if (this._inRect(r, mx, my)) {
+      // drop one stack into the world in front of the player
+      const s = this.inv.slots[r.i]; if (!s) return;
+      const p = this.player, [fx, , fz] = p.forward();
+      this.entities.spawnDrop(p.x + fx, p.y + 1, p.z + fz, s.id, s.count);
+      this.inv.slots[r.i] = null; this.sound.place(); return;
+    }
+  }
+
   // route a touch tap (in canvas pixel coords) to the current UI state
   uiTap(cx, cy) {
     const hit = (r) => r && cx >= r.x && cx <= r.x + r.w && cy >= r.y && cy <= r.y + r.h;
@@ -351,12 +543,15 @@ class Game {
       return false;
     }
     if (this.state === 'dead') { this.player.respawn(); this.state = 'playing'; return true; }
+    if (this.state === 'load') { this._loadClick(cx, cy); return true; }
     if (this.state === 'inventory') {
       // craft immediately from the tap coords (avoids cross-frame clobbering of
       // _lastClick by synthetic mouse events on some mobile browsers)
       this._craftClick(cx, cy);
       return true;
     }
+    if (this.state === 'chest') { this._chestClick(cx, cy); return true; }
+    if (this.state === 'invview') { this._invViewClick(cx, cy); return true; }
     if (this.state === 'playing') {
       if (this._hotbarRects) {
         for (let i = 0; i < this._hotbarRects.length; i++) {
@@ -420,6 +615,7 @@ class Game {
   render() {
     this._syncTouchUI();
     if (this.state === 'title') return this.drawTitle();
+    if (this.state === 'load') return this.drawLoad();
     if (!this.world) return;
     const env = this.env();
     this.renderer.render(this.world, this.player, env);
@@ -429,7 +625,10 @@ class Game {
     this.renderer.drawHeld(this.inv.selId(), this.player, this.swing);
     this.renderer.drawCrosshair();
     this.drawHUD(env);
+    if (this.minimapOn) this.drawMinimap();
     if (this.state === 'inventory') this.drawCraft();
+    if (this.state === 'chest') this.drawChest();
+    if (this.state === 'invview') this.drawInvView();
     if (this.state === 'dead') this.drawDead();
     if (this.player.hurtFlash > 0) {
       ctx.fillStyle = `rgba(180,20,20,${0.35 * this.player.hurtFlash})`;
@@ -452,7 +651,8 @@ class Game {
     }
     text('MOORECRAFT', canvas.width / 2, 60, '#fff', 42, 'center');
     text('The Shattered Sky', canvas.width / 2, 108, '#9fd', 20, 'center');
-    const opts = ['SURVIVAL', 'CREATIVE', this.hasSave() ? 'CONTINUE' : 'CONTINUE (no save)'];
+    const nSaves = this.listSaves().length;
+    const opts = ['NEW SURVIVAL', 'NEW CREATIVE', nSaves ? `LOAD WORLD (${nSaves})` : 'LOAD WORLD (none)'];
     this._titleRects = [];
     for (let i = 0; i < 3; i++) {
       const sel = i === this.titleSel;
@@ -594,6 +794,168 @@ class Game {
     text(this.input.touchActive ? 'tap a recipe to craft · CLOSE (or CRAFT) to exit'
       : 'E / Esc to close', W / 2, H - 24, '#9ab', 13, 'center');
   }
+
+  // ---------------- minimap / radar HUD ----------------
+  drawMinimap() {
+    const W = canvas.width;
+    const size = 132, cells = 33, step = 2;   // covers 66x66 blocks, 4px cells
+    const cell = size / cells;
+    const mx0 = W - size - 12, my0 = 74;
+    const p = this.player;
+    const pcx = Math.floor(p.x), pcz = Math.floor(p.z);
+    const now = (typeof performance !== 'undefined') ? performance.now() : this.frame * 16;
+    // recompute the sampled grid a few times per second or when the player moves a cell
+    if (!this._miniCache || now - this._miniT > 320 ||
+        Math.abs(pcx - this._miniCX) >= step || Math.abs(pcz - this._miniCZ) >= step) {
+      this._miniT = now; this._miniCX = pcx; this._miniCZ = pcz;
+      const g = new Array(cells * cells);
+      const half = (cells >> 1);
+      for (let cz = 0; cz < cells; cz++) for (let cx = 0; cx < cells; cx++) {
+        const wx = pcx + (cx - half) * step, wz = pcz + (cz - half) * step;
+        const t = this.world.topSolidY(wx, wz);
+        g[cz * cells + cx] = t;
+      }
+      this._miniCache = { g, cells };
+    }
+    const g = this._miniCache.g;
+    // frame
+    ctx.fillStyle = 'rgba(10,16,26,0.72)'; ctx.fillRect(mx0 - 4, my0 - 4, size + 8, size + 8);
+    ctx.strokeStyle = 'rgba(120,238,246,0.55)'; ctx.lineWidth = 2; ctx.strokeRect(mx0 - 4, my0 - 4, size + 8, size + 8);
+    text('RADAR', mx0 + size / 2, my0 - 18, '#8ff0ff', 11, 'center');
+    // terrain cells
+    for (let cz = 0; cz < cells; cz++) for (let cx = 0; cx < cells; cx++) {
+      const t = g[cz * cells + cx];
+      let col;
+      if (!t || t.y < 0) col = 'rgba(24,14,40,0.85)';           // void
+      else {
+        const b = BLOCKS[t.id].col;
+        const sh = 0.6 + Math.min(0.5, (t.y / 56) * 0.5);        // higher = brighter
+        if (t.id === B.LUMITE || t.id === B.LUMORE) col = '#8ff0ff'; // POI blip
+        else col = `rgb(${(b[0] * sh) | 0},${(b[1] * sh) | 0},${(b[2] * sh) | 0})`;
+      }
+      ctx.fillStyle = col;
+      ctx.fillRect(mx0 + cx * cell, my0 + cz * cell, Math.ceil(cell), Math.ceil(cell));
+    }
+    // player marker + facing arrow (world +x -> right, +z -> down)
+    const ccx = mx0 + size / 2, ccy = my0 + size / 2;
+    const hx = Math.cos(p.yaw), hy = Math.sin(p.yaw);
+    ctx.fillStyle = '#ffe45a';
+    ctx.beginPath();
+    ctx.moveTo(ccx + hx * 8, ccy + hy * 8);
+    ctx.lineTo(ccx - hx * 5 - hy * 5, ccy - hy * 5 + hx * 5);
+    ctx.lineTo(ccx - hx * 5 + hy * 5, ccy - hy * 5 - hx * 5);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#05060c'; ctx.lineWidth = 1; ctx.stroke();
+  }
+
+  // shared: draw a grid of inventory-style slots; returns rects tagged with .i
+  _drawGrid(slots, gx, gy, cols, rows, sz, rects, hiHot) {
+    for (let i = 0; i < cols * rows; i++) {
+      const c = i % cols, rw = Math.floor(i / cols);
+      const x = gx + c * (sz + 3), y = gy + rw * (sz + 3);
+      ctx.fillStyle = 'rgba(30,32,44,0.85)'; ctx.fillRect(x, y, sz, sz);
+      ctx.strokeStyle = (hiHot && i < 9) ? '#668' : '#445'; ctx.lineWidth = 1; ctx.strokeRect(x, y, sz, sz);
+      const s = slots[i];
+      if (s) {
+        drawItemIcon(ctx, s.id, x + 3, y + 2, sz - 6);
+        if (s.count > 1) text(String(s.count), x + sz - 2, y + sz - 13, '#fff', 10, 'right');
+      }
+      if (rects) rects.push({ x, y, w: sz, h: sz, i });
+    }
+  }
+
+  _closeButton() {
+    const W = canvas.width, clw = 74, clh = 26, clx = W - clw - 12, cly = 10;
+    this._closeRect = { x: clx, y: cly, w: clw, h: clh };
+    ctx.fillStyle = 'rgba(70,40,44,0.85)'; ctx.fillRect(clx, cly, clw, clh);
+    ctx.strokeStyle = '#a77'; ctx.lineWidth = 1.5; ctx.strokeRect(clx, cly, clw, clh);
+    text('CLOSE', clx + clw / 2, cly + 7, '#fdd', 13, 'center');
+  }
+
+  // ---------------- Load World list ----------------
+  drawLoad() {
+    const W = canvas.width, H = canvas.height;
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#101830'); g.addColorStop(0.6, '#241848'); g.addColorStop(1, '#3a1c5a');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    text('LOAD WORLD', W / 2, 40, '#fff', 30, 'center');
+    const list = this.listSaves();
+    this._loadRects = [];
+    const rw = W - 200, rx = 100, rh = 44, ry0 = 96;
+    if (!list.length) text('no saved worlds yet — start a New Survival or Creative world', W / 2, 150, '#9ab', 14, 'center');
+    for (let i = 0; i < list.length; i++) {
+      const m = list[i]; const y = ry0 + i * (rh + 8);
+      const sel = i === this.loadSel;
+      ctx.fillStyle = sel ? 'rgba(40,70,64,0.85)' : 'rgba(24,28,44,0.8)'; ctx.fillRect(rx, y, rw, rh);
+      ctx.strokeStyle = sel ? '#8ff0ff' : '#556'; ctx.lineWidth = sel ? 2 : 1; ctx.strokeRect(rx, y, rw, rh);
+      text(m.name, rx + 14, y + 7, '#fff', 16);
+      const ago = this._ago(m.lastPlayed);
+      text(`${m.mode}  ·  Day ${m.day}  ·  ${ago}`, rx + 14, y + 26, '#9cd', 11);
+      // delete button
+      const dw = 74, dh = 28, dx = rx + rw - dw - 10, dy = y + (rh - dh) / 2;
+      ctx.fillStyle = 'rgba(80,36,40,0.9)'; ctx.fillRect(dx, dy, dw, dh);
+      ctx.strokeStyle = '#b66'; ctx.lineWidth = 1; ctx.strokeRect(dx, dy, dw, dh);
+      text('DELETE', dx + dw / 2, dy + 8, '#fcc', 12, 'center');
+      const rr = { x: rx, y, w: rw - dw - 20, h: rh, id: m.id, del: { x: dx, y: dy, w: dw, h: dh } };
+      this._loadRects.push(rr);
+    }
+    // BACK
+    const bw = 140, bh = 34, bx = W / 2 - bw / 2, by = H - 56;
+    const bsel = this.loadSel >= list.length;
+    this._backRect = { x: bx, y: by, w: bw, h: bh };
+    ctx.fillStyle = bsel ? 'rgba(40,60,80,0.9)' : 'rgba(24,28,44,0.8)'; ctx.fillRect(bx, by, bw, bh);
+    ctx.strokeStyle = bsel ? '#8ff0ff' : '#556'; ctx.strokeRect(bx, by, bw, bh);
+    text('BACK', bx + bw / 2, by + 9, '#cde', 15, 'center');
+    text(this.input.touchActive ? 'tap a world to play · DELETE to remove'
+      : 'Up/Down + Enter · X to delete · Esc back', W / 2, H - 16, '#89a', 11, 'center');
+  }
+
+  _ago(ts) {
+    if (!ts) return 'never';
+    const s = Math.max(0, (Date.now() - ts) / 1000);
+    if (s < 60) return 'just now';
+    if (s < 3600) return Math.floor(s / 60) + 'm ago';
+    if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+    return Math.floor(s / 86400) + 'd ago';
+  }
+
+  // ---------------- chest storage screen ----------------
+  drawChest() {
+    const W = canvas.width, H = canvas.height;
+    ctx.fillStyle = 'rgba(10,12,22,0.86)'; ctx.fillRect(0, 0, W, H);
+    text('STORAGE CHEST', W / 2, 24, '#fff', 22, 'center');
+    text('tap an item to move it · chest ⇄ your pack', W / 2, 52, '#9ab', 12, 'center');
+    this._closeButton();
+    const c = this.openChest; if (!c) return;
+    const sz = 30;
+    // chest slots (top): 9 cols x 3 rows
+    text('CHEST', W / 2 - (9 * (sz + 3)) / 2, 84, '#bcd', 13);
+    this._chestBoxRects = [];
+    this._drawGrid(c.slots, W / 2 - (9 * (sz + 3)) / 2, 104, 9, 3, sz, this._chestBoxRects, false);
+    // player inventory (bottom): 9 cols x 4 rows
+    text('YOUR PACK', W / 2 - (9 * (sz + 3)) / 2, 232, '#bcd', 13);
+    this._chestInvRects = [];
+    this._drawGrid(this.inv.slots, W / 2 - (9 * (sz + 3)) / 2, 252, 9, 4, sz, this._chestInvRects, true);
+    text(this.input.touchActive ? 'CLOSE to exit' : 'E / Esc to close', W / 2, H - 18, '#9ab', 12, 'center');
+  }
+
+  // ---------------- dedicated inventory view ----------------
+  drawInvView() {
+    const W = canvas.width, H = canvas.height;
+    ctx.fillStyle = 'rgba(10,12,22,0.9)'; ctx.fillRect(0, 0, W, H);
+    text('INVENTORY', W / 2, 30, '#fff', 26, 'center');
+    text(this.input.touchActive ? 'tap an item to drop it' : 'tap / click an item to drop it', W / 2, 62, '#9ab', 13, 'center');
+    this._closeButton();
+    const sz = 40, cols = 9, rows = 4;
+    const gx = W / 2 - (cols * (sz + 3)) / 2, gy = 96;
+    this._invViewRects = [];
+    this._drawGrid(this.inv.slots, gx, gy, cols, rows, sz, this._invViewRects, true);
+    // summary of distinct items carried
+    let kinds = 0, total = 0;
+    for (const s of this.inv.slots) if (s) { kinds++; total += s.count; }
+    text(`${kinds} kinds · ${total} items · hotbar = top row`, W / 2, gy + rows * (sz + 3) + 14, '#9cd', 12, 'center');
+    text(this.input.touchActive ? 'BAG / CLOSE to exit' : 'I / Tab / Esc to close', W / 2, H - 20, '#9ab', 12, 'center');
+  }
 }
 
 // ---------------- boot + loop ----------------
@@ -621,8 +983,31 @@ requestAnimationFrame(loop);
 // ---------------- headless test hook ----------------
 window.__moore = {
   game,
-  start(mode = 'survival', seed = 1337) { game.newWorld(mode, seed); return game.world.spawn; },
+  start(mode = 'survival', seed = 1337, name) { game.newWorld(mode, seed, name); return game.world.spawn; },
   loadSave() { return game.loadWorld(); },
+  // save slots
+  listSaves() { return game.listSaves(); },
+  loadSlot(id) { return game.loadSlot(id); },
+  deleteSlot(id) { game.deleteSlot(id); },
+  activeSlot() { return game.activeSlot; },
+  worldName() { return game.worldName; },
+  saveNow() { game.save(true); },
+  // minimap
+  toggleMinimap() { game.minimapOn = !game.minimapOn; return game.minimapOn; },
+  minimapOn() { return game.minimapOn; },
+  // chest
+  openChestNearby() {
+    const p = game.player; const [fx, fy, fz] = p.forward();
+    game.target = game.world.raycastPick(p.eyeX(), p.eyeY(), p.eyeZ(), fx, fy, fz, REACH);
+    if (game.target && game.target.hitId === B.CHEST) { game.openChestAt(game.target); return true; }
+    return false;
+  },
+  openChestAt(x, y, z) { game.openChestAt({ bx: x, by: y, bz: z }); return true; },
+  chestSlots() { return game.openChest ? game.openChest.slots.map(s => s ? { id: s.id, count: s.count } : null) : null; },
+  chestStow(i) { game.state = 'chest'; game._chestStow(i); },
+  chestTake(i) { game._chestTake(i); },
+  closeChest() { game.closeChest(); },
+  openInvView() { game.state = 'invview'; },
   step(dt = 1 / 30, n = 1) { for (let i = 0; i < n; i++) { game.update(dt); } game.render(); },
   render() { game.render(); },
   state() {

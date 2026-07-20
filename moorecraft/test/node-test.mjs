@@ -109,5 +109,40 @@ ents.spawnDrop(p.x, p.y + 0.5, p.z, B.DIRT, 1);
 for (let i = 0; i < 60; i++) ents.update(w, p, 1 / 30, { isNight: false, inv: inv2, audio: null });
 ok('drop picked up into inventory', inv2.count(B.DIRT) === 1);
 
+// ---- chest storage: contents persist through serialize/reload ----
+const wc = new World(1337); wc.generate();
+const cbx = sp.cx, cby = surf + 1, cbz = sp.cz;
+wc.set(cbx, cby, cbz, B.CHEST);
+const chest = wc.chestAt(cbx, cby, cbz, true);
+chest[0] = { id: B.LUMITE, count: 5 };
+chest[3] = { id: I.INGOT, count: 12 };
+const chestSer = wc.serializeChests();
+const wc2 = new World(1337); wc2.generate();
+wc2.loadDiff(wc.serializeDiff());
+wc2.loadChests(JSON.parse(JSON.stringify(chestSer)));
+const rc = wc2.chestAt(cbx, cby, cbz);
+ok('chest block present after reload', wc2.get(cbx, cby, cbz) === B.CHEST);
+ok('chest contents persist (slot 0)', rc && rc[0] && rc[0].id === B.LUMITE && rc[0].count === 5);
+ok('chest contents persist (slot 3)', rc && rc[3] && rc[3].id === I.INGOT && rc[3].count === 12);
+ok('empty chest slot stays empty', rc && rc[1] === null);
+
+// ---- save-slot round-trip: full payload survives JSON serialization ----
+const invS = new Inventory(); invS.giveStarter(); invS.add(B.LUMITE, 9); invS.add(I.INGOT, 3);
+const payload = {
+  seed: 1337, mode: 'survival', name: 'Sky World 1',
+  diff: wc.serializeDiff(), chests: wc.serializeChests(),
+  inv: invS.serialize(), px: 64.5, py: 41, pz: 64.5, yaw: 0.3, pitch: -0.2, time: 123, health: 17,
+};
+const round = JSON.parse(JSON.stringify(payload));
+const wr = new World(round.seed); wr.generate();
+wr.loadDiff(round.diff); wr.loadChests(round.chests);
+let sameWorld = true;
+for (let i = 0; i < wc.voxels.length; i++) if (wc.voxels[i] !== wr.voxels[i]) { sameWorld = false; break; }
+ok('save-slot round-trip rebuilds identical world', sameWorld);
+const invR = new Inventory(); invR.load(round.inv);
+ok('save-slot round-trip restores inventory counts', invR.count(B.LUMITE) === 9 && invR.count(I.INGOT) === 3);
+ok('save-slot round-trip restores chest contents', wr.chestAt(cbx, cby, cbz)[0].id === B.LUMITE);
+ok('save-slot round-trip keeps player fields', round.px === 64.5 && round.health === 17 && round.name === 'Sky World 1');
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

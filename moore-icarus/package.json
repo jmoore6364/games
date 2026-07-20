@@ -1,0 +1,9 @@
+{
+  "name": "moore-icarus",
+  "version": "0.1.0",
+  "description": "Moore Icarus — a Kid Icarus style winged action platformer, vanilla JS + canvas",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
