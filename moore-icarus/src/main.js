@@ -302,6 +302,7 @@ class Game {
     if (P.dead && P.deadT > 70) this.respawn();
 
     if (!P.dead) this.interact(inp);
+    if (this.state !== 'play') return;   // a door changed state this frame
     this.processSpawns();
     updateEnemies(this);
     updatePArrows(this);
