@@ -38,6 +38,7 @@ export const RECIPES = [
   { name: 'Planks',        out: [B.PLANKS, 4], in: [[B.LOG, 1]], table: false },
   { name: 'Sticks',        out: [I.STICK, 4],  in: [[B.PLANKS, 2]], table: false },
   { name: 'Crafting Table',out: [B.TABLE, 1],  in: [[B.PLANKS, 4]], table: false },
+  { name: 'Storage Chest', out: [B.CHEST, 1],  in: [[B.PLANKS, 6]], table: false },
   { name: 'Torch x4',      out: [B.TORCH, 4],  in: [[B.COAL, 1], [I.STICK, 1]], table: false },
   { name: 'Wood Pickaxe',  out: [I.WOODPICK, 1], in: [[B.PLANKS, 3], [I.STICK, 2]], table: true },
   { name: 'Stone Pickaxe', out: [I.STONEPICK, 1], in: [[B.COBBLE, 3], [I.STICK, 2]], table: true },

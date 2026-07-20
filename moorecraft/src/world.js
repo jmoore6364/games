@@ -13,7 +13,11 @@ export const B = {
   AIR: 0, GRASS: 1, DIRT: 2, STONE: 3, COBBLE: 4, LOG: 5, PLANKS: 6,
   LEAVES: 7, SAND: 8, WATER: 9, COAL: 10, IRON: 11, LUMORE: 12,
   LUMITE: 13, VOIDSTONE: 14, TABLE: 15, TORCH: 16, GLASS: 17,
+  CHEST: 18,
 };
+
+// slots in a single storage chest (3 rows x 9 cols)
+export const CHEST_SLOTS = 27;
 
 // Each block: name, solid (collision), opaque (blocks light/rays),
 // hardness (mining time base seconds), tier (pick tier needed to drop),
@@ -39,6 +43,7 @@ export const BLOCKS = [
   { name: 'table',     solid: 1, opaque: 1, hard: 1.0, tier: 0, drop: B.TABLE, light: 0, col: [160, 118, 74] },
   { name: 'torch',     solid: 0, opaque: 0, hard: 0.1, tier: 0, drop: B.TORCH, light: 13, col: [252, 208, 112] },
   { name: 'glass',     solid: 1, opaque: 0, hard: 0.4, tier: 0, drop: 0,    light: 0, col: [200, 230, 240] },
+  { name: 'chest',     solid: 1, opaque: 1, hard: 1.2, tier: 0, drop: B.CHEST, light: 0, col: [156, 112, 62] },
 ];
 
 export function isSolid(id) { return BLOCKS[id].solid === 1; }
@@ -81,6 +86,7 @@ export class World {
     this.blockLight = new Uint8Array(WX * WY * WZ);
     this.edits = new Map();          // idx -> id (diff over generated base)
     this.emitters = new Set();       // idx of light-emitting voxels
+    this.chests = new Map();         // voxel idx -> Array(CHEST_SLOTS) of {id,count}|null
     this.generating = false;
     this.spawn = { x: WX / 2, y: 40, z: WZ / 2 };
     this.islands = [];
@@ -112,6 +118,7 @@ export class World {
     this.voxels.fill(0);
     this.edits.clear();
     this.emitters.clear();
+    this.chests.clear();
     const s = this.seed;
 
     // island layout (cx,cz,cy top level, r radius, kind)
@@ -294,6 +301,48 @@ export class World {
   lightAt(x, y, z) {
     if (x < 0 || x >= WX || y < 0 || y >= WY || z < 0 || z >= WZ) return 0;
     return this.blockLight[x + z * WX + y * WXZ];
+  }
+
+  // ---------------- minimap sampling ----------------
+  // Highest opaque-solid voxel in a column, scanning down from the top.
+  // Returns { y, id } or { y: -1, id: 0 } for a void column. Cheap enough to
+  // sample a coarse grid a few times per second for the radar HUD.
+  topSolidY(x, z) {
+    if (x < 0 || x >= WX || z < 0 || z >= WZ) return { y: -1, id: 0 };
+    for (let y = WY - 1; y >= 0; y--) {
+      const id = this.voxels[x + z * WX + y * WXZ];
+      if (id !== 0 && id !== B.WATER && isOpaque(id)) return { y, id };
+      if (id === B.WATER) return { y, id };
+    }
+    return { y: -1, id: 0 };
+  }
+
+  // ---------------- chest storage (per voxel position) ----------------
+  chestAt(x, y, z, create = false) {
+    const i = x + z * WX + y * WXZ;
+    let c = this.chests.get(i);
+    if (!c && create) { c = new Array(CHEST_SLOTS).fill(null); this.chests.set(i, c); }
+    return c || null;
+  }
+  removeChest(x, y, z) {
+    const i = x + z * WX + y * WXZ;
+    const c = this.chests.get(i);
+    this.chests.delete(i);
+    return c || null;
+  }
+  serializeChests() {
+    const arr = [];
+    for (const [i, slots] of this.chests) {
+      arr.push([i, slots.map(s => s ? [s.id, s.count] : 0)]);
+    }
+    return arr;
+  }
+  loadChests(arr) {
+    this.chests.clear();
+    if (!arr) return;
+    for (const [i, slots] of arr) {
+      this.chests.set(i, slots.map(s => s ? { id: s[0], count: s[1] } : null));
+    }
   }
 
   // ---------------- raycast picking (single ray) ----------------

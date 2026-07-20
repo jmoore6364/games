@@ -165,6 +165,12 @@ export function initTouch(input, game) {
     if (game.state === 'playing') game.openCraft(false);
     else if (game.state === 'inventory') game.state = 'playing';
   });
+  tap('b-bag', () => {
+    if (!game) return;
+    if (game.state === 'invview') game.state = 'playing';
+    else if (game.state === 'playing') game.state = 'invview';
+  });
+  tap('b-map', () => { if (game) game.minimapOn = !game.minimapOn; });
 
   // ---- tap router: route quick taps on the canvas to menu / hotbar / recipe hit-tests ----
   const pending = new Map(); // touchId -> {x,y,t}

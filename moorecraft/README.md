@@ -50,33 +50,40 @@ Two signature mechanics tie into the spin:
 | Select hotbar | **1–9** or **mouse wheel** |
 | Open crafting | **E** (hand recipes) / right-click a Crafting Table (full set) |
 | Fire tether | **F** |
+| Open inventory view | **I** or **Tab** |
+| Toggle minimap / radar | **N** |
+| Open chest | Right-click a placed chest |
 | Mute | **M** |
-| Save | **Esc** or **G** (also autosaves every ~20s) |
+| Save | **Esc** or **G** (also autosaves every ~20s to the active slot) |
 
 ### Touch / mobile
 
 On phones and tablets (auto-detected; force with `?touch=1` in the URL) the game
 is **fully playable with touch alone** — no keyboard or mouse needed:
 
-- **Title menu** — tap **SURVIVAL / CREATIVE / CONTINUE** to start.
+- **Title menu** — tap **NEW SURVIVAL / NEW CREATIVE / LOAD WORLD** to start.
 - **Move** — left on-screen stick. **Look** — drag anywhere on the right side.
-- **Right-hand buttons** — **MINE** (hold to break), **PUT** (place), **JMP**
-  (jump / fly up), **DOWN** (fly down / sneak), **FLY** (toggle creative flight),
-  **TIE** (fire tether), **CRAFT** (open/close crafting).
+- **Right-hand buttons** — **MINE** (hold to break), **PUT** (place / open a
+  targeted chest or table), **JMP** (jump / fly up), **DOWN** (fly down / sneak),
+  **FLY** (toggle creative flight), **TIE** (fire tether), **CRAFT** (open/close
+  crafting), **BAG** (open the inventory view), **MAP** (toggle the minimap).
 - **Hotbar** — tap a slot to select it.
 - **Crafting** — tap a recipe row to craft; tap **CLOSE** (or **CRAFT**) to exit.
+- **Load World** — tap a saved world to play it, or **DELETE** to remove it.
+- **Chest / inventory** — tap an item to move (chest ⇄ pack) or drop it.
 - **Respawn** — tap anywhere on the death screen.
 
 The desktop keyboard + pointer-lock mouse experience above is unchanged.
 
 ---
 
-## Blocks (18 types)
+## Blocks (19 types)
 
 air, **grass**, dirt, **stone**, cobblestone, **wood log**, planks, **leaves**,
 sand, **water** (non-solid, slows you), **coal ore**, **iron ore**,
 **lumite ore**, **lumite block** (glowing crystal — emits light), **void-stone**
-(unbreakable bedrock), **crafting table**, **torch** (placeable light), **glass**.
+(unbreakable bedrock), **crafting table**, **torch** (placeable light), **glass**,
+**storage chest** (holds 27 item slots).
 
 Each has distinct top/side/bottom procedural textures, a base color, a hardness,
 and a required pickaxe tier.
@@ -86,7 +93,7 @@ and a required pickaxe tier.
 Open with **E** (hand recipes: planks, sticks, table, torch) or right-click a
 **Crafting Table** for the full set:
 
-- Planks (1 log → 4), Sticks (2 planks → 4), Crafting Table (4 planks)
+- Planks (1 log → 4), Sticks (2 planks → 4), Crafting Table (4 planks), Storage Chest (6 planks)
 - Torch (coal + stick → 4)
 - Wood / Stone / Iron Pickaxe (planks/cobble/ingot + sticks)
 - **Iron Ingot** (iron ore → ingot) and **Glass** (sand → glass)
@@ -117,8 +124,36 @@ and drops nothing. Better tools mine faster.
   mobs, no fall/void death.
 
 **World save** to `localStorage`: the seed + a **diff** of block edits over the
-generated base + inventory + player position + time. "Continue" on the title
-screen reloads it. Type digits on the title to change the seed.
+generated base + inventory + player position + time + chest contents. Type digits
+on the title to change the seed.
+
+---
+
+## Quality-of-life features
+
+- **Named save slots (up to several worlds).** "New Survival/Creative" registers a
+  fresh auto-named world ("Sky World N") and autosaves it every ~20s to its own
+  slot; multiple worlds coexist independently. **LOAD WORLD** on the title lists
+  each save (name · mode · in-game day · last-played) to continue or **DELETE**.
+  Any legacy single `moorecraft_save_v1` is migrated into a slot on first run so
+  nothing is lost. The slot index lives at `moorecraft_slots_v1`; each payload at
+  `moorecraft_slot_<id>`. The save format is backward compatible (old fields still
+  load; chests default to empty).
+- **Minimap / radar HUD** (top-right). Samples the highest solid block on a coarse
+  33×33 grid (2-block step, ~66×66 blocks) around the player, **cached and
+  refreshed only a few times per second** so it costs no per-frame work. Shows the
+  island footprint vs void, a facing arrow at the player, and lumite/lumite-ore as
+  bright cyan points-of-interest blips. Toggle with **N** or the **MAP** touch
+  button.
+- **Storage chests.** Craft a **chest** (6 planks, block id 18 — appended so older
+  saves/ids stay valid), place it, and right-click / target-then-**PUT** to open a
+  27-slot storage UI. Tap an item to move it between your pack and the chest.
+  Contents are stored **per voxel position** in the world save. **Breaking a chest
+  is non-lossy:** it returns the chest block *and* spills all stored items as
+  collectible drops, so nothing is ever destroyed.
+- **Inventory view.** A dedicated full-pack screen (**I** / **Tab** / **BAG**
+  button) listing every carried item with counts and a kinds/total summary; tap an
+  item to drop one stack in front of you. The crafting-table UI is unchanged.
 
 ---
 
