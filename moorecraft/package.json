@@ -1,0 +1,9 @@
+{
+  "name": "moorecraft",
+  "version": "0.1.0",
+  "description": "Moorecraft: The Shattered Sky — a first-person voxel sandbox rendered in software on a 2D canvas. Vanilla JS, zero dependencies.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
