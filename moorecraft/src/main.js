@@ -384,20 +384,36 @@ class Game {
     const e = -Math.cos(tod * Math.PI * 2); // -1 midnight .. 1 noon
     const day = Math.min(1, Math.max(0.09, e * 0.6 + 0.5));
     const night = e < -0.12;
+    // how "night" it is, 0 (bright day) .. 1 (deep midnight) — drives stars/aurora
+    const nightAmt = Math.min(1, Math.max(0, -e * 1.15 + 0.12));
     const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
     const dl = Math.min(1, Math.max(0, e * 0.55 + 0.5));
-    const skyTop = mix([6, 8, 28], [92, 150, 232], dl);
-    const skyHor = mix([26, 26, 54], [180, 208, 236], dl);
-    // sunset warmth near horizon
-    if (e > -0.25 && e < 0.35) { const w2 = 1 - Math.abs(e - 0.05) / 0.3; skyHor[0] += 60 * w2; skyHor[1] += 20 * w2; }
-    const voidTop = mix([30, 16, 46], [40, 30, 58], dl);
-    const voidBot = mix([120, 60, 180], [70, 44, 120], dl);
-    // sun / moon direction
+    // cooler, dreamier "Shattered Sky" palette
+    const skyTop = mix([8, 10, 34], [70, 132, 214], dl);
+    const skyHor = mix([30, 30, 62], [150, 196, 226], dl);
+    // sunset/dawn warmth near horizon
+    if (e > -0.25 && e < 0.35) { const w2 = 1 - Math.abs(e - 0.05) / 0.3; skyHor[0] += 66 * w2; skyHor[1] += 24 * w2; }
+    const voidTop = mix([34, 20, 54], [44, 34, 66], dl);
+    const voidBot = mix([132, 66, 190], [86, 52, 148], dl);
+    // the glowing void: intense teal->violet the fog melts toward when looking down
+    const voidGlow = mix([150, 92, 220], [96, 150, 196], dl);
+    // sun direction
     const sa = tod * Math.PI * 2;
     let sd = [Math.sin(sa) * 0.85, -Math.cos(sa), 0.35];
     const sl = Math.hypot(sd[0], sd[1], sd[2]); sd = [sd[0] / sl, sd[1] / sl, sd[2] / sl];
-    const sunCol = night ? [205, 216, 245] : [255, 244, 205];
-    return { day, night, skyTop, skyHor, voidTop, voidBot, sunDir: sd, sunCol, entities: this.entities };
+    const sunCol = [255, 240, 200];
+    // twin moons: ride opposite the sun so they hang overhead at night
+    const nrm = (v) => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
+    const ma = sa + Math.PI;
+    const moonDirs = [
+      { dir: nrm([Math.sin(ma) * 0.8, -Math.cos(ma), -0.45]), col: [214, 224, 246], rad: 1 },
+      { dir: nrm([Math.sin(ma + 0.5) * 0.8, -Math.cos(ma + 0.5) + 0.2, -0.15]), col: [180, 226, 224], rad: 0.7 },
+    ];
+    const pulse = 0.9 + 0.14 * Math.sin(this.time * 3.1);
+    return {
+      day, night, nightAmt, skyTop, skyHor, voidTop, voidBot, voidGlow,
+      sunDir: sd, sunCol, moonDirs, pulse, time: this.time, entities: this.entities,
+    };
   }
 
   // ---------------- render ----------------
@@ -461,15 +477,15 @@ class Game {
 
   drawHUD(env) {
     const W = canvas.width, H = canvas.height;
-    // hearts
+    // health as crystal shard pips
     if (this.mode === 'survival') {
       for (let i = 0; i < 10; i++) {
         const full = this.player.health >= (i + 1) * 2;
         const half = !full && this.player.health >= i * 2 + 1;
-        const x = 14 + i * 20, y = 14;
-        ctx.fillStyle = '#400'; this._heart(x, y, 8, '#400');
-        if (full) this._heart(x, y, 8, '#e33');
-        else if (half) { ctx.save(); ctx.beginPath(); ctx.rect(x - 8, y - 8, 8, 18); ctx.clip(); this._heart(x, y, 8, '#e33'); ctx.restore(); }
+        const x = 16 + i * 20, y = 18;
+        this._shard(x, y, 7, '#132033', '#0a1220');   // empty socket
+        if (full) this._shard(x, y, 7, '#8ff0ff', '#3aa6c8');
+        else if (half) { ctx.save(); ctx.beginPath(); ctx.rect(x - 8, y - 10, 8, 22); ctx.clip(); this._shard(x, y, 7, '#8ff0ff', '#3aa6c8'); ctx.restore(); }
       }
     }
     // light / danger meter
@@ -491,13 +507,18 @@ class Game {
     ctx.fillStyle = env.night ? '#cde' : '#fd6';
     ctx.beginPath(); ctx.arc(sxp, Math.min(cyy, syp), 5, 0, 7); ctx.fill();
 
-    // hotbar
+    // lumite-framed hotbar
     const slot = 44, n = 9, bw = slot * n, bx = (W - bw) / 2, by = H - slot - 8;
     this._hotbarRects = [];
+    // outer lumite frame
+    ctx.fillStyle = 'rgba(14,20,30,0.66)'; ctx.fillRect(bx - 6, by - 6, bw + 6, slot + 5);
+    ctx.strokeStyle = 'rgba(120,238,246,0.55)'; ctx.lineWidth = 2;
+    ctx.strokeRect(bx - 6, by - 6, bw + 6, slot + 5);
     for (let i = 0; i < n; i++) {
       const x = bx + i * slot;
-      ctx.fillStyle = 'rgba(20,20,28,0.72)'; ctx.fillRect(x, by, slot - 3, slot - 3);
-      ctx.strokeStyle = i === this.inv.sel ? '#fff' : '#556'; ctx.lineWidth = i === this.inv.sel ? 3 : 1.5;
+      const selq = i === this.inv.sel;
+      ctx.fillStyle = selq ? 'rgba(30,54,64,0.82)' : 'rgba(20,26,38,0.72)'; ctx.fillRect(x, by, slot - 3, slot - 3);
+      ctx.strokeStyle = selq ? '#8ff0ff' : 'rgba(90,120,150,0.6)'; ctx.lineWidth = selq ? 3 : 1.2;
       ctx.strokeRect(x, by, slot - 3, slot - 3);
       const s = this.inv.slots[i];
       if (s) {
@@ -513,14 +534,15 @@ class Game {
     if (this.player.tether) text('~ TETHERED ~', W / 2, by - 40, '#7ef', 12, 'center');
   }
 
-  _heart(x, y, s, col) {
-    ctx.fillStyle = col;
+  // crystal shard pip: faceted diamond with a lighter left facet
+  _shard(x, y, s, fill, dark) {
+    ctx.fillStyle = fill;
     ctx.beginPath();
-    ctx.moveTo(x, y + s * 0.3);
-    ctx.bezierCurveTo(x, y - s * 0.3, x - s, y - s * 0.3, x - s, y + s * 0.2);
-    ctx.bezierCurveTo(x - s, y + s * 0.7, x, y + s, x, y + s * 1.1);
-    ctx.bezierCurveTo(x, y + s, x + s, y + s * 0.7, x + s, y + s * 0.2);
-    ctx.bezierCurveTo(x + s, y - s * 0.3, x, y - s * 0.3, x, y + s * 0.3);
+    ctx.moveTo(x, y - s); ctx.lineTo(x + s * 0.7, y); ctx.lineTo(x, y + s); ctx.lineTo(x - s * 0.7, y); ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = dark;
+    ctx.beginPath();
+    ctx.moveTo(x, y - s); ctx.lineTo(x + s * 0.7, y); ctx.lineTo(x, y + s); ctx.closePath();
     ctx.fill();
   }
 

@@ -18,25 +18,27 @@ export const B = {
 // Each block: name, solid (collision), opaque (blocks light/rays),
 // hardness (mining time base seconds), tier (pick tier needed to drop),
 // drop (item id dropped), light (emitted 0..15), col [r,g,b] base tint.
+// Palette: "The Shattered Sky" — cooler teals/indigos, warm-gold lumite accents.
+// Colors are cosmetic only (never touched by logic/tests).
 export const BLOCKS = [
   { name: 'air',       solid: 0, opaque: 0, hard: 0,   tier: 0, drop: 0,  light: 0,  col: [0, 0, 0] },
-  { name: 'grass',     solid: 1, opaque: 1, hard: 0.6, tier: 0, drop: B.DIRT, light: 0, col: [96, 168, 74] },
-  { name: 'dirt',      solid: 1, opaque: 1, hard: 0.6, tier: 0, drop: B.DIRT, light: 0, col: [134, 96, 62] },
-  { name: 'stone',     solid: 1, opaque: 1, hard: 1.6, tier: 1, drop: B.COBBLE, light: 0, col: [128, 128, 132] },
-  { name: 'cobble',    solid: 1, opaque: 1, hard: 2.0, tier: 1, drop: B.COBBLE, light: 0, col: [112, 112, 116] },
-  { name: 'log',       solid: 1, opaque: 1, hard: 1.2, tier: 0, drop: B.LOG,  light: 0, col: [110, 82, 48] },
-  { name: 'planks',    solid: 1, opaque: 1, hard: 1.0, tier: 0, drop: B.PLANKS, light: 0, col: [176, 138, 86] },
-  { name: 'leaves',    solid: 1, opaque: 0, hard: 0.3, tier: 0, drop: 0,    light: 0, col: [74, 138, 58] },
-  { name: 'sand',      solid: 1, opaque: 1, hard: 0.5, tier: 0, drop: B.SAND, light: 0, col: [214, 200, 148] },
-  { name: 'water',     solid: 0, opaque: 0, hard: 999, tier: 9, drop: 0,    light: 0, col: [54, 92, 176] },
-  { name: 'coal ore',  solid: 1, opaque: 1, hard: 2.4, tier: 1, drop: B.COAL, light: 0, col: [64, 66, 70] },
-  { name: 'iron ore',  solid: 1, opaque: 1, hard: 3.0, tier: 2, drop: B.IRON, light: 0, col: [150, 132, 118] },
-  { name: 'lumite ore',solid: 1, opaque: 1, hard: 4.0, tier: 3, drop: B.LUMORE, light: 9, col: [120, 150, 170] },
-  { name: 'lumite',    solid: 1, opaque: 1, hard: 1.4, tier: 0, drop: B.LUMITE, light: 14, col: [128, 232, 246] },
-  { name: 'void-stone',solid: 1, opaque: 1, hard: 999, tier: 9, drop: 0,    light: 0, col: [40, 36, 54] },
-  { name: 'table',     solid: 1, opaque: 1, hard: 1.0, tier: 0, drop: B.TABLE, light: 0, col: [150, 110, 66] },
-  { name: 'torch',     solid: 0, opaque: 0, hard: 0.1, tier: 0, drop: B.TORCH, light: 13, col: [244, 200, 90] },
-  { name: 'glass',     solid: 1, opaque: 0, hard: 0.4, tier: 0, drop: 0,    light: 0, col: [198, 224, 232] },
+  { name: 'grass',     solid: 1, opaque: 1, hard: 0.6, tier: 0, drop: B.DIRT, light: 0, col: [86, 174, 118] },
+  { name: 'dirt',      solid: 1, opaque: 1, hard: 0.6, tier: 0, drop: B.DIRT, light: 0, col: [120, 92, 76] },
+  { name: 'stone',     solid: 1, opaque: 1, hard: 1.6, tier: 1, drop: B.COBBLE, light: 0, col: [116, 124, 146] },
+  { name: 'cobble',    solid: 1, opaque: 1, hard: 2.0, tier: 1, drop: B.COBBLE, light: 0, col: [102, 110, 132] },
+  { name: 'log',       solid: 1, opaque: 1, hard: 1.2, tier: 0, drop: B.LOG,  light: 0, col: [116, 84, 60] },
+  { name: 'planks',    solid: 1, opaque: 1, hard: 1.0, tier: 0, drop: B.PLANKS, light: 0, col: [190, 150, 96] },
+  { name: 'leaves',    solid: 1, opaque: 0, hard: 0.3, tier: 0, drop: 0,    light: 0, col: [66, 152, 116] },
+  { name: 'sand',      solid: 1, opaque: 1, hard: 0.5, tier: 0, drop: B.SAND, light: 0, col: [222, 206, 152] },
+  { name: 'water',     solid: 0, opaque: 0, hard: 999, tier: 9, drop: 0,    light: 0, col: [46, 122, 172] },
+  { name: 'coal ore',  solid: 1, opaque: 1, hard: 2.4, tier: 1, drop: B.COAL, light: 0, col: [56, 62, 78] },
+  { name: 'iron ore',  solid: 1, opaque: 1, hard: 3.0, tier: 2, drop: B.IRON, light: 0, col: [156, 142, 130] },
+  { name: 'lumite ore',solid: 1, opaque: 1, hard: 4.0, tier: 3, drop: B.LUMORE, light: 9, col: [104, 150, 188] },
+  { name: 'lumite',    solid: 1, opaque: 1, hard: 1.4, tier: 0, drop: B.LUMITE, light: 14, col: [120, 238, 246] },
+  { name: 'void-stone',solid: 1, opaque: 1, hard: 999, tier: 9, drop: 0,    light: 0, col: [46, 40, 70] },
+  { name: 'table',     solid: 1, opaque: 1, hard: 1.0, tier: 0, drop: B.TABLE, light: 0, col: [160, 118, 74] },
+  { name: 'torch',     solid: 0, opaque: 0, hard: 0.1, tier: 0, drop: B.TORCH, light: 13, col: [252, 208, 112] },
+  { name: 'glass',     solid: 1, opaque: 0, hard: 0.4, tier: 0, drop: 0,    light: 0, col: [200, 230, 240] },
 ];
 
 export function isSolid(id) { return BLOCKS[id].solid === 1; }
@@ -82,6 +84,7 @@ export class World {
     this.generating = false;
     this.spawn = { x: WX / 2, y: 40, z: WZ / 2 };
     this.islands = [];
+    this.props = [];   // cosmetic-only decorative props (roots / waterfalls). Never collidable.
   }
 
   inBounds(x, y, z) {
@@ -132,7 +135,35 @@ export class World {
     this.generating = false;
     this.lightDirty = true;
     this.recomputeLight();
+    this._buildProps(s);
     return this;
+  }
+
+  // Decorative dangling roots + thin void-waterfalls hung under island rims.
+  // These are RENDER-ONLY props: they never write voxels, so collision,
+  // picking and mining are unaffected. Each: {x,y,z, len, kind:'root'|'fall'}.
+  _buildProps(s) {
+    this.props = [];
+    for (const isl of this.islands) {
+      const { cx, cz, r, kind } = isl;
+      const nRoots = 3 + (kind === 'lumite' ? 2 : 0);
+      for (let k = 0; k < nRoots; k++) {
+        const ang = hashi(cx + k * 13, cz + k * 7, s + 300) * Math.PI * 2;
+        const rad = r * (0.55 + 0.4 * hashi(k, cx, s + 71));
+        const x = Math.round(cx + Math.cos(ang) * rad);
+        const z = Math.round(cz + Math.sin(ang) * rad);
+        if (x < 1 || x >= WX - 1 || z < 1 || z >= WZ - 1) continue;
+        // find lowest solid voxel in this column (the island underside)
+        let yTop = -1, yBot = -1;
+        for (let y = WY - 1; y >= 1; y--) {
+          if (this.voxels[x + z * WX + y * WXZ]) { if (yTop < 0) yTop = y; yBot = y; }
+        }
+        if (yBot < 2) continue;
+        const isFall = kind !== 'sand' && hashi(x, z, s + 44) > 0.72;
+        const len = 3 + Math.floor(hashi(x, z, s + 55) * (isFall ? 10 : 7));
+        this.props.push({ x: x + 0.5, y: yBot, z: z + 0.5, len, kind: isFall ? 'fall' : 'root' });
+      }
+    }
   }
 
   _buildIsland(isl, s) {
