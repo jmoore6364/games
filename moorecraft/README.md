@@ -53,9 +53,21 @@ Two signature mechanics tie into the spin:
 | Mute | **M** |
 | Save | **Esc** or **G** (also autosaves every ~20s) |
 
-**Touch fallback:** on touch devices an on-screen move stick, a look pad (right
-half of the screen), and JMP / MINE / PUT buttons appear. It's basic — keyboard +
-mouse is the primary experience.
+### Touch / mobile
+
+On phones and tablets (auto-detected; force with `?touch=1` in the URL) the game
+is **fully playable with touch alone** — no keyboard or mouse needed:
+
+- **Title menu** — tap **SURVIVAL / CREATIVE / CONTINUE** to start.
+- **Move** — left on-screen stick. **Look** — drag anywhere on the right side.
+- **Right-hand buttons** — **MINE** (hold to break), **PUT** (place), **JMP**
+  (jump / fly up), **DOWN** (fly down / sneak), **FLY** (toggle creative flight),
+  **TIE** (fire tether), **CRAFT** (open/close crafting).
+- **Hotbar** — tap a slot to select it.
+- **Crafting** — tap a recipe row to craft; tap **CLOSE** (or **CRAFT**) to exit.
+- **Respawn** — tap anywhere on the death screen.
+
+The desktop keyboard + pointer-lock mouse experience above is unchanged.
 
 ---
 
@@ -134,8 +146,8 @@ screen reloads it. Type digits on the title to change the seed.
 
 Known rough edges (honest): auto-step-up onto blocks can feel slightly abrupt;
 skylight is global rather than propagated, so island undersides are lit in
-daytime; the tether can occasionally miss if you're aiming at open sky; touch
-controls are functional but minimal.
+daytime; the tether can occasionally miss if you're aiming at open sky; on touch
+the DOWN button doubles as sneak, so it also slows walking while held on foot.
 
 ---
 
