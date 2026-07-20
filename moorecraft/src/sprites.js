@@ -33,64 +33,93 @@ function makeTile(fn) {
   return a;
 }
 
+// Gemlike face shading: a smooth vertical gradient (polished sheen up top,
+// shadow at the base) plus a couple of crystalline facet seams, so blocks read
+// as cut crystal instead of noise speckle. `amp` controls surface grain.
+function gem(base, seed, amp = 0.06, tintTop = 0, tintBot = 0) {
+  return makeTile((u, v) => {
+    // vertical polish gradient
+    let f = 1.14 - (v / (TS - 1)) * 0.4;
+    // crystalline facet seams (diagonals)
+    const dseam = (u - v + TS) % TS;
+    if (dseam === 2) f += 0.16;          // bright cut edge
+    else if (dseam === 5) f += 0.08;
+    if ((u + v) % TS === 1) f -= 0.1;    // dark cleft
+    // fine grain
+    f += (h2(u, v, seed) - 0.5) * amp;
+    const c = shade(base, f);
+    if (tintTop && v < 2) { c[0] += tintTop; c[1] += tintTop; c[2] += tintTop; }
+    if (tintBot && v > TS - 3) { c[0] -= tintBot; c[1] -= tintBot; c[2] -= tintBot; }
+    return c;
+  });
+}
+
 export function buildTextures() {
   for (let id = 0; id < BLOCKS.length; id++) {
     const base = BLOCKS[id].col;
     let top, side, bottom;
-    const speckle = (u, v, s, amp) => shade(base, 1 + (h2(u, v, s) - 0.5) * amp);
 
     switch (id) {
       case B.GRASS: {
         const g = base;
-        top = makeTile((u, v) => shade(g, 0.85 + h2(u, v, 3) * 0.3));
+        top = gem(g, 3, 0.08);
         const dirt = BLOCKS[B.DIRT].col;
         side = makeTile((u, v) => {
-          if (v < 2) return shade(g, 0.8 + h2(u, v, 5) * 0.3);
-          if (v === 2 && h2(u, v, 9) > 0.5) return shade(g, 0.75);
-          return shade(dirt, 0.8 + h2(u, v, 7) * 0.35);
+          // gem gradient underneath a crisp mossy cap
+          let f = 1.08 - (v / (TS - 1)) * 0.32 + (h2(u, v, 7) - 0.5) * 0.08;
+          if (v < 2) return shade(g, 1.05 - v * 0.06 + h2(u, v, 5) * 0.14);
+          if (v === 2 && h2(u, v, 9) > 0.45) return shade(g, 0.82);
+          return shade(dirt, f);
         });
-        bottom = makeTile((u, v) => shade(dirt, 0.8 + h2(u, v, 7) * 0.35));
+        bottom = gem(dirt, 7, 0.1);
         break;
       }
       case B.DIRT:
-        top = side = bottom = makeTile((u, v) => speckle(u, v, 7, 0.35));
+        top = side = bottom = gem(base, 7, 0.12);
         break;
       case B.STONE:
       case B.COBBLE: {
-        const amp = id === B.COBBLE ? 0.5 : 0.28;
+        const amp = id === B.COBBLE ? 0.14 : 0.07;
         top = side = bottom = makeTile((u, v) => {
-          let f = 1 + (h2(u, v, id) - 0.5) * amp;
-          if (id === B.COBBLE && (u % 4 === 0 || v % 4 === 0)) f *= 0.8;
+          let f = 1.12 - (v / (TS - 1)) * 0.36;
+          const dseam = (u - v + TS) % TS;
+          if (dseam === 2) f += 0.14; else if (dseam === 4) f += 0.06;
+          if (id === B.COBBLE && (u % 4 === 0 || v % 4 === 0)) f *= 0.82;
+          f += (h2(u, v, id) - 0.5) * amp;
           return shade(base, f);
         });
         break;
       }
       case B.LOG: {
         const bark = base;
-        side = makeTile((u, v) => shade(bark, 0.8 + (Math.sin(u * 1.6) * 0.12 + h2(u, v, 2) * 0.2)));
+        side = makeTile((u, v) => {
+          let f = 0.86 + Math.sin(u * 1.6) * 0.12 + (v / (TS - 1)) * -0.14 + h2(u, v, 2) * 0.16;
+          return shade(bark, f);
+        });
         const rings = shade(base, 1.25);
         top = makeTile((u, v) => {
           const dx = u - 3.5, dy = v - 3.5; const r = Math.sqrt(dx * dx + dy * dy);
-          return shade(rings, 0.7 + (Math.sin(r * 2.4) * 0.15 + 0.15));
+          return shade(rings, 0.72 + (Math.sin(r * 2.4) * 0.16 + 0.14));
         });
         bottom = top;
         break;
       }
       case B.PLANKS:
         top = side = bottom = makeTile((u, v) => {
-          let f = 0.9 + h2(u, v, 4) * 0.2;
-          if (v % 4 === 3) f *= 0.78;
+          let f = 1.06 - (v / (TS - 1)) * 0.22 + h2(u, v, 4) * 0.12;
+          if (v % 4 === 3) f *= 0.76;         // plank seam
           return shade(base, f);
         });
         break;
       case B.LEAVES:
         top = side = bottom = makeTile((u, v) => {
           const n = h2(u, v, 11);
-          return shade(base, 0.7 + n * 0.55);
+          // dappled canopy with cool sheen
+          return shade(base, 0.66 + n * 0.6 + (1 - v / (TS - 1)) * 0.14);
         });
         break;
       case B.SAND:
-        top = side = bottom = makeTile((u, v) => speckle(u, v, 6, 0.18));
+        top = side = bottom = gem(base, 6, 0.05);
         break;
       case B.COAL:
       case B.IRON:
@@ -98,20 +127,35 @@ export function buildTextures() {
         const stone = BLOCKS[B.STONE].col;
         const ore = base;
         top = side = bottom = makeTile((u, v) => {
+          let f = 1.1 - (v / (TS - 1)) * 0.34;
           const n = h2(u, v, id * 3);
-          if (n > 0.72) return shade(ore, id === B.LUMORE ? 1.4 : 1.1);
-          return shade(stone, 0.85 + h2(u, v, 2) * 0.3);
+          if (n > 0.7) {
+            // embedded gem nugget — brighter, faceted
+            const b2 = shade(ore, id === B.LUMORE ? 1.5 : 1.15);
+            const dseam = (u - v + TS) % TS;
+            return shade(b2, dseam === 2 ? 1.2 : 1.0);
+          }
+          return shade(stone, f + (h2(u, v, 2) - 0.5) * 0.08);
         });
         break;
       }
       case B.LUMITE:
+        // bright cyan crystal — facet seams glow; render adds the live pulse.
         top = side = bottom = makeTile((u, v) => {
-          const n = h2(u, v, 13);
-          return shade(base, 1.0 + n * 0.5);
+          let f = 1.0 + (1 - v / (TS - 1)) * 0.25;
+          const dseam = (u - v + TS) % TS;
+          if (dseam === 2 || dseam === 5) f += 0.35;    // glowing veins
+          f += h2(u, v, 13) * 0.25;
+          return shade(base, f);
         });
         break;
       case B.VOIDSTONE:
-        top = side = bottom = makeTile((u, v) => speckle(u, v, 17, 0.5));
+        top = side = bottom = makeTile((u, v) => {
+          let f = 1.05 - (v / (TS - 1)) * 0.3 + (h2(u, v, 17) - 0.5) * 0.22;
+          // faint violet sparkle
+          if (h2(u, v, 29) > 0.86) return [base[0] + 40, base[1] + 20, base[2] + 70];
+          return shade(base, f);
+        });
         break;
       case B.TABLE: {
         side = makeTile((u, v) => {
@@ -142,7 +186,7 @@ export function buildTextures() {
         });
         break;
       default:
-        top = side = bottom = makeTile((u, v) => speckle(u, v, id, 0.25));
+        top = side = bottom = gem(base, id, 0.1);
     }
     TEX[id] = { top, side, bottom };
   }
