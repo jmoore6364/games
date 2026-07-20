@@ -217,6 +217,19 @@ export class Renderer {
           if (emit >= 13) bright *= pulse;
           r *= bright; g *= bright; b *= bright;
 
+          // glossy grass: a view-dependent specular sheen on top faces. Blinn
+          // half-vector against the up normal (0,1,0), so a bright highlight
+          // slides across the lawn as you look around. Gated by daylight.
+          if (id === B.GRASS && nAxis === 1 && nSign > 0) {
+            const vxe = -dx, vye = -dy, vze = -dz;         // view dir (toward eye)
+            let hyH = 0.86 + vye, hxH = 0.35 + vxe, hzH = 0.37 + vze;
+            const hlen = Math.sqrt(hxH * hxH + hyH * hyH + hzH * hzH) || 1;
+            let spec = hyH / hlen; if (spec < 0) spec = 0;
+            spec *= spec; spec *= spec; spec *= spec; spec *= spec; // ^16 = tight hotspot
+            const sheen = spec * (0.5 * day + 0.1);
+            r += 175 * sheen; g += 190 * sheen; b += 150 * sheen;
+          }
+
           // volumetric distance fog toward the ray's fog colour
           const fogT = t / RENDER_DIST; const ff = fogT * fogT * 0.94;
           r += (fogR - r) * ff; g += (fogG - g) * ff; b += (fogB - b) * ff;
