@@ -11,7 +11,8 @@ export class Input {
     this.clickL = false; this.clickR = false;   // one-shot
     this.hotbarKey = -1;
     this.onKey = null; // callback(code)
-    this.touch = { fwd: 0, side: 0, lookX: 0, lookY: 0 };
+    this.touch = { fwd: 0, side: 0, lookX: 0, lookY: 0, down: false };
+    this._lastTouchTapTime = -1e9; // suppress synthetic compat-mouse events after a touch
 
     window.addEventListener('keydown', e => {
       if (e.repeat) { return; }
@@ -23,6 +24,7 @@ export class Input {
     window.addEventListener('keyup', e => { this.keys[e.code] = false; });
 
     canvas.addEventListener('mousedown', e => {
+      if (performance.now() - this._lastTouchTapTime < 700) return; // ignore touch-synthesised mouse
       if (e.button === 0) { this.leftDown = true; this.clickL = true; }
       if (e.button === 2) { this.rightDown = true; this.clickR = true; }
     });
@@ -67,7 +69,7 @@ export class Input {
       left: !!this.keys['KeyA'] || this.touch.side < -0.3,
       right: !!this.keys['KeyD'] || this.touch.side > 0.3,
       jump: !!this.keys['Space'],
-      sneak: !!this.keys['ShiftLeft'] || !!this.keys['ShiftRight'],
+      sneak: !!this.keys['ShiftLeft'] || !!this.keys['ShiftRight'] || !!this.touch.down,
     };
   }
 
@@ -78,10 +80,22 @@ export class Input {
 }
 
 // ---------------- touch controls ----------------
-export function initTouch(input) {
+export function hasTouch() {
+  return ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) ||
+    (typeof location !== 'undefined' && location.search.includes('touch=1'));
+}
+
+// `game` is optional; when present the on-screen UI buttons and taps drive game state.
+export function initTouch(input, game) {
   const ui = document.getElementById('touch-ui');
   if (!ui) return;
-  if (!('ontouchstart' in window)) { ui.style.display = 'none'; return; }
+  if (!hasTouch()) { ui.style.display = 'none'; return; }
+  ui.style.display = 'block';
+  input.touchActive = true;
+  const canvas = input.canvas;
+  const hint = document.getElementById('hint');
+  if (hint) hint.textContent = 'tap menu to start · left stick move · right drag look · MINE / PUT / JMP · tap hotbar & recipes';
+
   const move = document.getElementById('move-stick');
   const knob = document.getElementById('move-knob');
   let moveId = null, mcx = 0, mcy = 0;
@@ -103,8 +117,8 @@ export function initTouch(input) {
         input.touch.fwd = -Math.sin(a) * mag;
         knob.style.transform = `translate(${Math.cos(a) * mag * 32 - 26}px,${Math.sin(a) * mag * 32 - 26}px)`;
       } else if (t.identifier === lookId) {
-        input.touch.lookX += (t.clientX - lastLX) * 0.6;
-        input.touch.lookY += (t.clientY - lastLY) * 0.6;
+        input.touch.lookX += (t.clientX - lastLX) * 0.55;
+        input.touch.lookY += (t.clientY - lastLY) * 0.55;
         lastLX = t.clientX; lastLY = t.clientY;
       }
     }
@@ -119,15 +133,52 @@ export function initTouch(input) {
       if (t.identifier === lookId) lookId = null;
     }
   });
-  // buttons
+
+  // ---- action buttons ----
   const bind = (id, key) => {
     const el = document.getElementById(id); if (!el) return;
     el.addEventListener('touchstart', e => { input.keys[key] = true; e.preventDefault(); }, { passive: false });
     el.addEventListener('touchend', e => { input.keys[key] = false; e.preventDefault(); }, { passive: false });
   };
-  bind('b-jump', 'Space');
-  document.getElementById('b-break')?.addEventListener('touchstart', e => { input.leftDown = true; input.clickL = true; e.preventDefault(); }, { passive: false });
-  document.getElementById('b-break')?.addEventListener('touchend', e => { input.leftDown = false; e.preventDefault(); }, { passive: false });
-  document.getElementById('b-place')?.addEventListener('touchstart', e => { input.rightDown = true; input.clickR = true; e.preventDefault(); }, { passive: false });
-  document.getElementById('b-place')?.addEventListener('touchend', e => { input.rightDown = false; e.preventDefault(); }, { passive: false });
+  bind('b-jump', 'Space');          // ascend while flying / jump
+  const held = (id, on, off) => {
+    const el = document.getElementById(id); if (!el) return;
+    el.addEventListener('touchstart', e => { on(); e.preventDefault(); }, { passive: false });
+    el.addEventListener('touchend', e => { if (off) off(); e.preventDefault(); }, { passive: false });
+  };
+  held('b-break', () => { input.leftDown = true; input.clickL = true; }, () => { input.leftDown = false; });
+  held('b-place', () => { input.rightDown = true; input.clickR = true; }, () => { input.rightDown = false; });
+  held('b-down', () => { input.touch.down = true; }, () => { input.touch.down = false; });
+
+  const tap = (id, fn) => {
+    const el = document.getElementById(id); if (!el) return;
+    el.addEventListener('touchstart', e => { fn(); e.preventDefault(); }, { passive: false });
+  };
+  tap('b-fly', () => { if (game && game.player) game.player.toggleFly(); });
+  tap('b-tether', () => { if (game && game.state === 'playing') game.fireTether(); });
+  tap('b-craft', () => {
+    if (!game) return;
+    if (game.state === 'playing') game.openCraft(false);
+    else if (game.state === 'inventory') game.state = 'playing';
+  });
+
+  // ---- tap router: route quick taps on the canvas to menu / hotbar / recipe hit-tests ----
+  const pending = new Map(); // touchId -> {x,y,t}
+  window.addEventListener('touchstart', e => {
+    for (const t of e.changedTouches) pending.set(t.identifier, { x: t.clientX, y: t.clientY, t: performance.now() });
+  }, { passive: true });
+  window.addEventListener('touchend', e => {
+    input._lastTouchTapTime = performance.now(); // neutralise the compat-mouse burst that follows
+    for (const t of e.changedTouches) {
+      const p = pending.get(t.identifier); pending.delete(t.identifier);
+      if (!p || !game || !game.uiTap) continue;
+      const moved = Math.hypot(t.clientX - p.x, t.clientY - p.y);
+      if (moved > 14 || performance.now() - p.t > 400) continue; // a drag, not a tap
+      const r = canvas.getBoundingClientRect();
+      if (r.width <= 0 || r.height <= 0) continue;
+      const cx = (t.clientX - r.left) * (canvas.width / r.width);
+      const cy = (t.clientY - r.top) * (canvas.height / r.height);
+      game.uiTap(cx, cy);
+    }
+  }, { passive: true });
 }

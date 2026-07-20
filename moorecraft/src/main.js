@@ -35,7 +35,9 @@ class Game {
   constructor() {
     buildTextures();
     this.input = new Input(canvas);
-    initTouch(this.input);
+    initTouch(this.input, this);
+    this._touchPlay = document.getElementById('tc-play');
+    this._touchShown = null;
     this.sound = new Sound();
     this.renderer = new Renderer(canvas);
     this.renderer.setRes(RW, RH);
@@ -54,6 +56,7 @@ class Game {
     window.addEventListener('keydown', unlock, { once: false });
     window.addEventListener('pointerdown', unlock, { once: false });
     canvas.addEventListener('mousedown', () => {
+      if (performance.now() - this.input._lastTouchTapTime < 700) return;
       if (this.state === 'playing' && !this.input.locked) this.input.requestLock();
     });
   }
@@ -319,18 +322,59 @@ class Game {
             by + 1 > p.y && by < p.y + 1.8);
   }
 
-  _craftClick() {
-    // recipe rows layout mirrors draw
-    const list = this.craftFull ? RECIPES : RECIPES.filter(r => !r.table);
-    const my = this.input._lastClickY ?? 0;
-    // handled in draw via stored rects
+  // hit-test the crafting UI at canvas coords (mx,my) and act. Defaults to the
+  // last mouse-click coords so desktop clicks still route through here unchanged.
+  _craftClick(mx = this.input._lastClickX ?? 0, my = this.input._lastClickY ?? 0) {
+    // CLOSE button
+    const cr = this._closeRect;
+    if (cr && mx >= cr.x && mx <= cr.x + cr.w && my >= cr.y && my <= cr.y + cr.h) { this.state = 'playing'; return; }
+    // recipe rows (rects stored during draw)
     if (!this._recipeRects) return;
     for (const rr of this._recipeRects) {
-      if (my >= rr.y && my <= rr.y + rr.h && this.input._lastClickX >= rr.x && this.input._lastClickX <= rr.x + rr.w) {
+      if (my >= rr.y && my <= rr.y + rr.h && mx >= rr.x && mx <= rr.x + rr.w) {
         if (this.inv.craft(rr.r)) { this.sound.craft(); this.flash('crafted ' + rr.r.name); }
         else this.flash('missing materials');
         return;
       }
+    }
+  }
+
+  // route a touch tap (in canvas pixel coords) to the current UI state
+  uiTap(cx, cy) {
+    const hit = (r) => r && cx >= r.x && cx <= r.x + r.w && cy >= r.y && cy <= r.y + r.h;
+    if (this.state === 'title') {
+      if (this._titleRects) {
+        for (let i = 0; i < this._titleRects.length; i++) {
+          if (hit(this._titleRects[i])) { this.titleSel = i; this.titleSelect(); return true; }
+        }
+      }
+      return false;
+    }
+    if (this.state === 'dead') { this.player.respawn(); this.state = 'playing'; return true; }
+    if (this.state === 'inventory') {
+      // craft immediately from the tap coords (avoids cross-frame clobbering of
+      // _lastClick by synthetic mouse events on some mobile browsers)
+      this._craftClick(cx, cy);
+      return true;
+    }
+    if (this.state === 'playing') {
+      if (this._hotbarRects) {
+        for (let i = 0; i < this._hotbarRects.length; i++) {
+          if (hit(this._hotbarRects[i])) { this.inv.sel = i; return true; }
+        }
+      }
+      return false;
+    }
+    return false;
+  }
+
+  // keep on-screen gameplay controls visible only while actually playing
+  _syncTouchUI() {
+    if (!this._touchPlay) return;
+    const show = this.state === 'playing';
+    if (this._touchShown !== show) {
+      this._touchShown = show;
+      this._touchPlay.style.display = show ? 'block' : 'none';
     }
   }
 
@@ -358,6 +402,7 @@ class Game {
 
   // ---------------- render ----------------
   render() {
+    this._syncTouchUI();
     if (this.state === 'title') return this.drawTitle();
     if (!this.world) return;
     const env = this.env();
@@ -392,18 +437,26 @@ class Game {
     text('MOORECRAFT', canvas.width / 2, 60, '#fff', 42, 'center');
     text('The Shattered Sky', canvas.width / 2, 108, '#9fd', 20, 'center');
     const opts = ['SURVIVAL', 'CREATIVE', this.hasSave() ? 'CONTINUE' : 'CONTINUE (no save)'];
+    this._titleRects = [];
     for (let i = 0; i < 3; i++) {
       const sel = i === this.titleSel;
-      text((sel ? '> ' : '  ') + opts[i], canvas.width / 2, 210 + i * 34, sel ? '#ffd45a' : '#cde', 22, 'center');
+      const oy = 210 + i * 34;
+      text((sel ? '> ' : '  ') + opts[i], canvas.width / 2, oy, sel ? '#ffd45a' : '#cde', 22, 'center');
+      // generous finger-sized tap target centred on the option
+      this._titleRects.push({ x: canvas.width / 2 - 170, y: oy - 6, w: 340, h: 32 });
     }
     text(`seed: ${this.seed}  (type digits to change)`, canvas.width / 2, 330, '#89a', 12, 'center');
-    text('WASD move / mouse look / click to break / right-click place / E craft / F tether / M mute', canvas.width / 2, canvas.height - 24, '#78a', 12, 'center');
+    const help = this.input.touchActive
+      ? 'tap SURVIVAL / CREATIVE / CONTINUE to begin'
+      : 'WASD move / mouse look / click to break / right-click place / E craft / F tether / M mute';
+    text(help, canvas.width / 2, canvas.height - 24, '#78a', 12, 'center');
   }
 
   drawDead() {
     ctx.fillStyle = 'rgba(20,0,0,0.6)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
     text('YOU FELL TO THE HOLLOW', canvas.width / 2, canvas.height / 2 - 30, '#f88', 26, 'center');
-    text('Enter to respawn at the spawn island', canvas.width / 2, canvas.height / 2 + 10, '#fcc', 14, 'center');
+    text(this.input.touchActive ? 'tap anywhere to respawn at the spawn island'
+      : 'Enter to respawn at the spawn island', canvas.width / 2, canvas.height / 2 + 10, '#fcc', 14, 'center');
   }
 
   drawHUD(env) {
@@ -440,6 +493,7 @@ class Game {
 
     // hotbar
     const slot = 44, n = 9, bw = slot * n, bx = (W - bw) / 2, by = H - slot - 8;
+    this._hotbarRects = [];
     for (let i = 0; i < n; i++) {
       const x = bx + i * slot;
       ctx.fillStyle = 'rgba(20,20,28,0.72)'; ctx.fillRect(x, by, slot - 3, slot - 3);
@@ -450,6 +504,8 @@ class Game {
         drawItemIcon(ctx, s.id, x + 6, by + 4, slot - 15);
         if (s.count > 1) text(String(s.count), x + slot - 7, by + slot - 18, '#fff', 12, 'right');
       }
+      // tap target: full slot plus a little slack above/below for fingers
+      this._hotbarRects.push({ x, y: by - 8, w: slot, h: slot + 16 });
     }
     // held tool name
     const held = this.inv.selId();
@@ -474,6 +530,13 @@ class Game {
     text(this.craftFull ? 'CRAFTING TABLE' : 'INVENTORY & CRAFTING', W / 2, 24, '#fff', 22, 'center');
     text(this.craftFull ? '(full recipe set)' : '(hand recipes — stand at a crafting table for more)', W / 2, 52, '#9ab', 12, 'center');
 
+    // CLOSE button (tap target for touch; also clickable with mouse)
+    const clw = 74, clh = 26, clx = W - clw - 12, cly = 10;
+    this._closeRect = { x: clx, y: cly, w: clw, h: clh };
+    ctx.fillStyle = 'rgba(70,40,44,0.85)'; ctx.fillRect(clx, cly, clw, clh);
+    ctx.strokeStyle = '#a77'; ctx.lineWidth = 1.5; ctx.strokeRect(clx, cly, clw, clh);
+    text('CLOSE', clx + clw / 2, cly + 7, '#fdd', 13, 'center');
+
     // inventory grid (right side)
     const gx = W - 260, gy = 90;
     text('INVENTORY', gx, gy - 22, '#bcd', 13);
@@ -489,21 +552,25 @@ class Game {
     // recipe list (left)
     const list = this.craftFull ? RECIPES : RECIPES.filter(r => !r.table);
     this._recipeRects = [];
-    const rx = 30, ry0 = 90, rh = 30;
-    text('RECIPES  (click to craft)', rx, ry0 - 22, '#bcd', 13);
+    // compact rows when the list is long so the full table fits the canvas
+    const rx = 30, ry0 = 90, rh = list.length > 8 ? 22 : 30;
+    const big = rh > 26;
+    const icon = big ? 22 : 16;
+    text(this.input.touchActive ? 'RECIPES  (tap to craft)' : 'RECIPES  (click to craft)', rx, ry0 - 22, '#bcd', 13);
     for (let i = 0; i < list.length; i++) {
       const r = list[i]; const y = ry0 + i * rh;
       const can = this.inv.canCraft(r);
       ctx.fillStyle = can ? 'rgba(40,70,50,0.7)' : 'rgba(50,40,44,0.6)';
       ctx.fillRect(rx, y, 300, rh - 4);
       ctx.strokeStyle = '#556'; ctx.strokeRect(rx, y, 300, rh - 4);
-      drawItemIcon(ctx, r.out[0], rx + 4, y + 2, 22);
-      text(`${r.name} x${r.out[1]}`, rx + 32, y + 4, can ? '#dfe' : '#987', 13);
+      drawItemIcon(ctx, r.out[0], rx + 4, y + 2, icon);
+      text(`${r.name} x${r.out[1]}`, rx + 32, y + (big ? 4 : 2), can ? '#dfe' : '#987', big ? 13 : 11);
       const need = r.in.map(([id, n]) => `${n} ${itemName(id)}`).join(', ');
-      text(need, rx + 32, y + 17, '#9ab', 9);
+      text(need, rx + 32, y + (big ? 17 : 11), '#9ab', big ? 9 : 8);
       this._recipeRects.push({ x: rx, y, w: 300, h: rh - 4, r });
     }
-    text('E / Esc to close', W / 2, H - 24, '#9ab', 13, 'center');
+    text(this.input.touchActive ? 'tap a recipe to craft · CLOSE (or CRAFT) to exit'
+      : 'E / Esc to close', W / 2, H - 24, '#9ab', 13, 'center');
   }
 }
 
@@ -513,6 +580,7 @@ fitCanvas();
 
 // capture click coords for crafting UI
 canvas.addEventListener('mousedown', e => {
+  if (performance.now() - game.input._lastTouchTapTime < 700) return; // touch handled via uiTap
   const r = canvas.getBoundingClientRect();
   game.input._lastClickX = (e.clientX - r.left) * (canvas.width / r.width);
   game.input._lastClickY = (e.clientY - r.top) * (canvas.height / r.height);
