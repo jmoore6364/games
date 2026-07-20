@@ -150,6 +150,7 @@ function buildFortress(world) {
 
   // ---- locked gate to the inner keep ----
   h.block(13, 13, 1, 14);                      // wall with a gap
+  h.block(13, 13, 15, H - 2);                  // continuous floor under the doorway
   set(g, 13, 14, T.EMPTY);                     // doorway at floor
   h.lock(13, 12, 14);                          // locked door blocks the gap
 
