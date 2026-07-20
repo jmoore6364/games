@@ -93,6 +93,10 @@ export function initTouch(input, game) {
   ui.style.display = 'block';
   input.touchActive = true;
   const canvas = input.canvas;
+  // Look sensitivity for touch drags. A finger can only travel a short
+  // distance per swipe (unlike pointer-lock mouse movement, which is
+  // unbounded), so touch needs a higher per-pixel factor than the mouse.
+  const TOUCH_LOOK = 2.0;
   const hint = document.getElementById('hint');
   if (hint) hint.textContent = 'tap menu to start · left stick move · right drag look · MINE / PUT / JMP · tap hotbar & recipes';
 
@@ -117,8 +121,8 @@ export function initTouch(input, game) {
         input.touch.fwd = -Math.sin(a) * mag;
         knob.style.transform = `translate(${Math.cos(a) * mag * 32 - 26}px,${Math.sin(a) * mag * 32 - 26}px)`;
       } else if (t.identifier === lookId) {
-        input.touch.lookX += (t.clientX - lastLX) * 0.55;
-        input.touch.lookY += (t.clientY - lastLY) * 0.55;
+        input.touch.lookX += (t.clientX - lastLX) * TOUCH_LOOK;
+        input.touch.lookY += (t.clientY - lastLY) * TOUCH_LOOK;
         lastLX = t.clientX; lastLY = t.clientY;
       }
     }
