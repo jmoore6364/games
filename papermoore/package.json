@@ -1,0 +1,9 @@
+{
+  "name": "papermoore",
+  "version": "0.1.0",
+  "description": "Papermoore — a Paperboy style diagonal-scrolling paper-delivery arcade game, vanilla JS + canvas",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Moore Icarus</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<link rel="icon" href="data:,">
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: #05060c;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+    touch-action: none;
+    overscroll-behavior: none;
+  }
+  canvas {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    background: #000;
+    touch-action: none;
+  }
+  #hint {
+    position: fixed; bottom: 8px; left: 0; right: 0;
+    text-align: center; color: #667; font: 12px monospace;
+    user-select: none;
+  }
+  #touch-ui { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
+  .tbtn {
+    position: absolute; pointer-events: auto;
+    width: 54px; height: 54px; border-radius: 50%;
+    background: rgba(255,255,255,0.10); border: 2px solid rgba(255,255,255,0.32);
+    color: #fff; font: bold 13px monospace;
+    display: flex; align-items: center; justify-content: center;
+    user-select: none; -webkit-user-select: none; touch-action: none;
+  }
+  .tbtn.on { background: rgba(255,255,255,0.35); }
+  .stick-zone {
+    position: absolute; pointer-events: auto;
+    left: calc(16px + env(safe-area-inset-left, 0px));
+    bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+    width: 128px; height: 128px; border-radius: 50%;
+    background: rgba(255,255,255,0.07); border: 2px solid rgba(255,255,255,0.25);
+    touch-action: none;
+  }
+  .stick-knob {
+    position: absolute; left: 50%; top: 50%;
+    width: 52px; height: 52px; border-radius: 50%;
+    transform: translate(-50%,-50%);
+    background: rgba(255,255,255,0.25); border: 2px solid rgba(255,255,255,0.4);
+    pointer-events: none;
+  }
+  .b-fire  { right: calc(80px + env(safe-area-inset-right, 0px)); bottom: calc(34px + env(safe-area-inset-bottom, 0px)); }
+  .b-jump  { right: calc(14px + env(safe-area-inset-right, 0px)); bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
+  .b-start { right: calc(14px + env(safe-area-inset-right, 0px)); top: 10px; width: 52px; height: 30px; border-radius: 8px; }
+</style>
+</head>
+<body>
+<canvas id="game" width="256" height="240"></canvas>
+<div id="hint">arrows/WASD move &nbsp;&middot;&nbsp; Z/Space jump &nbsp;&middot;&nbsp; X shoot &nbsp;&middot;&nbsp; Up aim up / enter door &nbsp;&middot;&nbsp; Down crouch &nbsp;&middot;&nbsp; Enter pause &nbsp;&middot;&nbsp; M mute</div>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
