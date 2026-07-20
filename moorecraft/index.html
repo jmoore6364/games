@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Moorecraft: The Shattered Sky</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<link rel="icon" href="data:,">
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: #05060c;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden; touch-action: none; overscroll-behavior: none;
+  }
+  canvas {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    background: #05060c; touch-action: none; cursor: crosshair;
+  }
+  #touch-ui { position: fixed; inset: 0; pointer-events: none; z-index: 10; display: none; }
+  .stick-zone, .look-zone, .tbtn { position: absolute; pointer-events: auto; touch-action: none; user-select: none; }
+  #move-stick {
+    left: calc(16px + env(safe-area-inset-left,0px)); bottom: calc(20px + env(safe-area-inset-bottom,0px));
+    width: 120px; height: 120px; border-radius: 50%;
+    background: rgba(255,255,255,0.07); border: 2px solid rgba(255,255,255,0.25);
+  }
+  #move-knob { position: absolute; left: 50%; top: 50%; width: 52px; height: 52px; border-radius: 50%;
+    transform: translate(-26px,-26px); background: rgba(255,255,255,0.25); border: 2px solid rgba(255,255,255,0.4); }
+  #look-zone { right: 0; top: 0; width: 55%; height: 78%; }
+  .tbtn {
+    width: 60px; height: 60px; border-radius: 50%;
+    background: rgba(255,255,255,0.10); border: 2px solid rgba(255,255,255,0.32);
+    color: #fff; font: bold 12px monospace; display: flex; align-items: center; justify-content: center;
+  }
+  #b-jump  { right: calc(16px + env(safe-area-inset-right,0px)); bottom: calc(150px + env(safe-area-inset-bottom,0px)); }
+  #b-break { right: calc(90px + env(safe-area-inset-right,0px)); bottom: calc(30px + env(safe-area-inset-bottom,0px)); }
+  #b-place { right: calc(16px + env(safe-area-inset-right,0px)); bottom: calc(70px + env(safe-area-inset-bottom,0px)); }
+  #hint {
+    position: fixed; bottom: 4px; left: 0; right: 0; text-align: center;
+    color: #556; font: 11px monospace; user-select: none; pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<canvas id="game" width="640" height="384"></canvas>
+<div id="touch-ui">
+  <div id="move-stick" class="stick-zone"><div id="move-knob"></div></div>
+  <div id="look-zone" class="look-zone"></div>
+  <div id="b-jump" class="tbtn">JMP</div>
+  <div id="b-break" class="tbtn">MINE</div>
+  <div id="b-place" class="tbtn">PUT</div>
+</div>
+<div id="hint">click to capture mouse &middot; WASD move &middot; Space jump &middot; L-click break &middot; R-click place &middot; 1-9 select &middot; E craft &middot; F tether &middot; M mute</div>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
