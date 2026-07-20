@@ -62,13 +62,7 @@ export function buildTextures() {
     switch (id) {
       case B.GRASS: {
         const g = base;
-        // Glossy grass top: a clean vertical gradient with only a whisper of
-        // grain and no crystalline facet seams, so it reads as a smooth,
-        // polished lawn (the renderer adds a view-dependent specular sheen).
-        top = makeTile((u, v) => {
-          const f = 1.16 - (v / (TS - 1)) * 0.34 + (h2(u, v, 3) - 0.5) * 0.03;
-          return shade(g, f);
-        });
+        top = gem(g, 3, 0.08);
         const dirt = BLOCKS[B.DIRT].col;
         side = makeTile((u, v) => {
           // gem gradient underneath a crisp mossy cap
