@@ -1,0 +1,10 @@
+{
+  "name": "defender-of-the-moore",
+  "version": "0.1.0",
+  "description": "Defender of the Moore — a Defender of the Crown style light strategy game with Cinemaware action mini-games, vanilla JS + canvas",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node tests/test.js"
+  }
+}
