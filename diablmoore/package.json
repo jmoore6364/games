@@ -1,0 +1,10 @@
+{
+  "name": "diablmoore",
+  "version": "1.0.0",
+  "description": "Diablmoore — a Diablo 1 style isometric action-RPG dungeon crawler, vanilla JS + canvas",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/node-test.mjs"
+  }
+}
