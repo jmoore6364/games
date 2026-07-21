@@ -1096,4 +1096,60 @@ window.__dm = {
     return { min: mn, max: mx, range: mx - mn, colors: set.size };
   },
 };
+// =====================  MOBILE / TOUCH OVERLAY  ============================
+// Casts the secondary skill (same as right-click) aimed at the nearest visible
+// monster, falling back to the player's facing direction when none is in sight.
+function castSecondaryTouch() {
+  if (game.screen !== 'playing' || game.overlay || !game.player) return;
+  A.resume();
+  let target = null, best = 1e9;
+  for (const m of game.monsters) {
+    if (!m.alive) continue;
+    if (game.level.vis[Math.round(m.y) * game.level.W + Math.round(m.x)] !== 2) continue;
+    const d = dist(m, game.player); if (d < best) { best = d; target = m; }
+  }
+  const f = game.player.facing || 0;
+  const wp = target ? { x: target.x, y: target.y } : { x: game.player.x + Math.cos(f), y: game.player.y + Math.sin(f) };
+  if (target) faceTo(target);
+  secondaryAt(wp);
+}
+function touchPotion(kind) {
+  if (game.screen !== 'playing' || game.overlay || !game.player) return;
+  A.resume(); useBeltKind(kind);
+}
+function touchToggleMap() { if (game.screen === 'playing') { A.resume(); A.sfx.ui(); game.showMap = !game.showMap; } }
+function touchOverlay(which) { if (game.screen === 'playing') { A.resume(); toggleOverlay(which); } }
+
+// Exposed so the DOM overlay (and headless tests) can drive the touch buttons.
+window.__touch = {
+  skill: castSecondaryTouch,
+  potion: touchPotion,
+  inv: () => touchOverlay('inventory'),
+  char: () => touchOverlay('inventory'),
+  map: touchToggleMap,
+};
+
+function setupTouchOverlay() {
+  const overlay = document.getElementById('touch');
+  if (!overlay) return;
+  const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0 || location.search.includes('touch=1');
+  if (!isTouch) return;
+  overlay.style.display = 'block';
+  const bind = (id, fn) => {
+    const el = document.getElementById(id); if (!el) return;
+    let handled = false; // swallow the synthetic click that follows a touch
+    el.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); handled = true; el.classList.add('act'); fn(); }, { passive: false });
+    el.addEventListener('touchend', (e) => { e.preventDefault(); el.classList.remove('act'); }, { passive: false });
+    el.addEventListener('touchcancel', () => { el.classList.remove('act'); });
+    el.addEventListener('click', (e) => { e.preventDefault(); if (handled) { handled = false; return; } fn(); });
+  };
+  bind('tb-skill', () => window.__touch.skill());
+  bind('tb-hp', () => window.__touch.potion('health'));
+  bind('tb-mp', () => window.__touch.potion('mana'));
+  bind('tb-i', () => window.__touch.inv());
+  bind('tb-c', () => window.__touch.char());
+  bind('tb-map', () => window.__touch.map());
+}
+setupTouchOverlay();
+
 window.__ready = true;

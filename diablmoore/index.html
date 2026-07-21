@@ -14,38 +14,55 @@
   canvas { image-rendering: pixelated; image-rendering: crisp-edges; background: #05060a;
     cursor: crosshair; display: block;
     width: min(100vw, 133.33vh); height: min(75vw, 100vh); }
-  #touch { position: absolute; inset: 0; pointer-events: none; display: none; }
-  .tb { position: absolute; pointer-events: auto; width: 46px; height: 46px; border-radius: 8px;
-    background: rgba(30,20,14,0.7); border: 2px solid #6a5030; color: #e8c98a;
-    font: bold 14px monospace; display: flex; align-items: center; justify-content: center;
-    user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
-  .tb:active { background: rgba(80,50,20,0.8); }
-  #tb-i { right: 8px; top: 8px; } #tb-c { right: 8px; top: 60px; }
-  #tb-r { right: 8px; bottom: 60px; } #tb-1 { left: 8px; bottom: 8px; }
+
+  /* ---- touch overlay: full-viewport, buttons live in the letterbox / safe area ---- */
+  #touch { position: fixed; inset: 0; pointer-events: none; display: none; z-index: 10;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+  .tbtn { position: absolute; pointer-events: auto; box-sizing: border-box;
+    display: flex; align-items: center; justify-content: center; text-align: center;
+    border-radius: 12px; background: rgba(28,20,14,0.72); border: 2px solid #6a5030; color: #e8c98a;
+    font: bold 12px monospace; line-height: 1.05;
+    user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none; box-shadow: 0 2px 6px rgba(0,0,0,0.5); }
+  .tbtn.act { background: rgba(90,58,22,0.9); transform: scale(0.94); }
+
+  /* small utility buttons: top-right column */
+  .tbtn.util { width: 48px; height: 44px; right: calc(env(safe-area-inset-right) + 12px); }
+  #tb-i   { top: calc(env(safe-area-inset-top) + 14px); }
+  #tb-c   { top: calc(env(safe-area-inset-top) + 66px); }
+  #tb-map { top: calc(env(safe-area-inset-top) + 118px); }
+
+  /* combat cluster: right thumb */
+  #tb-skill { width: 82px; height: 82px; border-radius: 50%;
+    right: calc(env(safe-area-inset-right) + 16px); bottom: calc(env(safe-area-inset-bottom) + 24px);
+    border-color: #b05020; color: #ffcf9a; font-size: 13px;
+    background: radial-gradient(circle at 40% 35%, rgba(120,60,20,0.85), rgba(40,22,10,0.85)); }
+  #tb-mp { width: 58px; height: 58px; border-radius: 50%;
+    right: calc(env(safe-area-inset-right) + 28px); bottom: calc(env(safe-area-inset-bottom) + 118px);
+    border-color: #3a5aa0; color: #cfe0ff;
+    background: radial-gradient(circle at 40% 35%, rgba(40,70,160,0.85), rgba(14,22,60,0.85)); }
+
+  /* potion: left thumb (near the health orb) */
+  #tb-hp { width: 58px; height: 58px; border-radius: 50%;
+    left: calc(env(safe-area-inset-left) + 20px); bottom: calc(env(safe-area-inset-bottom) + 24px);
+    border-color: #a03030; color: #ffd0d0;
+    background: radial-gradient(circle at 40% 35%, rgba(150,40,40,0.85), rgba(60,14,14,0.85)); }
+
+  .tbtn small { display: block; font-size: 8px; opacity: 0.85; font-weight: normal; }
 </style>
 </head>
 <body>
 <div id="wrap">
   <canvas id="game"></canvas>
-  <div id="touch">
-    <div class="tb" id="tb-i">I</div>
-    <div class="tb" id="tb-c">C</div>
-    <div class="tb" id="tb-r">R</div>
-    <div class="tb" id="tb-1">1</div>
-  </div>
+</div>
+<div id="touch">
+  <div class="tbtn util" id="tb-i">INV</div>
+  <div class="tbtn util" id="tb-c">CHAR</div>
+  <div class="tbtn util" id="tb-map">MAP</div>
+  <div class="tbtn" id="tb-skill">SKILL</div>
+  <div class="tbtn" id="tb-mp">MANA<small>potion</small></div>
+  <div class="tbtn" id="tb-hp">LIFE<small>potion</small></div>
 </div>
 <script type="module" src="src/main.js"></script>
-<script>
-  // show touch buttons on touch devices; wire them to synthetic keys
-  if ('ontouchstart' in window) {
-    const t = document.getElementById('touch'); t.style.display = 'block';
-    const key = (k) => window.dispatchEvent(new KeyboardEvent('keydown', { key: k }));
-    document.getElementById('tb-i').addEventListener('touchstart', (e) => { e.preventDefault(); key('i'); });
-    document.getElementById('tb-c').addEventListener('touchstart', (e) => { e.preventDefault(); key('c'); });
-    document.getElementById('tb-1').addEventListener('touchstart', (e) => { e.preventDefault(); key('1'); });
-    // R button = secondary skill toward player-front handled via right-click emulation is limited on touch;
-    // documented as basic in README.
-  }
-</script>
 </body>
 </html>

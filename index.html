@@ -4,268 +4,542 @@
 <meta charset="utf-8">
 <title>Moore Arcade</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='14' font-size='14'%3E%F0%9F%95%B9%EF%B8%8F%3C/text%3E%3C/svg%3E">
 <style>
+  :root {
+    --bg: #101018; --panel: #1a1a28; --panel-hi: #222236;
+    --gold: #f8a800; --teal: #0aa7a0; --muted: #99a; --dim: #667;
+  }
+  * { box-sizing: border-box; }
   body {
     margin: 0; min-height: 100vh;
     background: #101018; color: #eee;
     font-family: monospace;
     display: flex; flex-direction: column; align-items: center;
-    padding: 48px 16px;
+    padding: 40px 16px 0;
   }
   h1 {
-    color: #f8a800; letter-spacing: 4px; text-transform: uppercase;
+    color: var(--gold); letter-spacing: 4px; text-transform: uppercase;
     text-shadow: 3px 3px 0 #78290c;
-    font-size: clamp(24px, 6vw, 42px);
+    font-size: clamp(24px, 6vw, 44px);
+    margin: 0 0 6px; text-align: center;
   }
-  .games { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; margin-top: 32px; }
-  h2.section {
-    margin: 44px 0 0; color: #99a; font-size: 14px;
-    letter-spacing: 3px; text-transform: uppercase;
+  .subtitle { color: var(--muted); font-size: 13px; letter-spacing: 2px; margin: 0 0 24px; }
+  .subtitle b { color: var(--teal); }
+
+  .controls {
+    width: 100%; max-width: 1180px;
+    display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+    justify-content: center; margin-bottom: 16px;
   }
-  a.card.ext { border-color: #0aa7a0; }
-  a.card.ext h2 { color: #f8a800; }
-  .card .tag { display: inline-block; margin-top: 10px; font-size: 11px; color: #667; }
-  a.card {
-    display: block; width: 260px; padding: 20px;
-    background: #1a1a28; border: 3px solid #f8a800; border-radius: 6px;
-    color: #eee; text-decoration: none;
+  .search {
+    flex: 1 1 240px; max-width: 420px;
+    background: var(--panel); border: 3px solid var(--teal); border-radius: 6px;
+    color: #eee; font-family: monospace; font-size: 15px;
+    padding: 12px 14px;
+  }
+  .search::placeholder { color: var(--dim); }
+  .search:focus { outline: none; border-color: var(--gold); }
+  .btn-random {
+    background: var(--gold); color: #201400; border: 3px solid var(--gold);
+    border-radius: 6px; font-family: monospace; font-weight: bold; font-size: 14px;
+    letter-spacing: 1px; padding: 12px 16px; cursor: pointer; text-transform: uppercase;
     transition: transform 0.1s;
   }
-  a.card:hover { transform: translateY(-4px); background: #222236; }
-  .card h2 { margin: 0 0 8px; color: #0aa7a0; font-size: 18px; }
-  .card p { margin: 0; font-size: 13px; color: #99a; line-height: 1.5; }
-  footer { margin-top: auto; padding-top: 40px; color: #556; font-size: 12px; }
+  .btn-random:hover { transform: translateY(-2px); background: #ffc23a; }
+  .btn-random:active { transform: translateY(0); }
+
+  .chips {
+    width: 100%; max-width: 1180px;
+    display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
+    margin-bottom: 28px;
+  }
+  .chip {
+    background: var(--panel); border: 2px solid #33334c; border-radius: 999px;
+    color: var(--muted); font-family: monospace; font-size: 12px; letter-spacing: 1px;
+    padding: 7px 13px; cursor: pointer; text-transform: uppercase;
+    transition: all 0.12s; user-select: none;
+  }
+  .chip:hover { border-color: var(--teal); color: #eee; }
+  .chip.active { background: var(--teal); border-color: var(--teal); color: #04211f; font-weight: bold; }
+  .chip .n { opacity: 0.7; margin-left: 5px; font-size: 11px; }
+
+  .games {
+    width: 100%; max-width: 1180px;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 18px;
+  }
+  h2.section {
+    width: 100%; max-width: 1180px;
+    margin: 40px 0 20px; color: var(--muted); font-size: 14px;
+    letter-spacing: 3px; text-transform: uppercase;
+    border-top: 1px solid #26263a; padding-top: 24px;
+  }
+
+  a.card {
+    display: flex; flex-direction: column;
+    background: var(--panel); border: 3px solid var(--gold); border-radius: 8px;
+    color: #eee; text-decoration: none; overflow: hidden;
+    transition: transform 0.1s, box-shadow 0.1s;
+  }
+  a.card:hover { transform: translateY(-4px); background: var(--panel-hi); box-shadow: 0 6px 18px rgba(0,0,0,0.5); }
+  a.card.ext { border-color: var(--teal); }
+
+  .thumb {
+    width: 100%; aspect-ratio: 4 / 3; object-fit: cover;
+    display: block; background: #0c0c14; border-bottom: 2px solid #000;
+    image-rendering: pixelated;
+  }
+  .thumb.ext-thumb {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 6px; color: var(--teal); font-size: 40px;
+    background: linear-gradient(135deg, #14141f, #1d1d33);
+    image-rendering: auto;
+  }
+  .thumb.ext-thumb span { font-size: 11px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; }
+
+  .body { padding: 14px 16px 16px; display: flex; flex-direction: column; flex: 1; }
+  .cat {
+    align-self: flex-start; font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--gold); border: 1px solid #4a3a12; background: #241d08;
+    padding: 2px 7px; border-radius: 4px; margin-bottom: 8px;
+  }
+  a.card.ext .cat { color: var(--teal); border-color: #0a3a37; background: #05201e; }
+  .card h2 { margin: 0 0 8px; color: var(--teal); font-size: 16px; line-height: 1.25; }
+  a.card.ext h2 { color: var(--gold); }
+  .card p { margin: 0; font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+  .card .tag { display: inline-block; margin-top: 10px; font-size: 11px; color: var(--dim); }
+
+  .empty {
+    width: 100%; max-width: 1180px; text-align: center; color: var(--dim);
+    font-size: 14px; padding: 40px 0; display: none;
+  }
+
+  footer { margin-top: 48px; padding: 28px 0 24px; color: #556; font-size: 12px; text-align: center; }
+
+  @media (max-width: 480px) {
+    body { padding-top: 28px; }
+    .games { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+    .card h2 { font-size: 14px; }
+    .card p { font-size: 11.5px; }
+    .btn-random { flex: 1 1 100%; }
+  }
 </style>
 </head>
 <body>
 <h1>Moore Arcade</h1>
-<div class="games">
-  <a class="card" href="super-moore-bros/">
+<p class="subtitle"><b id="count">38</b> games &middot; pick a genre, search, or roll the dice</p>
+
+<div class="controls">
+  <input id="search" class="search" type="text" placeholder="search games…" autocomplete="off" aria-label="Search games">
+  <button id="random" class="btn-random" type="button">🎲 Surprise Me</button>
+</div>
+
+<div class="chips" id="chips"></div>
+
+<div class="games" id="localGames">
+  <a class="card" href="super-moore-bros/" data-cat="Platformer">
+    <img class="thumb" src="thumbs/super-moore-bros.jpg" loading="lazy" alt="">
+    <div class="body"><span class="cat">Platformer</span>
     <h2>Super Moore Bros</h2>
     <p>Classic side-scrolling platformer. Four worlds, powerups, koopa shells,
-    piranha plants, and a castle boss. Keyboard, gamepad, or touch.</p>
+    piranha plants, and a castle boss. Keyboard, gamepad, or touch.</p></div>
   </a>
-  <a class="card" href="kings-quest/">
+  <a class="card" href="kings-quest/" data-cat="Adventure">
+    <img class="thumb" src="thumbs/kings-quest.jpg" loading="lazy" alt="">
+    <div class="body"><span class="cat">Adventure</span>
     <h2>King's Quest: The Crown of Moore</h2>
     <p>Sierra-style graphic adventure. Type commands, bribe a goat, outwit a
-    troll, douse a dragon, reclaim the crown. Keyboard or touch.</p>
+    troll, douse a dragon, reclaim the crown. Keyboard or touch.</p></div>
   </a>
-  <a class="card" href="lode-runner/">
+  <a class="card" href="lode-runner/" data-cat="Puzzle">
+    <img class="thumb" src="thumbs/lode-runner.jpg" loading="lazy" alt="">
+    <div class="body"><span class="cat">Puzzle</span>
     <h2>Lode Runner: Moore's Gold</h2>
     <p>Dig-and-dash arcade puzzler. Ten levels of bricks, ladders, ropes,
-    trap floors, and relentless guards. Keyboard, gamepad, or touch.</p>
+    trap floors, and relentless guards. Keyboard, gamepad, or touch.</p></div>
   </a>
-  <a class="card" href="cruisin-usa/">
+  <a class="card" href="cruisin-usa/" data-cat="Racing">
+    <img class="thumb" src="thumbs/cruisin-usa.jpg" loading="lazy" alt="">
+    <div class="body"><span class="cat">Racing</span>
     <h2>Cruis'n Moore</h2>
     <p>Pseudo-3D arcade racer. Seven courses, three rides, 7 rivals,
     drafting, weather, police chases, ghost time trials, a points tour,
     initials leaderboards, and two-player split screen. Keyboard,
-    gamepad, or touch.</p>
+    gamepad, or touch.</p></div>
   </a>
-  <a class="card" href="mooretroid/">
+  <a class="card" href="mooretroid/" data-cat="Platformer">
+    <img class="thumb" src="thumbs/mooretroid.jpg" loading="lazy" alt="">
+    <div class="body"><span class="cat">Platformer</span>
     <h2>Mooretroid: The Hive of Zemoor</h2>
     <p>Metroid-style exploration shooter. Seven areas, fifteen enemy species,
     morph ball, missiles, four beams, screw attack, space jump, two titans,
     and the Overmind — then outrun the countdown. Keyboard, gamepad, or
-    touch.</p>
+    touch.</p></div>
   </a>
-  <a class="card" href="moore-quest/">
+  <a class="card" href="moore-quest/" data-cat="RPG">
+    <img class="thumb" src="thumbs/moore-quest.jpg" loading="lazy" alt="">
+    <div class="body"><span class="cat">RPG</span>
     <h2>Moore Quest: The Ashen Road</h2>
     <p>Top-down JRPG. A scrolling overworld, four towns, four dungeons,
     a party of three, turn-based battles, shops, inns, and the Duskweaver
-    atop the Worldspire. Keyboard, gamepad, or touch.</p>
+    atop the Worldspire. Keyboard, gamepad, or touch.</p></div>
   </a>
-  <a class="card" href="legend-of-moore/">
+  <a class="card" href="legend-of-moore/" data-cat="Adventure">
+    <img class="thumb" src="thumbs/legend-of-moore.jpg" loading="lazy" alt="">
+    <div class="body"><span class="cat">Adventure</span>
     <h2>The Legend of Moore</h2>
     <p>Zelda-style top-down adventure. A 30-screen overworld, three dungeons,
     secret caves, boomerang and bombs, and the Shadow King Vexmoor.
-    Keyboard, gamepad, or touch.</p>
+    Keyboard, gamepad, or touch.</p></div>
   </a>
-  <a class="card" href="leisure-suit-moore/">
+  <a class="card" href="leisure-suit-moore/" data-cat="Adventure">
+    <img class="thumb" src="thumbs/leisure-suit-moore.jpg" loading="lazy" alt="">
+    <div class="body"><span class="cat">Adventure</span>
     <h2>Leisure Suit Moore</h2>
     <p>Larry-style Sierra adventure. One white leisure suit, one neon city,
     one legendary dance, one dumpster of destiny. Find true love before
-    sunrise. Keyboard or touch.</p>
+    sunrise. Keyboard or touch.</p></div>
   </a>
-  <a class="card" href="contra-moore/">
+  <a class="card" href="contra-moore/" data-cat="Shooter">
+    <img class="thumb" src="thumbs/contra-moore.jpg" loading="lazy" alt="">
+    <div class="body"><span class="cat">Shooter</span>
     <h2>Contra: Moore Force</h2>
     <p>Contra-style run-and-gun. Four areas, collapsing bridges, a vertical
     waterfall climb, spread guns and lasers, four bosses, and a certain
-    famous 30-lives code. Keyboard, gamepad, or touch.</p>
+    famous 30-lives code. Keyboard, gamepad, or touch.</p></div>
   </a>
-  <a class="card" href="moorevania/">
+  <a class="card" href="moorevania/" data-cat="Platformer">
+    <img class="thumb" src="thumbs/moorevania.jpg" loading="lazy" alt="">
+    <div class="body"><span class="cat">Platformer</span>
     <h2>Moorevania II: Jason's Quest</h2>
     <p>Simon's Quest style action-adventure. Whip the dead, survive the
     horrible night, buy stakes and sub-weapons, raid three manors, and
-    destroy Count Vorlok. Keyboard, gamepad, or touch.</p>
+    destroy Count Vorlok. Keyboard, gamepad, or touch.</p></div>
   </a>
-  <a class="card" href="bubble-moore/">
+  <a class="card" href="bubble-moore/" data-cat="Arcade">
+    <img class="thumb" src="thumbs/bubble-moore.jpg" loading="lazy" alt="">
+    <div class="body"><span class="cat">Arcade</span>
     <h2>Bubble Moore</h2>
     <p>Bubble Bobble style arcade platformer. Twenty rounds of bubble
     trapping and bouncing, four enemy types, angry escapees, a hurry-up
-    skull, and 2-player co-op. Keyboard, gamepad, or touch.</p>
+    skull, and 2-player co-op. Keyboard, gamepad, or touch.</p></div>
   </a>
-  <a class="card" href="golden-moore/">
+  <a class="card" href="golden-moore/" data-cat="Beat-'em-up">
+    <img class="thumb" src="thumbs/golden-moore.jpg" loading="lazy" alt="">
+    <div class="body"><span class="cat">Beat-'em-up</span>
     <h2>Golden Moore</h2>
     <p>Golden Axe style beat-'em-up. Five stages, three-hit combos,
     vial-fueled earth magic, a rideable beast, thieving gnomes, and the
-    dread knight Death Moore. Keyboard, gamepad, or touch.</p>
+    dread knight Death Moore. Keyboard, gamepad, or touch.</p></div>
   </a>
-  <a class="card" href="sonic-moore/">
+  <a class="card" href="sonic-moore/" data-cat="Platformer">
+    <img class="thumb" src="thumbs/sonic-moore.jpg" loading="lazy" alt="">
+    <div class="body"><span class="cat">Platformer</span>
     <h2>Sonic Moore</h2>
     <p>Momentum platformer with real slope physics. Two zones, runnable
     loops, springs and dash pads, ring scatter, badniks, and the hovering
-    Dr. Robotmoore. Keyboard, gamepad, or touch.</p>
+    Dr. Robotmoore. Keyboard, gamepad, or touch.</p></div>
   </a>
-  <a class="card" href="mega-moore/">
+  <a class="card" href="mega-moore/" data-cat="Platformer">
+    <img class="thumb" src="thumbs/mega-moore.jpg" loading="lazy" alt="">
+    <div class="body"><span class="cat">Platformer</span>
     <h2>Mega Moore</h2>
     <p>Mega Man style run-and-gun. Four Robot Masters in any order, earn
     their weapons, exploit the weakness cycle, slide under crushers, and
     storm the Skull Fortress to face Dr. Moorly. Keyboard, gamepad, or
-    touch.</p>
+    touch.</p></div>
   </a>
-  <a class="card" href="boomberman-moore/">
+  <a class="card" href="boomberman-moore/" data-cat="Arcade">
+    <img class="thumb" src="thumbs/boomberman-moore.jpg" loading="lazy" alt="">
+    <div class="body"><span class="cat">Arcade</span>
     <h2>Boomberman Moore</h2>
     <p>Bomberman-style grid arcade. Ten-stage campaign with the Balloon
     King, plus 2-4 player battle mode with CPU bots, kicked bombs, remote
     detonators, and closing-wall sudden death. Keyboard, gamepad, or
-    touch.</p>
+    touch.</p></div>
   </a>
-  <a class="card" href="moore-type/">
+  <a class="card" href="moore-type/" data-cat="Shooter">
+    <img class="thumb" src="thumbs/moore-type.jpg" loading="lazy" alt="">
+    <div class="body"><span class="cat">Shooter</span>
     <h2>Moore-Type</h2>
     <p>R-Type style shmup. Charge beam, detachable Force pod, Gradius
     powerup selector, four terrain-heavy stages, and multi-part bosses
-    with core weak points. Keyboard, gamepad, or touch.</p>
+    with core weak points. Keyboard, gamepad, or touch.</p></div>
   </a>
-  <a class="card" href="moore-out/">
+  <a class="card" href="moore-out/" data-cat="Sports">
+    <img class="thumb" src="thumbs/moore-out.jpg" loading="lazy" alt="">
+    <div class="body"><span class="cat">Sports</span>
     <h2>Moore-Out!!</h2>
     <p>Punch-Out style boxing. Five pattern-puzzle opponents, dodge and
     counter their tells, earn star punches, and take the belt from Mr.
-    Moorelight. Keyboard, gamepad, or touch.</p>
+    Moorelight. Keyboard, gamepad, or touch.</p></div>
   </a>
-  <a class="card" href="moormings/">
+  <a class="card" href="moormings/" data-cat="Puzzle">
+    <img class="thumb" src="thumbs/moormings.jpg" loading="lazy" alt="">
+    <div class="body"><span class="cat">Puzzle</span>
     <h2>Moormings</h2>
     <p>Lemmings-style puzzler. Assign eight jobs to a marching crowd,
     carve pixel-destructible terrain, and guide them home across twelve
-    levels from Fun to Taxing. Mouse, keyboard, or touch.</p>
+    levels from Fun to Taxing. Mouse, keyboard, or touch.</p></div>
   </a>
-  <a class="card" href="speedmoore-2/">
+  <a class="card" href="speedmoore-2/" data-cat="Sports">
+    <img class="thumb" src="thumbs/speedmoore-2.jpg" loading="lazy" alt="">
+    <div class="body"><span class="cat">Sports</span>
     <h2>Speedmoore 2</h2>
     <p>Speedball 2 style future sports. Six-a-side steel-ball brutality,
     power throws, multiplier stars, and an eight-team league with prize
-    money and team upgrades. Keyboard, gamepad, or touch.</p>
+    money and team upgrades. Keyboard, gamepad, or touch.</p></div>
   </a>
-  <a class="card" href="ghosts-n-moore/">
+  <a class="card" href="ghosts-n-moore/" data-cat="Platformer">
+    <img class="thumb" src="thumbs/ghosts-n-moore.jpg" loading="lazy" alt="">
+    <div class="body"><span class="cat">Platformer</span>
     <h2>Ghosts 'n Moore</h2>
     <p>Ghosts 'n Goblins style platformer. Committed jumps, armor knocked
     to boxers, a duck-polymorphing magician, six haunted stages, and a
     harder second loop for the true ending. Keyboard, gamepad, or
-    touch.</p>
+    touch.</p></div>
   </a>
-  <a class="card" href="streets-of-moore/">
+  <a class="card" href="streets-of-moore/" data-cat="Beat-'em-up">
+    <img class="thumb" src="thumbs/streets-of-moore.jpg" loading="lazy" alt="">
+    <div class="body"><span class="cat">Beat-'em-up</span>
     <h2>Streets of Moore</h2>
     <p>Streets of Rage 2 style brawler. Two fighters, combo chains,
     grabs and suplexes, weapons, blitz moves, five stages, 2-player
-    co-op, and Mr. Moore X at the top. Keyboard, gamepad, or touch.</p>
+    co-op, and Mr. Moore X at the top. Keyboard, gamepad, or touch.</p></div>
   </a>
-  <a class="card" href="ninja-moore/">
+  <a class="card" href="ninja-moore/" data-cat="Platformer">
+    <img class="thumb" src="thumbs/ninja-moore.jpg" loading="lazy" alt="">
+    <div class="body"><span class="cat">Platformer</span>
     <h2>Ninja Moore</h2>
     <p>Ninja Gaiden style action platformer. Wall-jump the waterfall,
     sling ninpo, dodge the hawks, and cut through six cinematic acts
-    to the three-form Demon Moore. Keyboard, gamepad, or touch.</p>
+    to the three-form Demon Moore. Keyboard, gamepad, or touch.</p></div>
   </a>
-  <a class="card" href="bonks-moore-venture/">
+  <a class="card" href="bonks-moore-venture/" data-cat="Platformer">
+    <img class="thumb" src="thumbs/bonks-moore-venture.jpg" loading="lazy" alt="">
+    <div class="body"><span class="cat">Platformer</span>
     <h2>Bonk's Moore-venture</h2>
     <p>Bonk-style mascot platformer. Diving headbutts, bounce chains,
     spin-glides, teeth-climbing, meat-fueled rampages, and King
-    Moore-Drool III on the moon. Keyboard, gamepad, or touch.</p>
+    Moore-Drool III on the moon. Keyboard, gamepad, or touch.</p></div>
   </a>
-  <a class="card" href="moores-booty/">
+  <a class="card" href="moores-booty/" data-cat="Strategy">
+    <img class="thumb" src="thumbs/moores-booty.jpg" loading="lazy" alt="">
+    <div class="body"><span class="cat">Strategy</span>
     <h2>Moore's Booty</h2>
     <p>Pirates!-style open-world sandbox. Sail the wind, trade and raid
     four nations, duel captains, dig up the lost treasure, and hunt
-    Capitan El Moorro. Keyboard, gamepad, or touch.</p>
+    Capitan El Moorro. Keyboard, gamepad, or touch.</p></div>
   </a>
-  <a class="card" href="shining-moore/">
+  <a class="card" href="shining-moore/" data-cat="RPG">
+    <img class="thumb" src="thumbs/shining-moore.jpg" loading="lazy" alt="">
+    <div class="body"><span class="cat">RPG</span>
     <h2>Shining Moore</h2>
     <p>Shining Force style tactics RPG. Eight story battles on terrain
     grids, eight classes, cut-in duels, an HQ town, and the Dark Moore
-    Dragon. Keyboard, gamepad, or touch.</p>
+    Dragon. Keyboard, gamepad, or touch.</p></div>
   </a>
-  <a class="card" href="moore-island/">
+  <a class="card" href="moore-island/" data-cat="Adventure">
+    <img class="thumb" src="thumbs/moore-island.jpg" loading="lazy" alt="">
+    <div class="body"><span class="cat">Adventure</span>
     <h2>The Secret of Moore Island</h2>
     <p>Monkey Island style point-and-click. Nine verbs, trade-chain
     puzzles, insult sword-fighting, a plaid-coated boat salesman, and
-    the ghost pirate LeMoore. Mouse or touch.</p>
+    the ghost pirate LeMoore. Mouse or touch.</p></div>
   </a>
-  <a class="card" href="baseball-moores/">
+  <a class="card" href="baseball-moores/" data-cat="Sports">
+    <img class="thumb" src="thumbs/baseball-moores.jpg" loading="lazy" alt="">
+    <div class="body"><span class="cat">Sports</span>
     <h2>Baseball Moores</h2>
     <p>Baseball Stars style ball game. Pitch-and-swing duels, overhead
     fielding, and a create-a-team league with prize money, player
-    training, and a pennant chase. Keyboard, gamepad, or touch.</p>
+    training, and a pennant chase. Keyboard, gamepad, or touch.</p></div>
   </a>
-  <a class="card" href="moorecraft/">
+  <a class="card" href="moorecraft/" data-cat="Sandbox">
+    <img class="thumb" src="thumbs/moorecraft.jpg" loading="lazy" alt="">
+    <div class="body"><span class="cat">Sandbox</span>
     <h2>Moorecraft: The Shattered Sky</h2>
     <p>First-person voxel sandbox, rendered in pure software. Mine, craft,
     and build across floating sky-islands; grapple the gaps with the
     tether, light the dark with lumite, and survive the Hollow. Mouse,
-    keyboard, or touch.</p>
+    keyboard, or touch.</p></div>
   </a>
-  <a class="card" href="papermoore/">
+  <a class="card" href="papermoore/" data-cat="Arcade">
+    <img class="thumb" src="thumbs/papermoore.jpg" loading="lazy" alt="">
+    <div class="body"><span class="cat">Arcade</span>
     <h2>Papermoore</h2>
     <p>Paperboy-style delivery run. Ride the oblique street, hit
     subscriber mailboxes, smash the odd window, dodge cars and dogs,
     and clear the BMX bonus across a seven-day week. Keyboard, gamepad,
-    or touch.</p>
+    or touch.</p></div>
   </a>
-  <a class="card" href="moore-icarus/">
+  <a class="card" href="moore-icarus/" data-cat="Platformer">
+    <img class="thumb" src="thumbs/moore-icarus.jpg" loading="lazy" alt="">
+    <div class="body"><span class="cat">Platformer</span>
     <h2>Moore Icarus</h2>
     <p>Kid Icarus-style winged platformer. Climb up-only levels where
     the bottom means death, shoot arrows up and forward, shop with
     hearts, dodge the Eggplant Wizard, and storm three worlds to
-    Moordusa. Keyboard, gamepad, or touch.</p>
+    Moordusa. Keyboard, gamepad, or touch.</p></div>
   </a>
-  <a class="card" href="diablmoore/">
+  <a class="card" href="diablmoore/" data-cat="RPG">
+    <img class="thumb" src="thumbs/diablmoore.jpg" loading="lazy" alt="">
+    <div class="body"><span class="cat">RPG</span>
     <h2>Diablmoore</h2>
     <p>Diablo-style isometric action-RPG. Pick a class, click through
     torch-lit dungeons, hoard loot with rarities and affixes, level up
     and equip, quaff potions, and descend five depths to Diablmoore,
-    the Moor Lord. Mouse and keyboard.</p>
+    the Moor Lord. Mouse and keyboard.</p></div>
+  </a>
+  <a class="card" href="marble-mooreness/" data-cat="Arcade">
+    <img class="thumb" src="thumbs/marble-mooreness.jpg" loading="lazy" alt="">
+    <div class="body"><span class="cat">Arcade</span>
+    <h2>Marble Mooreness</h2>
+    <p>Marble Madness style isometric roller. Guide a rolling marble down
+    six surreal courses before the clock runs out — momentum is everything,
+    slopes speed you up, edges drop you into the void. Keyboard, gamepad,
+    or touch.</p></div>
+  </a>
+  <a class="card" href="defender-of-the-moore/" data-cat="Strategy">
+    <img class="thumb" src="thumbs/defender-of-the-moore.jpg" loading="lazy" alt="">
+    <div class="body"><span class="cat">Strategy</span>
+    <h2>Defender of the Moore</h2>
+    <p>Defender of the Crown style light strategy. A Saxon lord in a
+    fractured realm: conquer the map turn by turn, manage a gold-and-army
+    economy, weather Cinemaware events, and settle conflicts through four
+    action mini-games. Keyboard, gamepad, or touch.</p></div>
   </a>
 </div>
-<h2 class="section">More Moore Games</h2>
-<div class="games">
-  <a class="card ext" href="https://jmoore6364.github.io/mansion/">
+
+<h2 class="section" id="extHeading">More Moore Games</h2>
+<div class="games" id="extGames">
+  <a class="card ext" href="https://jmoore6364.github.io/mansion/" data-cat="External">
+    <div class="thumb ext-thumb">🕹️<span>External</span></div>
+    <div class="body"><span class="cat">External</span>
     <h2>Hugo IV: The Antique Shop of Horrors</h2>
     <p>A haunted-house adventure in the classic Hugo style. Explore the
     antique shop, survive its horrors.</p>
-    <span class="tag">plays at jmoore6364.github.io/mansion</span>
+    <span class="tag">plays at jmoore6364.github.io/mansion</span></div>
   </a>
-  <a class="card ext" href="https://jmoore6364.github.io/jets/">
+  <a class="card ext" href="https://jmoore6364.github.io/jets/" data-cat="External">
+    <div class="thumb ext-thumb">🕹️<span>External</span></div>
+    <div class="body"><span class="cat">External</span>
     <h2>Project Jets: A Century of Air Combat</h2>
     <p>Take to the skies through a hundred years of dogfighting, from
     biplanes to modern jets.</p>
-    <span class="tag">plays at jmoore6364.github.io/jets</span>
+    <span class="tag">plays at jmoore6364.github.io/jets</span></div>
   </a>
-  <a class="card ext" href="https://jmoore6364.github.io/zelda/">
+  <a class="card ext" href="https://jmoore6364.github.io/zelda/" data-cat="External">
+    <div class="thumb ext-thumb">🕹️<span>External</span></div>
+    <div class="body"><span class="cat">External</span>
     <h2>Zelda II: Shards of Twilight</h2>
     <p>Top-down action adventure. Dungeons, shards, and swordplay in a
     twilight-shrouded overworld.</p>
-    <span class="tag">plays at jmoore6364.github.io/zelda</span>
+    <span class="tag">plays at jmoore6364.github.io/zelda</span></div>
   </a>
-  <a class="card ext" href="https://jmoore6364.github.io/SpacePirates/">
+  <a class="card ext" href="https://jmoore6364.github.io/SpacePirates/" data-cat="External">
+    <div class="thumb ext-thumb">🕹️<span>External</span></div>
+    <div class="body"><span class="cat">External</span>
     <h2>Void Corsair</h2>
     <p>Space piracy among the stars. Raid, dodge, and blast your way
     across the void.</p>
-    <span class="tag">plays at jmoore6364.github.io/SpacePirates</span>
+    <span class="tag">plays at jmoore6364.github.io/SpacePirates</span></div>
   </a>
-  <a class="card ext" href="https://jmoore6364.github.io/hex-empire/">
+  <a class="card ext" href="https://jmoore6364.github.io/hex-empire/" data-cat="External">
+    <div class="thumb ext-thumb">🕹️<span>External</span></div>
+    <div class="body"><span class="cat">External</span>
     <h2>Hex Empire</h2>
     <p>A 3D 4X strategy prototype on a hex map. Expand, exploit,
     and conquer.</p>
-    <span class="tag">plays at jmoore6364.github.io/hex-empire</span>
+    <span class="tag">plays at jmoore6364.github.io/hex-empire</span></div>
   </a>
 </div>
+
+<div class="empty" id="empty">No games match — try another genre or search.</div>
+
 <footer>vanilla JS &middot; no dependencies &middot; original art &amp; music</footer>
+
+<script>
+(function () {
+  var localCards = Array.prototype.slice.call(document.querySelectorAll('#localGames .card'));
+  var extCards   = Array.prototype.slice.call(document.querySelectorAll('#extGames .card'));
+  var allCards   = localCards.concat(extCards);
+
+  // build search index
+  allCards.forEach(function (c) {
+    var name = c.querySelector('h2').textContent;
+    var desc = (c.querySelector('p') ? c.querySelector('p').textContent : '');
+    c.dataset.search = (name + ' ' + desc + ' ' + (c.dataset.cat || '')).toLowerCase();
+  });
+
+  // category counts (local + external)
+  var counts = {};
+  allCards.forEach(function (c) {
+    var cat = c.dataset.cat;
+    counts[cat] = (counts[cat] || 0) + 1;
+  });
+  // ordered category list: game genres first (by count desc, then name), External last
+  var cats = Object.keys(counts).filter(function (c) { return c !== 'External'; })
+    .sort(function (a, b) { return counts[b] - counts[a] || a.localeCompare(b); });
+  if (counts['External']) cats.push('External');
+
+  var state = { cat: 'All', q: '' };
+
+  var chipsEl = document.getElementById('chips');
+  function makeChip(label, cat, n) {
+    var el = document.createElement('button');
+    el.type = 'button';
+    el.className = 'chip' + (cat === 'All' ? ' active' : '');
+    el.dataset.cat = cat;
+    el.innerHTML = label + ' <span class="n">' + n + '</span>';
+    el.addEventListener('click', function () {
+      state.cat = cat;
+      Array.prototype.forEach.call(chipsEl.children, function (ch) {
+        ch.classList.toggle('active', ch.dataset.cat === cat);
+      });
+      apply();
+    });
+    chipsEl.appendChild(el);
+  }
+  makeChip('All', 'All', allCards.length);
+  cats.forEach(function (cat) { makeChip(cat, cat, counts[cat]); });
+
+  var extHeading = document.getElementById('extHeading');
+  var extWrap    = document.getElementById('extGames');
+  var emptyEl    = document.getElementById('empty');
+  var countEl    = document.getElementById('count');
+
+  function apply() {
+    var q = state.q.trim().toLowerCase();
+    var visLocal = 0, visExt = 0;
+    allCards.forEach(function (c) {
+      var okCat = state.cat === 'All' || c.dataset.cat === state.cat;
+      var okQ = !q || c.dataset.search.indexOf(q) !== -1;
+      var show = okCat && okQ;
+      c.style.display = show ? '' : 'none';
+      if (show) { if (c.dataset.cat === 'External') visExt++; else visLocal++; }
+    });
+    // hide external section entirely if nothing there matches
+    var showExt = visExt > 0;
+    extHeading.style.display = showExt ? '' : 'none';
+    extWrap.style.display = showExt ? '' : 'none';
+    emptyEl.style.display = (visLocal + visExt === 0) ? 'block' : 'none';
+    countEl.textContent = (visLocal + visExt);
+  }
+
+  document.getElementById('search').addEventListener('input', function (e) {
+    state.q = e.target.value; apply();
+  });
+
+  document.getElementById('random').addEventListener('click', function () {
+    if (!localCards.length) return;
+    var pick = localCards[Math.floor(Math.random() * localCards.length)];
+    window.location.href = pick.getAttribute('href');
+  });
+
+  apply();
+})();
+</script>
 </body>
 </html>
