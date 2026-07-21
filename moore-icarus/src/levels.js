@@ -60,9 +60,12 @@ function buildClimb(world) {
     if (step === 6) h.spring(x0, x1, row);   // a hot spring rest ledge mid-climb
     side ^= 1; row -= 3; step++;
   }
-  // top exit ledge + door
+  // top exit ledge + door. Use a jump-through platform (not a solid block):
+  // a full-width solid ceiling can't be reached from below — you bonk your
+  // head on its underside — so the exit must be a platform you rise onto,
+  // exactly like every other staircase step (3 tiles up = a normal climb).
   const topLedge = tops[tops.length - 1];
-  h.block(1, W - 2, topLedge.row - 3, topLedge.row - 3);
+  h.plat(1, W - 2, topLedge.row - 3);
   doors.push({ kind: 'exit', tx: 7, ty: topLedge.row - 4 });
   // a few flyers streaming through the shaft
   spawns.push({ t: 'monoeye', tx: 5, ty: H - 20 });
