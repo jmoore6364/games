@@ -1,0 +1,10 @@
+{
+  "name": "marble-mooreness",
+  "version": "0.1.0",
+  "description": "Marble Mooreness — a Marble Madness style isometric marble roller, vanilla JS + canvas",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/physics.test.mjs"
+  }
+}

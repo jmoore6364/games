@@ -189,13 +189,28 @@ function moveAxis(m, c, axis, ev) {
 //   world +x  -> screen down-right     world +y -> screen down-left
 // up = (-x,-y), down = (+x,+y), left = (-x,+y), right = (+x,-y)
 export function resolveAccel(up, down, left, right) {
-  let ax = 0, ay = 0;
-  if (up) { ax -= 1; ay -= 1; }
-  if (down) { ax += 1; ay += 1; }
-  if (left) { ax -= 1; ay += 1; }
-  if (right) { ax += 1; ay -= 1; }
+  let sx = 0, sy = 0;
+  if (up) sy -= 1;
+  if (down) sy += 1;
+  if (left) sx -= 1;
+  if (right) sx += 1;
+  return accelFromScreen(sx, sy);
+}
+
+// General analog mapping: a SCREEN-space intent vector (x right, y down) ->
+// world acceleration on the iso ground plane. Magnitude is preserved (so a
+// half-pushed stick accelerates gently), clamped to 1.
+//   world +x -> screen (down-right)   world +y -> screen (down-left)
+//   => wx = (sx+sy)/2 , wy = (sy-sx)/2
+export function accelFromScreen(sx, sy) {
+  let ax = (sx + sy) / 2;
+  let ay = (sy - sx) / 2;
   const m = Math.hypot(ax, ay);
-  if (m > 0) { ax /= m; ay /= m; }
+  if (m > 1e-6) {
+    const clamp = Math.min(1, Math.hypot(sx, sy));
+    ax = (ax / m) * clamp;
+    ay = (ay / m) * clamp;
+  }
   return { ax, ay };
 }
 
