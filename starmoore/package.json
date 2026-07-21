@@ -1,0 +1,10 @@
+{
+  "name": "starmoore",
+  "version": "1.0.0",
+  "description": "StarMoore — a StarCraft-style real-time strategy game. Gather moorerals, build a base, tech up, raise an army, and crush the enemy AI. Vanilla JS, zero dependencies, zero assets.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/node-test.mjs"
+  }
+}
