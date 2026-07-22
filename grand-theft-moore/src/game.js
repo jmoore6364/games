@@ -437,6 +437,7 @@ export class Game {
       const mf = (input.forward ? 1 : 0) - (input.back ? 1 : 0);
       const ms = (input.right ? 1 : 0) - (input.left ? 1 : 0);
       p.update(this.city, { mf, ms, run: input.run, jump: input.jump, dt, camYaw: this.camYaw });
+      if (p.jumped) this.events.push({ type: 'jump' });
       // punch/attack
       if (input.action) this._punch();
     }

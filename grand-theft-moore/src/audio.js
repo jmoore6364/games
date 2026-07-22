@@ -81,6 +81,7 @@ export class Audio {
       case 'bump': this._noise(0.15, 0.3, 300); break;
       case 'splat': this._noise(0.18, 0.35, 250); this._ping(140, 0.1, 'triangle', 0.2); break;
       case 'punch': this._noise(0.08, 0.3, 500); break;
+      case 'jump': this._ping(440, 0.09, 'square', 0.16); this._ping(660, 0.08, 'square', 0.13); break;
       case 'missionStart': this._ping(523, 0.1); this._ping(659, 0.1); break;
       case 'missionComplete': [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => this._ping(f, 0.18, 'square', 0.25), i * 110)); break;
       case 'missionFail': [400, 300, 200].forEach((f, i) => setTimeout(() => this._ping(f, 0.2, 'sawtooth', 0.25), i * 140)); break;
