@@ -32,7 +32,7 @@ export class Game {
     this.time = 0;
 
     this.camYaw = 0.6;
-    this.camPitch = -0.32;
+    this.camPitch = 0;      // manual pitch offset around the geometric chase pitch
     this.firstPerson = false;
 
     this.events = [];      // transient events for audio/hud {type,...}
