@@ -50,8 +50,9 @@ export class Player {
     const M = city.MAP;
     this.x = Math.max(0.6, Math.min(M - 0.6, this.x));
     this.z = Math.max(0.6, Math.min(M - 0.6, this.z));
-    // jump / gravity (mostly cosmetic — flat city)
-    if (input.jump && this.onGround) { this.vy = 7; this.onGround = false; }
+    // jump / gravity — a clearly-visible hop (was a barely-perceptible 1u)
+    this.jumped = false;
+    if (input.jump && this.onGround) { this.vy = 12; this.onGround = false; this.jumped = true; }
     if (!this.onGround) {
       this.vy -= 22 * dt;
       this.y += this.vy * dt;

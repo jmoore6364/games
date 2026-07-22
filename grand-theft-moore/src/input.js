@@ -96,7 +96,9 @@ export class Input {
     // --- look drag (camera yaw, both on foot and driving) ---
     let lid = null, lx = 0;
     look.addEventListener('touchstart', (e) => { reveal(); this._pending.enter = true; const t = e.changedTouches[0]; lid = t.identifier; lx = t.clientX; e.preventDefault(); });
-    look.addEventListener('touchmove', (e) => { for (const t of e.changedTouches) if (t.identifier === lid) { this.touchLook += (t.clientX - lx) * 0.15; lx = t.clientX; } e.preventDefault(); });
+    // A finger drags a short distance, so touch look needs a much higher
+    // per-pixel factor than the mouse (0.15 was ~3 deg per full swipe).
+    look.addEventListener('touchmove', (e) => { for (const t of e.changedTouches) if (t.identifier === lid) { this.touchLook += (t.clientX - lx) * 2.2; lx = t.clientX; } e.preventDefault(); });
     look.addEventListener('touchend', (e) => { for (const t of e.changedTouches) if (t.identifier === lid) lid = null; });
 
     // --- tap anywhere on the canvas advances title / busted / wasted screens ---
