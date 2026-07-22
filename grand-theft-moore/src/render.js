@@ -312,9 +312,17 @@ export class Renderer {
   }
 
   _drawPed(e, hd) {
-    // camera-facing billboard: body + head, simple shading
-    const base = this._screen(e.x, 0, e.z);
-    const top = this._screen(e.x, e.h, e.z);
+    // camera-facing billboard: body + head, simple shading.
+    // `e.y` is the height off the ground (nonzero only while the player is
+    // jumping), so the billboard actually leaves the ground.
+    const ey = e.y || 0;
+    // ground shadow when airborne, so the hop reads clearly
+    if (ey > 0.05) {
+      const sh = this._screen(e.x, 0, e.z);
+      if (sh) this._blob(sh, [10, 10, 14], hd, Math.max(0.6, 1.6 - ey * 0.12));
+    }
+    const base = this._screen(e.x, ey, e.z);
+    const top = this._screen(e.x, ey + e.h, e.z);
     if (!base || !top) return;
     const down = e.state === 'down';
     let x0 = base.x, y0 = down ? base.y - 2 : top.y, y1 = base.y;
