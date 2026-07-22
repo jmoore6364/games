@@ -1,0 +1,10 @@
+{
+  "name": "grand-theft-moore",
+  "version": "1.0.0",
+  "description": "Grand Theft Moore — a GTA III-style 3D open-world crime sandbox rendered in software on a 2D canvas. Vanilla JS ES modules, zero dependencies, all procedural.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/headless.test.js"
+  }
+}
