@@ -47,11 +47,31 @@ export class Input {
     const stick = document.getElementById('move-stick');
     const knob = document.getElementById('move-knob');
     const look = document.getElementById('look-zone');
-    if (!stick) return;
+    const ui = document.getElementById('touch-ui');
+    if (!stick || !ui) return;
+
+    // reveal the on-screen controls (idempotent)
+    const reveal = () => {
+      if (this._uiShown) return;
+      this._uiShown = true; this._isTouch = true;
+      ui.style.display = 'block';
+      const hint = document.getElementById('hint'); if (hint) hint.style.display = 'none';
+    };
+    // feature detection: show immediately on a touch device or ?touch=1
+    const touchCapable = ('ontouchstart' in window) ||
+      (navigator.maxTouchPoints > 0) ||
+      (typeof location !== 'undefined' && location.search.includes('touch=1'));
+    if (touchCapable) reveal();
+
+    // cache mode-swapped button groups
+    this._footBtns = Array.from(document.querySelectorAll('.foot-btn'));
+    this._driveBtns = Array.from(document.querySelectorAll('.drive-btn'));
+    this._mode = null; // force first apply
+
+    // --- move stick (steers when driving, walks on foot) ---
     let sid = null, sox = 0, soy = 0;
     const start = (e) => {
-      this._isTouch = true;
-      document.getElementById('touch-ui').style.display = 'block';
+      reveal();
       const t = e.changedTouches[0]; sid = t.identifier;
       const r = stick.getBoundingClientRect(); sox = r.left + r.width / 2; soy = r.top + r.height / 2;
       e.preventDefault();
@@ -71,19 +91,45 @@ export class Input {
     const end = (e) => {
       for (const t of e.changedTouches) if (t.identifier === sid) { sid = null; this.touchMove.x = 0; this.touchMove.y = 0; knob.style.transform = 'translate(-26px,-26px)'; }
     };
-    stick.addEventListener('touchstart', start); stick.addEventListener('touchmove', move); stick.addEventListener('touchend', end);
+    stick.addEventListener('touchstart', start); stick.addEventListener('touchmove', move); stick.addEventListener('touchend', end); stick.addEventListener('touchcancel', end);
 
+    // --- look drag (camera yaw, both on foot and driving) ---
     let lid = null, lx = 0;
-    look.addEventListener('touchstart', (e) => { this._isTouch = true; const t = e.changedTouches[0]; lid = t.identifier; lx = t.clientX; e.preventDefault(); });
+    look.addEventListener('touchstart', (e) => { reveal(); this._pending.enter = true; const t = e.changedTouches[0]; lid = t.identifier; lx = t.clientX; e.preventDefault(); });
     look.addEventListener('touchmove', (e) => { for (const t of e.changedTouches) if (t.identifier === lid) { this.touchLook += (t.clientX - lx) * 0.15; lx = t.clientX; } e.preventDefault(); });
     look.addEventListener('touchend', (e) => { for (const t of e.changedTouches) if (t.identifier === lid) lid = null; });
 
+    // --- tap anywhere on the canvas advances title / busted / wasted screens ---
+    // (enter is only consumed by main.js while in a menu state, so this is inert during play)
+    canvas.addEventListener('touchstart', (e) => { reveal(); this._pending.enter = true; }, { passive: true });
+
+    // --- action buttons ---
+    // `held` buttons keep this.touch[name] true while pressed (GAS/BRAKE/HANDBRAKE);
+    // all buttons also fire an edge via _pending[name] on press (JUMP/F/HIT).
     const bind = (id, name) => {
       const el = document.getElementById(id); if (!el) return;
       el.addEventListener('touchstart', (e) => { this._pending[name] = true; this.touch[name] = true; e.preventDefault(); });
       el.addEventListener('touchend', (e) => { this.touch[name] = false; e.preventDefault(); });
+      el.addEventListener('touchcancel', (e) => { this.touch[name] = false; });
     };
-    bind('b-enter', 'enterExit'); bind('b-action', 'action'); bind('b-hand', 'hand');
+    bind('b-enter', 'enterExit');   // F — enter/exit (both modes)
+    bind('b-jump', 'jump');         // on foot
+    bind('b-action', 'action');     // on foot — HIT
+    bind('b-gas', 'gas');           // driving — throttle
+    bind('b-brake', 'brake');       // driving — brake / reverse
+    bind('b-hand', 'hand');         // driving — handbrake
+  }
+
+  // toggle which button cluster is visible based on whether the player is driving
+  _applyMode(inVehicle) {
+    const mode = inVehicle ? 'drive' : 'foot';
+    if (mode === this._mode || !this._footBtns) return;
+    this._mode = mode;
+    for (const b of this._footBtns) b.style.display = inVehicle ? 'none' : 'flex';
+    for (const b of this._driveBtns) b.style.display = inVehicle ? 'flex' : 'none';
+    // dropping a hidden button never fires touchend, so clear its held state
+    if (inVehicle) { this.touch.jump = false; this.touch.action = false; }
+    else { this.touch.gas = false; this.touch.brake = false; this.touch.hand = false; }
   }
 
   // consume edge event
@@ -91,13 +137,17 @@ export class Input {
 
   // build the per-frame control object for game.step
   frame(dt, inVehicle) {
-    const k = this.keys, tm = this.touchMove;
-    const forward = k['w'] || k['arrowup'] || tm.y < -0.3;
-    const back = k['s'] || k['arrowdown'] || tm.y > 0.3;
+    // show the right button cluster for on-foot vs driving
+    this._applyMode(inVehicle);
+    const k = this.keys, tm = this.touchMove, t = this.touch;
+    // On foot: stick x/y walks. Driving: stick x steers, GAS/BRAKE buttons drive
+    // (stick y still works as a fallback throttle so the stick alone can drive).
+    const forward = k['w'] || k['arrowup'] || tm.y < -0.3 || !!t.gas;
+    const back = k['s'] || k['arrowdown'] || tm.y > 0.3 || !!t.brake;
     const left = k['a'] || k['arrowleft'] || tm.x < -0.3;
     const right = k['d'] || k['arrowright'] || tm.x > 0.3;
     const run = k['shift'];
-    // camera turn from Q/E, mouse, or touch-look
+    // camera turn from Q/E, mouse, or touch-look (works on foot and driving)
     let camTurn = 0;
     if (k['q']) camTurn -= 1; if (k['e']) camTurn += 1;
     camTurn += this.mouseDX * 0.06;
@@ -106,9 +156,11 @@ export class Input {
     if (k['r']) camPitch += 1; if (k['t']) camPitch -= 1;
     camPitch += -this.mouseDY * 0.05;
     this.mouseDX = 0; this.mouseDY = 0; this.touchLook = 0;
+    // jump on foot (edge from key/JUMP button); handbrake while driving (held HAND button)
+    const jump = this.take('jump') || !!t.hand;
     return {
       dt, forward, back, left, right, run,
-      jump: this.take('jump') || this.touch.hand,
+      jump,
       camTurn, camPitch,
       enterExit: this.take('enterExit'),
       action: this.take('action'),

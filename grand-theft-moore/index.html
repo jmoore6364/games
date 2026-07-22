@@ -11,21 +11,35 @@
     overflow: hidden; touch-action: none; overscroll-behavior: none; font-family: monospace; }
   #view { image-rendering: pixelated; image-rendering: crisp-edges;
     background: #10131a; max-width: 100vw; max-height: 100vh; cursor: crosshair; }
-  #touch-ui { position: fixed; inset: 0; pointer-events: none; z-index: 10; display: none; }
+  #touch-ui { position: fixed; inset: 0; pointer-events: none; z-index: 10; display: none;
+    --sal: env(safe-area-inset-left, 0px);  --sar: env(safe-area-inset-right, 0px);
+    --sab: env(safe-area-inset-bottom, 0px); --sat: env(safe-area-inset-top, 0px); }
   .stick-zone, .look-zone, .tbtn { position: absolute; pointer-events: auto; touch-action: none;
     user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
-  #move-stick { left: 18px; bottom: 20px; width: 120px; height: 120px; border-radius: 50%;
+  #move-stick { left: calc(18px + var(--sal)); bottom: calc(24px + var(--sab)); width: 128px; height: 128px; border-radius: 50%;
     background: rgba(255,255,255,0.07); border: 2px solid rgba(255,255,255,0.25); }
   #move-knob { position: absolute; left: 50%; top: 50%; width: 52px; height: 52px; border-radius: 50%;
     transform: translate(-26px,-26px); background: rgba(255,255,255,0.25); border: 2px solid rgba(255,255,255,0.4); }
-  #look-zone { right: 0; top: 0; width: 55%; height: 60%; }
-  .tbtn { width: 60px; height: 60px; border-radius: 50%;
+  #look-zone { right: 0; top: calc(var(--sat)); width: 55%; height: 55%; }
+  .tbtn { width: 62px; height: 62px; border-radius: 50%;
     background: rgba(255,255,255,0.10); border: 2px solid rgba(255,255,255,0.32);
     color: #fff; font: bold 12px monospace; display: flex; align-items: center; justify-content: center; }
-  .tbtn:active { background: rgba(255,255,255,0.30); }
-  #b-enter  { right: 18px;  bottom: 100px; }
-  #b-action { right: 90px;  bottom: 40px; }
-  #b-hand   { right: 18px;  bottom: 30px; }
+  .tbtn.big { width: 78px; height: 78px; font-size: 13px; }
+  .tbtn:active { background: rgba(255,255,255,0.34); }
+  /* enter/exit — same slot in both modes */
+  #b-enter  { right: calc(20px + var(--sar));  bottom: calc(120px + var(--sab)); }
+  /* on-foot cluster */
+  #b-jump   { right: calc(16px + var(--sar));  bottom: calc(28px + var(--sab)); }
+  #b-action { right: calc(104px + var(--sar)); bottom: calc(40px + var(--sab)); }
+  /* driving cluster */
+  #b-gas    { right: calc(16px + var(--sar));  bottom: calc(28px + var(--sab));
+    background: rgba(80,220,120,0.16); border-color: rgba(90,230,130,0.55); }
+  #b-gas:active { background: rgba(80,220,120,0.40); }
+  #b-brake  { right: calc(104px + var(--sar)); bottom: calc(40px + var(--sab));
+    background: rgba(235,90,80,0.16); border-color: rgba(240,110,100,0.55); }
+  #b-brake:active { background: rgba(235,90,80,0.42); }
+  #b-hand   { right: calc(108px + var(--sar)); bottom: calc(128px + var(--sab)); }
+  .drive-btn { display: none; }
   #hint { position: fixed; bottom: 3px; left: 0; right: 0; text-align: center;
     color: #667; font: 11px monospace; pointer-events: none; }
 </style>
@@ -36,10 +50,15 @@
   <div id="move-stick" class="stick-zone"><div id="move-knob"></div></div>
   <div id="look-zone" class="look-zone"></div>
   <div id="b-enter" class="tbtn">F</div>
-  <div id="b-action" class="tbtn">HIT</div>
-  <div id="b-hand" class="tbtn">HB</div>
+  <!-- on foot -->
+  <div id="b-jump" class="tbtn big foot-btn">JUMP</div>
+  <div id="b-action" class="tbtn foot-btn">HIT</div>
+  <!-- driving -->
+  <div id="b-gas" class="tbtn big drive-btn">GAS</div>
+  <div id="b-brake" class="tbtn big drive-btn">BRAKE</div>
+  <div id="b-hand" class="tbtn drive-btn">HAND</div>
 </div>
-<div id="hint">WASD move · mouse/Q·E look · F enter/exit car · Space handbrake/jump · J punch · V view · R radio · M mute · ENTER start</div>
+<div id="hint">WASD move · mouse/Q·E look · F enter/exit car · Space handbrake/jump · J punch · V view · R radio · M mute · ENTER start · (or tap to play on touch)</div>
 <script type="module" src="./src/main.js"></script>
 </body>
 </html>
