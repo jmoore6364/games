@@ -90,9 +90,10 @@ function buildEntities() {
   for (const ped of g.peds) {
     out.push({ x: ped.x, z: ped.z, h: ped.h, color: ped.color, shirt: ped.shirt, state: ped.state, kind: 'ped' });
   }
-  // draw the player's own character on foot in 3rd person
+  // draw the player's own character on foot in 3rd person. Pass y so the
+  // billboard actually rises when jumping (was pinned to the ground).
   if (!g.player.inVehicle && !g.firstPerson) {
-    out.push({ x: g.player.x, z: g.player.z, h: 1.85, color: [40, 60, 110], shirt: [200, 210, 220], state: 'walk', kind: 'ped' });
+    out.push({ x: g.player.x, y: g.player.y || 0, z: g.player.z, h: 1.85, color: [40, 60, 110], shirt: [200, 210, 220], state: 'walk', kind: 'ped' });
   }
   return out;
 }
