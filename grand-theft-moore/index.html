@@ -9,8 +9,10 @@
   html, body { margin: 0; padding: 0; height: 100%; background: #05060c;
     display: flex; align-items: center; justify-content: center;
     overflow: hidden; touch-action: none; overscroll-behavior: none; font-family: monospace; }
-  #view { image-rendering: pixelated; image-rendering: crisp-edges;
-    background: #10131a; max-width: 100vw; max-height: 100vh; cursor: crosshair; }
+  #stage { position: relative; line-height: 0; max-width: 100vw; max-height: 100vh; }
+  #view { display: block; background: #10131a; max-width: 100vw; max-height: 100vh; cursor: crosshair; }
+  #hud { position: absolute; left: 0; top: 0; width: 100%; height: 100%;
+    pointer-events: none; image-rendering: auto; }
   #touch-ui { position: fixed; inset: 0; pointer-events: none; z-index: 10; display: none;
     --sal: env(safe-area-inset-left, 0px);  --sar: env(safe-area-inset-right, 0px);
     --sab: env(safe-area-inset-bottom, 0px); --sat: env(safe-area-inset-top, 0px); }
@@ -54,7 +56,10 @@
 </style>
 </head>
 <body>
-<canvas id="view"></canvas>
+<div id="stage">
+  <canvas id="view"></canvas>
+  <canvas id="hud"></canvas>
+</div>
 <div id="touch-ui">
   <div id="move-stick" class="stick-zone"><div id="move-knob"></div></div>
   <div id="look-stick" class="stick-zone"><div id="look-knob"></div></div>
