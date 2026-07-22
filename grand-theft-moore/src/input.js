@@ -129,11 +129,20 @@ export class Input {
     // --- action buttons ---
     // `held` buttons keep this.touch[name] true while pressed (GAS/BRAKE/HANDBRAKE);
     // all buttons also fire an edge via _pending[name] on press (JUMP/F/HIT).
+    // Use Pointer Events (pointerdown/up) — the modern unified input that is
+    // delivered more reliably than raw touchstart across mobile browsers.
+    // Fall back to touch events too, guarding against double-fire.
     const bind = (id, name) => {
       const el = document.getElementById(id); if (!el) return;
-      el.addEventListener('touchstart', (e) => { this._pending[name] = true; this.touch[name] = true; e.preventDefault(); }, { passive: false });
-      el.addEventListener('touchend', (e) => { this.touch[name] = false; e.preventDefault(); }, { passive: false });
-      el.addEventListener('touchcancel', (e) => { this.touch[name] = false; }, { passive: false });
+      const down = (e) => { reveal(); this._pending[name] = true; this.touch[name] = true; e.preventDefault(); };
+      const up = (e) => { this.touch[name] = false; };
+      el.addEventListener('pointerdown', down);
+      el.addEventListener('pointerup', up);
+      el.addEventListener('pointercancel', up);
+      el.addEventListener('pointerleave', up);
+      // touch fallback for browsers where the button somehow misses pointer events
+      el.addEventListener('touchstart', down, { passive: false });
+      el.addEventListener('touchend', up, { passive: false });
     };
     bind('b-enter', 'enterExit');   // F — enter/exit (both modes)
     bind('b-jump', 'jump');         // on foot
