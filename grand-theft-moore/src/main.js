@@ -11,8 +11,11 @@ import { Vehicle } from './vehicles.js';
 import { P, ROAD, TILE } from './city.js';
 
 const canvas = document.getElementById('view');
+const hud = document.getElementById('hud');
 const DW = 880, DH = 550;
 canvas.width = DW; canvas.height = DH;
+hud.width = DW; hud.height = DH;
+const hudCtx = hud.getContext('2d');
 
 const game = new Game((Math.random() * 1e9) | 0);
 const renderer = new Renderer(canvas);
@@ -88,12 +91,12 @@ function buildEntities() {
     });
   }
   for (const ped of g.peds) {
-    out.push({ x: ped.x, z: ped.z, h: ped.h, color: ped.color, shirt: ped.shirt, state: ped.state, kind: 'ped' });
+    out.push({ x: ped.x, z: ped.z, h: ped.h, heading: ped.heading, color: ped.color, shirt: ped.shirt, state: ped.state, kind: 'ped' });
   }
   // draw the player's own character on foot in 3rd person. Pass y so the
-  // billboard actually rises when jumping (was pinned to the ground).
+  // mesh actually rises when jumping (was pinned to the ground).
   if (!g.player.inVehicle && !g.firstPerson) {
-    out.push({ x: g.player.x, y: g.player.y || 0, z: g.player.z, h: 1.85, color: [40, 60, 110], shirt: [200, 210, 220], state: 'walk', kind: 'ped' });
+    out.push({ x: g.player.x, y: g.player.y || 0, z: g.player.z, h: 1.85, heading: g.player.heading, color: [40, 60, 110], shirt: [200, 210, 220], state: 'walk', kind: 'ped' });
   }
   return out;
 }
@@ -241,10 +244,11 @@ function frame(now) {
   if (radioTimer > 0) radioTimer -= dt;
   if (toastTimer > 0) toastTimer -= dt;
 
-  // render
+  // render 3D (WebGL) then the 2D HUD overlay on top
   const cam = computeCamera();
-  renderer.render({ city: game.city, eye: cam.eye, yaw: cam.yaw, pitch: cam.pitch, entities: buildEntities(), time: game.time });
-  const ctx = renderer.ctx;
+  renderer.render({ city: game.city, eye: cam.eye, yaw: cam.yaw, pitch: cam.pitch, entities: buildEntities(), props: game.props, time: game.time });
+  const ctx = hudCtx;
+  ctx.clearRect(0, 0, DW, DH);
 
   if (state === 'title') {
     overlay(ctx, 'GRAND THEFT MOORE', 'A software-3D crime sandbox\n\nPress ENTER to hit the streets', '#ffd23a');
@@ -273,22 +277,12 @@ window.__gtm = {
   },
   renderOnce() {
     const cam = computeCamera();
-    renderer.render({ city: game.city, eye: cam.eye, yaw: cam.yaw, pitch: cam.pitch, entities: buildEntities(), time: game.time });
+    renderer.render({ city: game.city, eye: cam.eye, yaw: cam.yaw, pitch: cam.pitch, entities: buildEntities(), props: game.props, time: game.time });
     return true;
   },
-  // analyze the low-res buffer: distinct-ish colors + variance (to prove the
+  // analyze the GL framebuffer: distinct-ish colors + variance (to prove the
   // 3D actually drew, not a flat fill)
-  frameStats() {
-    const d = renderer.img.data; const n = renderer.RW * renderer.RH;
-    let sum = 0, sum2 = 0; const buckets = new Set();
-    for (let i = 0; i < n; i++) {
-      const o = i * 4; const lum = d[o] * 0.3 + d[o + 1] * 0.59 + d[o + 2] * 0.11;
-      sum += lum; sum2 += lum * lum;
-      buckets.add((d[o] >> 4) * 256 + (d[o + 1] >> 4) * 16 + (d[o + 2] >> 4));
-    }
-    const mean = sum / n; const variance = sum2 / n - mean * mean;
-    return { mean, variance, distinct: buckets.size, n };
-  },
+  frameStats() { return renderer.frameStats(); },
   spawnCarNextToPlayer(type = 'sedan') {
     const p = game.player;
     const v = new Vehicle(type, p.x + 1.5, p.z, 0, 1); v.role = 'parked'; v.occupant = null;

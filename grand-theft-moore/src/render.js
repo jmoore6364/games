@@ -1,397 +1,461 @@
-// render.js — software 3D city renderer. A per-pixel heightfield raycaster:
-// the city is a grid where each cell has a building top-height. For each screen
-// pixel we cast a ray, march the XZ grid (2D DDA), and hit building walls/roofs
-// or the ground plane, with procedural window/road textures + distance fog.
-// Dynamic entities (cars, peds) are drawn as depth-tested projected boxes /
-// billboards on top. Renders to a small ImageData, blitted pixelated + scaled.
-// BROWSER-ONLY (uses canvas/document).
+// render.js — WebGL polygon renderer for Grand Theft Moore. Real low-poly 3D:
+// procedurally-built building meshes with a repeating window texture, a baked
+// textured ground plane (roads/lane-lines/sidewalks/grass), low-poly car and
+// humanoid meshes, a gradient sky-box with a sun, per-vertex-normal directional
+// + ambient (Lambert) lighting, a depth buffer, backface culling and distance
+// fog toward the sky. All geometry and textures are generated in code — zero
+// external assets. GLSL ES 1.00 (WebGL1), SwiftShader-safe. BROWSER-ONLY.
 
-import { P, ROAD, TILE } from './city.js';
+import { P, ROAD, SW, LOT, NB, TILE } from './city.js';
+import { mat4, normalize, cross, texture, program, locations, buffer } from './gl.js';
 
-const FAR = 92;          // horizontal draw distance (world units)
-const DEG = Math.PI / 180;
+const FAR = 96;            // fog end / draw distance (world units)
+const FOG_START = 44;
+const VFOV = 52 * Math.PI / 180;
 
-function bhash(x, y) {
+// palette (0..1 linear-ish sRGB)
+const SKY_TOP = [0.24, 0.45, 0.80];
+const SKY_HOR = [0.76, 0.84, 0.92];
+const FOG_COL = [0.76, 0.84, 0.92];
+const AMBIENT = [0.50, 0.53, 0.60];
+const SUN_LIT = [0.62, 0.60, 0.52];
+const SUN_COL = [1.0, 0.95, 0.82];
+const SUN_DIR = normalize([0.45, 0.82, 0.40]);
+const SKIN = [0.86, 0.70, 0.55];
+
+function h2(x, y) {
   let h = Math.imul(x | 0, 374761393) ^ Math.imul(y | 0, 668265263);
-  h = Math.imul(h ^ (h >>> 13), 1274126177);
-  h ^= h >>> 16;
+  h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16;
   return (h >>> 0) / 4294967295;
+}
+
+// ---- vertex mesh builder (interleaved: pos3 nrm3 col4 uv2 = 12 floats) ----
+class Mesh {
+  constructor() { this.v = []; }
+  _tri(a, b, c, n, col, ua, ub, uc) {
+    const P = this.v;
+    P.push(a[0], a[1], a[2], n[0], n[1], n[2], col[0], col[1], col[2], col[3], ua[0], ua[1]);
+    P.push(b[0], b[1], b[2], n[0], n[1], n[2], col[0], col[1], col[2], col[3], ub[0], ub[1]);
+    P.push(c[0], c[1], c[2], n[0], n[1], n[2], col[0], col[1], col[2], col[3], uc[0], uc[1]);
+  }
+  // quad a->b->c->d CCW as seen from the front; normal auto from a,b,c.
+  quad(a, b, c, d, col, uv) {
+    const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+    const w = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+    const n = normalize(cross(u, w));
+    uv = uv || [[0, 0], [1, 0], [1, 1], [0, 1]];
+    this._tri(a, b, c, n, col, uv[0], uv[1], uv[2]);
+    this._tri(a, c, d, n, col, uv[0], uv[2], uv[3]);
+  }
+  // axis-aligned box (all 6 faces), uniform color, uv=0
+  box(x0, y0, z0, x1, y1, z1, col) {
+    const z = [[0, 0], [0, 0], [0, 0], [0, 0]];
+    // +x, -x
+    this.quad([x1, y0, z1], [x1, y0, z0], [x1, y1, z0], [x1, y1, z1], col, z);
+    this.quad([x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0], col, z);
+    // +z, -z
+    this.quad([x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1], col, z);
+    this.quad([x1, y0, z0], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0], col, z);
+    // +y (top), -y (bottom)
+    this.quad([x0, y1, z0], [x0, y1, z1], [x1, y1, z1], [x1, y1, z0], col, z);
+    this.quad([x0, y0, z1], [x0, y0, z0], [x1, y0, z0], [x1, y0, z1], col, z);
+  }
+  data() { return new Float32Array(this.v); }
+  get count() { return this.v.length / 12; }
 }
 
 export class Renderer {
   constructor(canvas) {
     this.canvas = canvas;
-    this.ctx = canvas.getContext('2d', { alpha: false });
-    this.ctx.imageSmoothingEnabled = false;
-    this.buf = document.createElement('canvas');
-    this.bctx = this.buf.getContext('2d');
-    this.fov = 68 * DEG;
-    this.setRes(220, 138);
-    // sky palette
-    this.skyTop = [70, 120, 200];
-    this.skyHor = [175, 200, 225];
-    this.fog = [175, 200, 225];
-    this.sun = [255, 245, 210];
-    this.sunDir = this._norm([0.5, 0.7, 0.35]);
-  }
-  _norm(v) { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; }
+    const opts = { alpha: false, antialias: true, depth: true, preserveDrawingBuffer: true };
+    const gl = canvas.getContext('webgl', opts) || canvas.getContext('experimental-webgl', opts);
+    if (!gl) throw new Error('WebGL not available');
+    this.gl = gl;
 
-  setRes(w, h) {
-    this.RW = w; this.RH = h;
-    this.buf.width = w; this.buf.height = h;
-    this.img = this.bctx.createImageData(w, h);
-    this.depth = new Float32Array(w * h); // horizontal distance per pixel
-  }
+    // --- world program ---------------------------------------------------
+    const vs = `
+      attribute vec3 aPos; attribute vec3 aNormal; attribute vec4 aColor; attribute vec2 aUV;
+      uniform mat4 uProj, uView, uModel; uniform vec3 uTint;
+      varying vec3 vN; varying vec4 vColor; varying vec2 vUV; varying float vDist;
+      void main() {
+        vec4 wp = uModel * vec4(aPos, 1.0);
+        vec4 vp = uView * wp;
+        gl_Position = uProj * vp;
+        vN = normalize((uModel * vec4(aNormal, 0.0)).xyz);
+        vColor = vec4(aColor.rgb * mix(vec3(1.0), uTint, aColor.a), aColor.a);
+        vUV = aUV;
+        vDist = -vp.z;
+      }`;
+    const fs = `
+      precision mediump float;
+      uniform sampler2D uTex; uniform float uTexMix; uniform float uAlpha;
+      uniform vec3 uLightDir, uAmbient, uSun, uFogColor; uniform float uFogStart, uFogEnd;
+      varying vec3 vN; varying vec4 vColor; varying vec2 vUV; varying float vDist;
+      void main() {
+        vec3 base = vColor.rgb;
+        if (uTexMix > 0.0) base *= mix(vec3(1.0), texture2D(uTex, vUV).rgb, uTexMix);
+        vec3 N = normalize(vN);
+        float diff = max(dot(N, uLightDir), 0.0);
+        vec3 lit = base * (uAmbient + uSun * diff);
+        float f = clamp((uFogEnd - vDist) / (uFogEnd - uFogStart), 0.0, 1.0);
+        vec3 col = mix(uFogColor, lit, f);
+        gl_FragColor = vec4(col, uAlpha);
+      }`;
+    this.prog = program(gl, vs, fs);
+    this.loc = locations(gl, this.prog);
 
-  // scene: { city, eye:{x,y,z}, yaw, pitch, entities:[...], time }
-  render(scene) {
-    const RW = this.RW, RH = this.RH, data = this.img.data, depth = this.depth;
-    const city = scene.city, M = city.MAP, H = city.H, T = city.T;
-    const ex = scene.eye.x, ey = scene.eye.y, ez = scene.eye.z;
-    const yaw = scene.yaw, pitch = scene.pitch;
-    const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
-    // camera basis
-    const Fx = cy * cp, Fy = sp, Fz = sy * cp;
-    const Rx = -sy, Rz = cy;                      // right (horizontal)
-    const Ux = -cy * sp, Uy = cp, Uz = -sy * sp;  // up
-    const tx = Math.tan(this.fov / 2), ty = tx * RH / RW;
-    this.F = [Fx, Fy, Fz]; this.R = [Rx, 0, Rz]; this.U = [Ux, Uy, Uz];
-    this.tx = tx; this.ty = ty; this.eye = [ex, ey, ez];
+    // --- sky program -----------------------------------------------------
+    const skvs = `
+      attribute vec3 aPos; uniform mat4 uProj, uViewRot;
+      varying vec3 vDir;
+      void main() { vDir = aPos; vec4 p = uProj * uViewRot * vec4(aPos, 1.0); gl_Position = p.xyww; }`;
+    const skfs = `
+      precision mediump float;
+      varying vec3 vDir; uniform vec3 uSkyTop, uSkyHor, uSunDir, uSunCol;
+      void main() {
+        vec3 d = normalize(vDir);
+        float t = clamp(d.y * 1.5, 0.0, 1.0);
+        vec3 col = mix(uSkyHor, uSkyTop, t);
+        float s = max(dot(d, uSunDir), 0.0);
+        col += uSunCol * pow(s, 260.0) * 1.3;
+        col += uSunCol * pow(s, 9.0) * 0.16;
+        gl_FragColor = vec4(col, 1.0);
+      }`;
+    this.skyProg = program(gl, skvs, skfs);
+    this.skyLoc = locations(gl, this.skyProg);
 
-    const skyTop = this.skyTop, skyHor = this.skyHor, fog = this.fog, sun = this.sun, sd = this.sunDir;
+    // --- static meshes ---------------------------------------------------
+    this._buildUnitBox();
+    this._buildSky();
+    this._facadeTex = texture(gl, this._makeFacade(), { repeat: true, mip: true });
 
-    for (let py = 0; py < RH; py++) {
-      const cv = (1 - (py + 0.5) / RH * 2) * ty;
-      for (let px = 0; px < RW; px++) {
-        const cu = ((px + 0.5) / RW * 2 - 1) * tx;
-        let dx = Fx + Rx * cu + Ux * cv;
-        let dy = Fy + Uy * cv;
-        let dz = Fz + Rz * cu + Uz * cv;
-        const inv = 1 / Math.sqrt(dx * dx + dy * dy + dz * dz);
-        dx *= inv; dy *= inv; dz *= inv;
+    gl.enable(gl.DEPTH_TEST);
+    gl.depthFunc(gl.LEQUAL);
+    gl.enable(gl.CULL_FACE);
+    gl.cullFace(gl.BACK);
+    gl.frontFace(gl.CCW);
 
-        const o = (py * RW + px) * 4;
-        const di = py * RW + px;
-        let r, g, b, hitDepth = FAR;
-        const sh = Math.hypot(dx, dz);
-
-        let done = false;
-        if (sh > 1e-4) {
-          const rx = dx / sh, rz = dz / sh;      // unit horizontal dir
-          const slope = dy / sh;                 // world y per horizontal unit
-          const thGround = dy < -1e-5 ? ey / (-slope) : Infinity;
-
-          let cellX = Math.floor(ex), cellZ = Math.floor(ez);
-          const stepX = rx >= 0 ? 1 : -1, stepZ = rz >= 0 ? 1 : -1;
-          const tDX = Math.abs(1 / rx), tDZ = Math.abs(1 / rz);
-          let tMaxX = (rx >= 0 ? (cellX + 1 - ex) : (ex - cellX)) * tDX;
-          let tMaxZ = (rz >= 0 ? (cellZ + 1 - ez) : (ez - cellZ)) * tDZ;
-          let thEnter = 0, lastAxis = 0, lastSign = 0;
-
-          for (let it = 0; it < 260; it++) {
-            // ground closer than continuing?
-            if (dy < -1e-5 && thEnter >= thGround) break;
-            if (thEnter > FAR) break;
-            if (cellX < 0 || cellZ < 0 || cellX >= M || cellZ >= M) break;
-            const bh = H[cellX + cellZ * M];
-            const cellExit = tMaxX < tMaxZ ? tMaxX : tMaxZ;
-            if (bh > 0) {
-              const yEnter = ey + slope * thEnter;
-              if (yEnter >= 0 && yEnter <= bh && thEnter > 0.001) {
-                // WALL HIT
-                const hy = yEnter;
-                const hcoord = lastAxis === 0 ? (ez + rz * thEnter) : (ex + rx * thEnter);
-                const col = this._wall(cellX, cellZ, lastAxis, hcoord, hy, bh, scene.time);
-                const f = thEnter / FAR, ff = f * f;
-                r = col[0] + (fog[0] - col[0]) * ff;
-                g = col[1] + (fog[1] - col[1]) * ff;
-                b = col[2] + (fog[2] - col[2]) * ff;
-                hitDepth = thEnter; done = true; break;
-              } else if (slope < 0 && yEnter > bh) {
-                const thRoof = (bh - ey) / slope;
-                if (thRoof >= thEnter && thRoof <= cellExit) {
-                  const col = this._roof(cellX, cellZ, bh);
-                  const f = thRoof / FAR, ff = f * f;
-                  r = col[0] + (fog[0] - col[0]) * ff;
-                  g = col[1] + (fog[1] - col[1]) * ff;
-                  b = col[2] + (fog[2] - col[2]) * ff;
-                  hitDepth = thRoof; done = true; break;
-                }
-              }
-            }
-            // advance DDA
-            if (tMaxX < tMaxZ) { cellX += stepX; thEnter = tMaxX; tMaxX += tDX; lastAxis = 0; lastSign = stepX; }
-            else { cellZ += stepZ; thEnter = tMaxZ; tMaxZ += tDZ; lastAxis = 1; lastSign = stepZ; }
-          }
-
-          if (!done && dy < -1e-5 && thGround < FAR) {
-            const gx = ex + rx * thGround, gz = ez + rz * thGround;
-            const col = this._ground(city, gx, gz);
-            const f = thGround / FAR, ff = f * f;
-            r = col[0] + (fog[0] - col[0]) * ff;
-            g = col[1] + (fog[1] - col[1]) * ff;
-            b = col[2] + (fog[2] - col[2]) * ff;
-            hitDepth = thGround; done = true;
-          }
-        }
-
-        if (!done) {
-          // sky
-          const up = dy > 0 ? dy : 0; const m = Math.sqrt(up);
-          r = skyHor[0] + (skyTop[0] - skyHor[0]) * m;
-          g = skyHor[1] + (skyTop[1] - skyHor[1]) * m;
-          b = skyHor[2] + (skyTop[2] - skyHor[2]) * m;
-          // sun glow
-          const dsun = dx * sd[0] + dy * sd[1] + dz * sd[2];
-          if (dsun > 0.9) {
-            const gl = (dsun - 0.9) / 0.1;
-            const k = dsun > 0.995 ? 1 : gl * gl * 0.6;
-            r += (sun[0] - r) * k; g += (sun[1] - g) * k; b += (sun[2] - b) * k;
-          }
-          hitDepth = FAR;
-        }
-
-        data[o] = r; data[o + 1] = g; data[o + 2] = b; data[o + 3] = 255;
-        depth[di] = hitDepth;
-      }
-    }
-
-    // dynamic entities depth-composited into the buffer
-    if (scene.entities) this._drawEntities(scene.entities);
-
-    this.bctx.putImageData(this.img, 0, 0);
-    const DW = this.canvas.width, DH = this.canvas.height;
-    this.ctx.imageSmoothingEnabled = false;
-    this.ctx.drawImage(this.buf, 0, 0, RW, RH, 0, 0, DW, DH);
+    this._proj = mat4.perspective(VFOV, canvas.width / canvas.height, 0.1, 600);
+    this._cityRef = null;
   }
 
-  // --- procedural surface colors ----------------------------------------
-  _wall(cx, cz, axis, hcoord, hy, bh, time) {
-    const bx = Math.floor(cx / P), bz = Math.floor(cz / P);
-    const seed = bhash(bx * 3 + 1, bz * 7 + 2);
-    // facade base tint per building
-    let br = 120 + seed * 90, bg = 118 + bhash(bx, bz + 9) * 80, bb = 120 + bhash(bx + 5, bz) * 95;
-    // window grid
-    const winW = 2.2, winH = 2.2, marginU = 0.55, marginV = 0.6;
-    const wu = ((hcoord % winW) + winW) % winW;
-    const wv = ((hy % winH) + winH) % winH;
-    const inWin = wu > marginU && wu < winW - marginU && wv > marginV && wv < winH - marginV && hy > 1.2;
-    let r, g, b;
-    if (inWin) {
-      const wi = Math.floor(hcoord / winW), wj = Math.floor(hy / winH);
-      const lit = bhash(wi * 13 + bx * 101, wj * 17 + bz * 51) > 0.62;
-      if (lit) { r = 250; g = 230; b = 150; }        // lit window
-      else { r = 40 + seed * 20; g = 55 + seed * 25; b = 80 + seed * 30; } // dark glass
-    } else {
-      r = br; g = bg; b = bb;                          // concrete frame
-    }
-    // face directional shading
-    const fb = axis === 0 ? 0.72 : 0.9;               // x-faces darker than z-faces
-    // vertical ambient: slightly brighter up high
-    const amb = 0.82 + Math.min(0.18, hy / bh * 0.18);
-    const k = fb * amb;
-    return [r * k, g * k, b * k];
+  // ---- static geometry --------------------------------------------------
+  _buildUnitBox() {
+    const m = new Mesh();
+    m.box(-0.5, -0.5, -0.5, 0.5, 0.5, 0.5, [1, 1, 1, 1]);
+    this.unitBox = { buf: buffer(this.gl, m.data()), n: m.count };
   }
 
-  _roof(cx, cz, bh) {
-    const n = bhash(cx, cz);
-    const base = 90 + n * 30;
-    return [base * 0.9, base * 0.92, base];
-  }
-
-  _ground(city, gx, gz) {
-    const tile = city.tileAt(gx, gz);
-    if (tile === TILE.ROAD) {
-      // asphalt with lane markings
-      let r = 46, g = 47, b = 52;
-      const rxm = ((gx % P) + P) % P, rzm = ((gz % P) + P) % P;
-      const inX = rxm < ROAD, inZ = rzm < ROAD;
-      // center dashed line along the dominant corridor
-      if (inX && !inZ) {
-        if (Math.abs(rxm - ROAD * 0.5) < 0.18 && (Math.floor(gz / 2) % 2 === 0)) { r = 190; g = 170; b = 60; }
-      } else if (inZ && !inX) {
-        if (Math.abs(rzm - ROAD * 0.5) < 0.18 && (Math.floor(gx / 2) % 2 === 0)) { r = 190; g = 170; b = 60; }
-      }
-      // subtle grain
-      const n = bhash(gx | 0, gz | 0) * 8 - 4;
-      return [r + n, g + n, b + n];
-    }
-    if (tile === TILE.SIDEWALK) {
-      const seam = ((gx | 0) % 3 === 0 || (gz | 0) % 3 === 0) ? -18 : 0;
-      return [126 + seam, 126 + seam, 132 + seam];
-    }
-    if (tile === TILE.GRASS) {
-      const n = bhash(gx | 0, gz | 0) * 22;
-      return [45 + n * 0.4, 95 + n, 48 + n * 0.3];
-    }
-    if (tile === TILE.SPECIAL) {
-      return [110, 96, 80];
-    }
-    // building footprint seen as ground (shouldn't usually happen)
-    return [70, 70, 76];
-  }
-
-  // --- entities ----------------------------------------------------------
-  _proj(x, y, z) {
-    const vx = x - this.eye[0], vy = y - this.eye[1], vz = z - this.eye[2];
-    const cu = vx * this.R[0] + vz * this.R[2];
-    const cv = vx * this.U[0] + vy * this.U[1] + vz * this.U[2];
-    const cz = vx * this.F[0] + vy * this.F[1] + vz * this.F[2];
-    return { cu, cv, cz };
-  }
-  _screen(x, y, z) {
-    const p = this._proj(x, y, z);
-    if (p.cz <= 0.06) return null;
-    return {
-      x: (p.cu / (p.cz * this.tx) + 1) * 0.5 * this.RW,
-      y: (1 - p.cv / (p.cz * this.ty)) * 0.5 * this.RH,
-      cz: p.cz,
-    };
-  }
-
-  _drawEntities(ents) {
-    const ex = this.eye[0], ez = this.eye[2];
-    // sort back-to-front by horizontal distance
-    const list = ents.slice().sort((a, b) =>
-      ((b.x - ex) ** 2 + (b.z - ez) ** 2) - ((a.x - ex) ** 2 + (a.z - ez) ** 2));
-    for (const e of list) {
-      const hd = Math.hypot(e.x - ex, e.z - ez);
-      if (hd > FAR) continue;
-      if (e.kind === 'ped') this._drawPed(e, hd);
-      else this._drawCarBox(e, hd);
-    }
-  }
-
-  _drawCarBox(e, hd) {
-    const hw = e.w * 0.5, hl = e.l * 0.5, hh = e.h;
-    const ca = Math.cos(e.heading), sa = Math.sin(e.heading);
-    // 8 corners (local: length along heading = x', width = z')
-    const corners = [];
-    const yb = 0.15, yt = hh;
-    for (const sz of [-1, 1]) for (const sx of [-1, 1]) {
-      const lx = sx * hl, lz = sz * hw;
-      const wx = e.x + ca * lx - sa * lz;
-      const wz = e.z + sa * lx + ca * lz;
-      corners.push([wx, wz]);
-    }
-    // corners index: 0(-l,-w),1(+l,-w),2(-l,+w),3(+l,+w)
-    // build faces (each with 4 world pts with y)
-    const P0 = corners[0], P1 = corners[1], P2 = corners[2], P3 = corners[3];
-    const col = e.color;
-    const faces = [
-      // top (roof) — lighter
-      { pts: [[P0[0], yt, P0[1]], [P1[0], yt, P1[1]], [P3[0], yt, P3[1]], [P2[0], yt, P2[1]]], c: [col[0] * 1.05, col[1] * 1.05, col[2] * 1.05] },
-      // sides
-      { pts: [[P0[0], yb, P0[1]], [P1[0], yb, P1[1]], [P1[0], yt, P1[1]], [P0[0], yt, P0[1]]], c: [col[0] * 0.8, col[1] * 0.8, col[2] * 0.8] },
-      { pts: [[P2[0], yb, P2[1]], [P3[0], yb, P3[1]], [P3[0], yt, P3[1]], [P2[0], yt, P2[1]]], c: [col[0] * 0.7, col[1] * 0.7, col[2] * 0.7] },
-      { pts: [[P0[0], yb, P0[1]], [P2[0], yb, P2[1]], [P2[0], yt, P2[1]], [P0[0], yt, P0[1]]], c: [col[0] * 0.9, col[1] * 0.9, col[2] * 0.9] },
-      { pts: [[P1[0], yb, P1[1]], [P3[0], yb, P3[1]], [P3[0], yt, P3[1]], [P1[0], yt, P1[1]]], c: [col[0] * 0.75, col[1] * 0.75, col[2] * 0.75] },
+  _buildSky() {
+    const s = 1;
+    const p = [
+      // 6 faces of a cube, pos only, wound so we see it from inside (cull front)
+      -s, -s, -s, s, -s, -s, s, s, -s, -s, -s, -s, s, s, -s, -s, s, -s,
+      -s, -s, s, s, s, s, s, -s, s, -s, -s, s, -s, s, s, s, s, s,
+      -s, -s, -s, -s, s, s, -s, s, -s, -s, -s, -s, -s, -s, s, -s, s, s,
+      s, -s, -s, s, s, -s, s, s, s, s, -s, -s, s, s, s, s, -s, s,
+      -s, s, -s, s, s, -s, s, s, s, -s, s, -s, s, s, s, -s, s, s,
+      -s, -s, -s, s, -s, s, s, -s, -s, -s, -s, -s, -s, -s, s, s, -s, s,
     ];
-    // draw each face, depth via face centroid horizontal distance
-    for (const f of faces) {
-      const scr = [];
-      let ok = true, cxs = 0, czs = 0;
-      for (const pt of f.pts) {
-        const s = this._screen(pt[0], pt[1], pt[2]);
-        if (!s) { ok = false; break; }
-        scr.push(s); cxs += pt[0]; czs += pt[2];
-      }
-      if (!ok) continue;
-      const fd = Math.hypot(cxs / 4 - this.eye[0], czs / 4 - this.eye[2]);
-      this._fillQuad(scr, f.c[0], f.c[1], f.c[2], fd);
+    this.sky = { buf: buffer(this.gl, new Float32Array(p)), n: p.length / 3 };
+  }
+
+  _makeFacade() {
+    const S = 256, c = document.createElement('canvas'); c.width = c.height = S;
+    const g = c.getContext('2d');
+    g.fillStyle = '#b4b2ac'; g.fillRect(0, 0, S, S);          // concrete
+    const cell = 64, margin = 12, ws = cell - margin * 2;
+    for (let j = 0; j < 4; j++) for (let i = 0; i < 4; i++) {
+      const x = i * cell, y = j * cell;
+      // spandrel / frame shading
+      g.fillStyle = '#9a988f'; g.fillRect(x + 5, y + 5, cell - 10, cell - 10);
+      const r = h2(i * 13 + 7, j * 29 + 3);
+      const lit = r > 0.72;
+      if (lit) g.fillStyle = '#ffe9a0';
+      else { const v = 40 + Math.floor(r * 30); g.fillStyle = `rgb(${v},${v + 12},${v + 30})`; }
+      g.fillRect(x + margin, y + margin, ws, ws);
+      // mullion
+      g.strokeStyle = 'rgba(20,20,24,0.5)'; g.lineWidth = 2;
+      g.beginPath(); g.moveTo(x + cell / 2, y + margin); g.lineTo(x + cell / 2, y + cell - margin);
+      g.moveTo(x + margin, y + cell / 2); g.lineTo(x + cell - margin, y + cell / 2); g.stroke();
     }
-    // police light bar flash
-    if (e.kind === 'police' && ((this.eye && (Math.floor((e.flash || 0)) % 2) === 0))) {}
+    return c;
+  }
+
+  _makeGround(city) {
+    const M = city.MAP, R = 1024, s = R / M;
+    const c = document.createElement('canvas'); c.width = c.height = R;
+    const g = c.getContext('2d');
+    const img = g.createImageData(R, R), d = img.data;
+    for (let py = 0; py < R; py++) {
+      const wz = py / s;
+      for (let px = 0; px < R; px++) {
+        const wx = px / s;
+        const t = city.tileAt(wx, wz);
+        let r, gg, b;
+        const n = (h2(px >> 1, py >> 1) - 0.5) * 12;
+        if (t === TILE.ROAD) { r = 44 + n; gg = 45 + n; b = 50 + n; }
+        else if (t === TILE.SIDEWALK) {
+          const seam = ((wx | 0) % 3 === 0 || (wz | 0) % 3 === 0) ? -16 : 0;
+          r = 132 + seam + n * 0.4; gg = 132 + seam + n * 0.4; b = 138 + seam + n * 0.4;
+        } else if (t === TILE.GRASS) { r = 46 + n * 0.4; gg = 96 + n; b = 50 + n * 0.4; }
+        else if (t === TILE.SPECIAL) { r = 120 + n; gg = 104 + n; b = 82 + n; }
+        else { r = 52; gg = 52; b = 58; }   // under buildings (hidden)
+        const o = (px + py * R) * 4; d[o] = r; d[o + 1] = gg; d[o + 2] = b; d[o + 3] = 255;
+      }
+    }
+    g.putImageData(img, 0, 0);
+    // dashed lane lines down the centre of every road corridor
+    g.strokeStyle = 'rgba(200,180,70,0.85)'; g.lineWidth = Math.max(1.5, s * 0.32);
+    g.setLineDash([s * 2.2, s * 2.4]);
+    for (let k = 0; k < NB; k++) {
+      const cc = (k * P + ROAD * 0.5) * s;
+      g.beginPath(); g.moveTo(cc, 0); g.lineTo(cc, R); g.stroke();
+      g.beginPath(); g.moveTo(0, cc); g.lineTo(R, cc); g.stroke();
+    }
+    return c;
+  }
+
+  _buildCity(city, props) {
+    const walls = new Mesh();     // textured facades
+    const flat = new Mesh();      // roofs, greebles, trees (untextured)
+    for (let bz = 0; bz < NB; bz++) for (let bx = 0; bx < NB; bx++) {
+      const kind = city.blockKind[bx + ',' + bz];
+      if (kind === 'park') continue;
+      const cx = bx * P + ROAD + LOT / 2, cz = bz * P + ROAD + LOT / 2;
+      const hh = city.heightAt(cx, cz);
+      if (!hh) continue;
+      const x0 = bx * P + ROAD + SW, x1 = bx * P + ROAD + LOT - SW;
+      const z0 = bz * P + ROAD + SW, z1 = bz * P + ROAD + LOT - SW;
+      const special = kind === 'garage' || kind === 'hospital';
+      // building base colour (tint multiplied onto the window texture)
+      let tint;
+      if (kind === 'garage') tint = [0.55, 0.62, 0.72];
+      else if (kind === 'hospital') tint = [0.78, 0.72, 0.72];
+      else {
+        const r = h2(bx * 7 + 1, bz * 13 + 5);
+        tint = [0.52 + r * 0.42, 0.5 + h2(bx, bz + 9) * 0.4, 0.5 + h2(bx + 5, bz) * 0.44];
+      }
+      const uOff = Math.floor(h2(bx * 3, bz * 5) * 4) * 0.25;
+      const vOff = Math.floor(h2(bx, bz) * 4) * 0.25;
+      const div = 12;   // ~4 window bays per 12 world units
+      // 4 walls (col.a=1 => multiplied by uTint set per draw... here per-vertex tint)
+      const wc = [tint[0], tint[1], tint[2], 0];
+      this._wall(walls, [x1, z1], [x1, z0], hh, wc, div, uOff, vOff);
+      this._wall(walls, [x0, z0], [x0, z1], hh, wc, div, uOff, vOff);
+      this._wall(walls, [x0, z1], [x1, z1], hh, wc, div, uOff, vOff);
+      this._wall(walls, [x1, z0], [x0, z0], hh, wc, div, uOff, vOff);
+      // roof
+      const rc = special ? [tint[0] * 0.6, tint[1] * 0.6, tint[2] * 0.62, 0] : [0.30, 0.31, 0.34, 0];
+      flat.quad([x0, hh, z0], [x0, hh, z1], [x1, hh, z1], [x1, hh, z0], rc);
+      // roof greeble on taller buildings
+      if (hh > 12 && !special) {
+        const gx0 = x0 + 2.5, gx1 = x1 - 2.5, gz0 = z0 + 2.5, gz1 = z1 - 2.5, gh = hh + 1.6 + h2(bx, bz) * 1.5;
+        flat.box(gx0, hh, gz0, gx1, gh, gz1, [0.26, 0.27, 0.30, 0]);
+      }
+    }
+    // trees in parks
+    for (const pr of props || []) {
+      const th = pr.h || 3.5, tr = 0.9;
+      flat.box(pr.x - 0.18, 0, pr.z - 0.18, pr.x + 0.18, th * 0.45, pr.z + 0.18, [0.36, 0.26, 0.16, 0]);
+      flat.box(pr.x - tr, th * 0.4, pr.z - tr, pr.x + tr, th + 0.6, pr.z + tr, [0.20, 0.44, 0.22, 0]);
+    }
+    const gl = this.gl;
+    this.wallsMesh = { buf: buffer(gl, walls.data()), n: walls.count };
+    this.flatMesh = { buf: buffer(gl, flat.data()), n: flat.count };
+    // ground plane
+    const gm = new Mesh(), M = city.MAP;
+    gm.quad([0, 0, 0], [0, 0, M], [M, 0, M], [M, 0, 0], [1, 1, 1, 0],
+      [[0, 0], [0, 1], [1, 1], [1, 0]]);
+    this.groundMesh = { buf: buffer(gl, gm.data()), n: gm.count };
+    this.groundTex = texture(gl, this._makeGround(city), { repeat: false, mip: true });
+    this._cityRef = city;
+  }
+
+  _wall(mesh, A, B, h, col, div, uOff, vOff) {
+    const a = [A[0], 0, A[1]], b = [B[0], 0, B[1]], c = [B[0], h, B[1]], d = [A[0], h, A[1]];
+    const len = Math.hypot(B[0] - A[0], B[1] - A[1]);
+    mesh.quad(a, b, c, d, col, [
+      [uOff, vOff], [uOff + len / div, vOff], [uOff + len / div, vOff + h / div], [uOff, vOff + h / div],
+    ]);
+  }
+
+  // ---- attribute wiring -------------------------------------------------
+  _bind(mesh, hasUV) {
+    const gl = this.gl, L = this.loc.attrib, ST = 48;
+    gl.bindBuffer(gl.ARRAY_BUFFER, mesh.buf);
+    gl.enableVertexAttribArray(L.aPos); gl.vertexAttribPointer(L.aPos, 3, gl.FLOAT, false, ST, 0);
+    if (L.aNormal >= 0) { gl.enableVertexAttribArray(L.aNormal); gl.vertexAttribPointer(L.aNormal, 3, gl.FLOAT, false, ST, 12); }
+    if (L.aColor >= 0) { gl.enableVertexAttribArray(L.aColor); gl.vertexAttribPointer(L.aColor, 4, gl.FLOAT, false, ST, 24); }
+    if (L.aUV >= 0) { gl.enableVertexAttribArray(L.aUV); gl.vertexAttribPointer(L.aUV, 2, gl.FLOAT, false, ST, 40); }
+  }
+
+  _draw(mesh, model, tint, texMix, alpha) {
+    const gl = this.gl, U = this.loc.uniform;
+    gl.uniformMatrix4fv(U.uModel, false, model);
+    gl.uniform3fv(U.uTint, tint || WHITE);
+    gl.uniform1f(U.uTexMix, texMix || 0);
+    gl.uniform1f(U.uAlpha, alpha == null ? 1 : alpha);
+    gl.drawArrays(gl.TRIANGLES, 0, mesh.n);
+  }
+
+  // draw a scaled/translated unit box in a parent model frame (dynamic parts)
+  _boxIn(parent, cx, cy, cz, dx, dy, dz, tint, alpha) {
+    const local = mat4.fromTRS(cx, cy, cz, 0, dx, dy, dz);
+    const model = mat4.multiply(parent, local, this._tmp);
+    const gl = this.gl, U = this.loc.uniform;
+    gl.uniformMatrix4fv(U.uModel, false, model);
+    gl.uniform3fv(U.uTint, tint);
+    gl.uniform1f(U.uAlpha, alpha == null ? 1 : alpha);
+    gl.drawArrays(gl.TRIANGLES, 0, this.unitBox.n);
+  }
+
+  // ---- frame ------------------------------------------------------------
+  render(scene) {
+    const gl = this.gl, city = scene.city;
+    if (this._cityRef !== city) this._buildCity(city, scene.props);
+    this._tmp = this._tmp || new Float32Array(16);
+
+    const W = this.canvas.width, H = this.canvas.height;
+    gl.viewport(0, 0, W, H);
+    if (this._aspect !== W / H) { this._aspect = W / H; this._proj = mat4.perspective(VFOV, this._aspect, 0.1, 600); }
+
+    const e = scene.eye, yaw = scene.yaw, pitch = scene.pitch;
+    const cp = Math.cos(pitch);
+    const fwd = [Math.cos(yaw) * cp, Math.sin(pitch), Math.sin(yaw) * cp];
+    const eye = [e.x, e.y, e.z];
+    const view = mat4.lookAt(eye, [eye[0] + fwd[0], eye[1] + fwd[1], eye[2] + fwd[2]], [0, 1, 0]);
+    const viewRot = new Float32Array(view); viewRot[12] = viewRot[13] = viewRot[14] = 0;
+
+    gl.clearColor(SKY_HOR[0], SKY_HOR[1], SKY_HOR[2], 1);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    // --- sky --------------------------------------------------------------
+    gl.useProgram(this.skyProg);
+    const SL = this.skyLoc;
+    gl.depthMask(false); gl.disable(gl.CULL_FACE);
+    gl.uniformMatrix4fv(SL.uniform.uProj, false, this._proj);
+    gl.uniformMatrix4fv(SL.uniform.uViewRot, false, viewRot);
+    gl.uniform3fv(SL.uniform.uSkyTop, SKY_TOP); gl.uniform3fv(SL.uniform.uSkyHor, SKY_HOR);
+    gl.uniform3fv(SL.uniform.uSunDir, SUN_DIR); gl.uniform3fv(SL.uniform.uSunCol, SUN_COL);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.sky.buf);
+    gl.enableVertexAttribArray(SL.attrib.aPos);
+    gl.vertexAttribPointer(SL.attrib.aPos, 3, gl.FLOAT, false, 12, 0);
+    gl.drawArrays(gl.TRIANGLES, 0, this.sky.n);
+    gl.depthMask(true); gl.enable(gl.CULL_FACE);
+
+    // --- world program setup ---------------------------------------------
+    gl.useProgram(this.prog);
+    const U = this.loc.uniform;
+    gl.uniformMatrix4fv(U.uProj, false, this._proj);
+    gl.uniformMatrix4fv(U.uView, false, view);
+    gl.uniform3fv(U.uLightDir, SUN_DIR);
+    gl.uniform3fv(U.uAmbient, AMBIENT);
+    gl.uniform3fv(U.uSun, SUN_LIT);
+    gl.uniform3fv(U.uFogColor, FOG_COL);
+    gl.uniform1f(U.uFogStart, FOG_START);
+    gl.uniform1f(U.uFogEnd, FAR);
+    gl.uniform1i(U.uTex, 0);
+    gl.activeTexture(gl.TEXTURE0);
+
+    // ground (textured)
+    gl.bindTexture(gl.TEXTURE_2D, this.groundTex);
+    this._bind(this.groundMesh);
+    this._draw(this.groundMesh, IDENT, WHITE, 1, 1);
+
+    // building walls (window texture)
+    gl.bindTexture(gl.TEXTURE_2D, this._facadeTex);
+    this._bind(this.wallsMesh);
+    this._draw(this.wallsMesh, IDENT, WHITE, 1, 1);
+
+    // roofs / greebles / trees (flat)
+    this._bind(this.flatMesh);
+    this._draw(this.flatMesh, IDENT, WHITE, 0, 1);
+
+    // --- dynamic entities -------------------------------------------------
+    gl.uniform1f(U.uTexMix, 0);
+    this._bind(this.unitBox);
+    const ents = scene.entities || [];
+    const ex = eye[0], ez = eye[2];
+    // shadows first (blended, no depth write)
+    gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false);
+    for (const en of ents) {
+      if ((en.x - ex) ** 2 + (en.z - ez) ** 2 > FAR * FAR) continue;
+      if (en.kind === 'ped') {
+        const parent = mat4.fromTRS(en.x, 0, en.z, en.heading || 0, 1, 1, 1);
+        this._boxIn(parent, 0, 0.03, 0, 0.85, 0.02, 0.85, SHADOW, 0.32);
+      } else {
+        const parent = mat4.fromTRS(en.x, 0, en.z, en.heading || 0, 1, 1, 1);
+        this._boxIn(parent, 0, 0.03, 0, en.l * 1.05, 0.02, en.w * 1.05, SHADOW, 0.34);
+      }
+    }
+    gl.disable(gl.BLEND); gl.depthMask(true);
+    // bodies
+    for (const en of ents) {
+      if ((en.x - ex) ** 2 + (en.z - ez) ** 2 > FAR * FAR) continue;
+      if (en.kind === 'ped') this._drawPed(en);
+      else this._drawCar(en);
+    }
+  }
+
+  _drawCar(e) {
+    const l = e.l, w = e.w, h = e.h;
+    const tint = [e.color[0] / 255, e.color[1] / 255, e.color[2] / 255];
+    const parent = mat4.fromTRS(e.x, 0, e.z, e.heading || 0, 1, 1, 1);
+    const bodyH = Math.max(0.5, h * 0.55), bodyY = 0.32 + bodyH / 2;
+    // body
+    this._boxIn(parent, 0, bodyY, 0, l * 0.96, bodyH, w, tint);
+    // cabin / glasshouse (slightly back, narrower) — dark glass
+    const cabH = Math.max(0.45, h * 0.5), cabY = 0.32 + bodyH + cabH / 2 - 0.05;
+    this._boxIn(parent, -l * 0.05, cabY, 0, l * 0.5, cabH, w * 0.86, GLASS);
+    // wheels
+    const wx = l * 0.33, wz = w * 0.52, wy = 0.32;
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+      this._boxIn(parent, sx * wx, wy, sz * wz, 0.7, 0.62, 0.32, WHEEL);
+    }
+    // police light bar
     if (e.police) {
-      const lb = this._screen(e.x, yt + 0.35, e.z);
-      if (lb) {
-        const on = (e.flash | 0) % 2 === 0;
-        this._blob(lb, on ? [255, 40, 40] : [40, 60, 255], hd, 1.4);
-      }
+      const on = ((e.flash | 0) % 2) === 0;
+      const top = 0.32 + bodyH + cabH + 0.12;
+      this._boxIn(parent, l * 0.02, top, -w * 0.2, 0.34, 0.22, 0.3, on ? RED : BLUE);
+      this._boxIn(parent, l * 0.02, top, w * 0.2, 0.34, 0.22, 0.3, on ? BLUE : RED);
     }
   }
 
-  _drawPed(e, hd) {
-    // camera-facing billboard: body + head, simple shading.
-    // `e.y` is the height off the ground (nonzero only while the player is
-    // jumping), so the billboard actually leaves the ground.
-    const ey = e.y || 0;
-    // ground shadow when airborne, so the hop reads clearly
-    if (ey > 0.05) {
-      const sh = this._screen(e.x, 0, e.z);
-      if (sh) this._blob(sh, [10, 10, 14], hd, Math.max(0.6, 1.6 - ey * 0.12));
+  _drawPed(e) {
+    const y = e.y || 0;
+    const parent = mat4.fromTRS(e.x, y, e.z, e.heading || 0, 1, 1, 1);
+    const pants = [e.color[0] / 255, e.color[1] / 255, e.color[2] / 255];
+    const shirt = [(e.shirt || e.color)[0] / 255, (e.shirt || e.color)[1] / 255, (e.shirt || e.color)[2] / 255];
+    if (e.state === 'down') {
+      this._boxIn(parent, 0, 0.2, 0, 1.3, 0.34, 0.55, shirt);
+      this._boxIn(parent, 0.72, 0.2, 0, 0.32, 0.32, 0.4, SKIN);
+      return;
     }
-    const base = this._screen(e.x, ey, e.z);
-    const top = this._screen(e.x, ey + e.h, e.z);
-    if (!base || !top) return;
-    const down = e.state === 'down';
-    let x0 = base.x, y0 = down ? base.y - 2 : top.y, y1 = base.y;
-    const hpix = Math.abs(y1 - y0);
-    const wpix = Math.max(1.2, hpix * (down ? 0.5 : 0.32));
-    const RW = this.RW, RH = this.RH, data = this.img.data, depth = this.depth;
-    const fd = hd;
-    const bx0 = Math.floor(x0 - wpix), bx1 = Math.ceil(x0 + wpix);
-    const by0 = Math.floor(Math.min(y0, y1)), by1 = Math.ceil(Math.max(y0, y1));
-    for (let yy = by0; yy <= by1; yy++) {
-      if (yy < 0 || yy >= RH) continue;
-      const frac = (yy - Math.min(y0, y1)) / (hpix || 1);
-      for (let xx = bx0; xx <= bx1; xx++) {
-        if (xx < 0 || xx >= RW) continue;
-        if (Math.abs(xx - x0) > wpix) continue;
-        const di = yy * RW + xx;
-        if (fd > depth[di] + 0.2) continue;
-        // head (top ~22%) vs shirt vs pants
-        let c;
-        if (!down && frac < 0.22) c = [225, 190, 160];
-        else if (frac < 0.6) c = e.shirt || e.color;
-        else c = e.color;
-        const o = di * 4;
-        data[o] = c[0]; data[o + 1] = c[1]; data[o + 2] = c[2];
-        depth[di] = fd;
-      }
-    }
+    this._boxIn(parent, 0, 0.46, 0, 0.34, 0.92, 0.36, pants);   // legs
+    this._boxIn(parent, 0, 1.2, 0, 0.46, 0.68, 0.36, shirt);    // torso
+    this._boxIn(parent, 0, 1.7, 0, 0.34, 0.34, 0.34, SKIN);     // head
   }
 
-  _blob(s, col, fd, rad) {
-    const RW = this.RW, RH = this.RH, data = this.img.data, depth = this.depth;
-    const r = Math.max(1, rad);
-    for (let yy = Math.floor(s.y - r); yy <= s.y + r; yy++)
-      for (let xx = Math.floor(s.x - r); xx <= s.x + r; xx++) {
-        if (xx < 0 || xx >= RW || yy < 0 || yy >= RH) continue;
-        if ((xx - s.x) ** 2 + (yy - s.y) ** 2 > r * r) continue;
-        const di = yy * RW + xx;
-        if (fd > depth[di] + 0.4) continue;
-        const o = di * 4; data[o] = col[0]; data[o + 1] = col[1]; data[o + 2] = col[2];
-      }
-  }
-
-  // fill a convex quad (4 screen pts) with a flat color, depth-tested
-  _fillQuad(s, r, g, b, fd) {
-    const RW = this.RW, RH = this.RH, data = this.img.data, depth = this.depth;
-    let minx = Infinity, maxx = -Infinity, miny = Infinity, maxy = -Infinity;
-    for (const p of s) { minx = Math.min(minx, p.x); maxx = Math.max(maxx, p.x); miny = Math.min(miny, p.y); maxy = Math.max(maxy, p.y); }
-    minx = Math.max(0, Math.floor(minx)); maxx = Math.min(RW - 1, Math.ceil(maxx));
-    miny = Math.max(0, Math.floor(miny)); maxy = Math.min(RH - 1, Math.ceil(maxy));
-    if (minx > maxx || miny > maxy) return;
-    // two triangles: (0,1,2) and (0,2,3)
-    const tri = (a, bb, c, x, y) => {
-      const d1 = (x - bb.x) * (a.y - bb.y) - (a.x - bb.x) * (y - bb.y);
-      const d2 = (x - c.x) * (bb.y - c.y) - (bb.x - c.x) * (y - c.y);
-      const d3 = (x - a.x) * (c.y - a.y) - (c.x - a.x) * (y - a.y);
-      const neg = (d1 < 0) || (d2 < 0) || (d3 < 0);
-      const pos = (d1 > 0) || (d2 > 0) || (d3 > 0);
-      return !(neg && pos);
-    };
-    for (let yy = miny; yy <= maxy; yy++) {
-      for (let xx = minx; xx <= maxx; xx++) {
-        const cx = xx + 0.5, cyy = yy + 0.5;
-        if (!(tri(s[0], s[1], s[2], cx, cyy) || tri(s[0], s[2], s[3], cx, cyy))) continue;
-        const di = yy * RW + xx;
-        if (fd > depth[di] + 0.25) continue;   // occluded by building
-        const o = di * 4;
-        data[o] = r; data[o + 1] = g; data[o + 2] = b;
-        depth[di] = fd;
-      }
+  // ---- test-hook helpers ------------------------------------------------
+  frameStats() {
+    const gl = this.gl, W = this.canvas.width, H = this.canvas.height;
+    const px = new Uint8Array(W * H * 4);
+    gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, px);
+    let sum = 0, sum2 = 0; const buckets = new Set(); const n = W * H;
+    for (let i = 0; i < n; i++) {
+      const o = i * 4; const lum = px[o] * 0.3 + px[o + 1] * 0.59 + px[o + 2] * 0.11;
+      sum += lum; sum2 += lum * lum;
+      buckets.add((px[o] >> 4) * 256 + (px[o + 1] >> 4) * 16 + (px[o + 2] >> 4));
     }
+    const mean = sum / n; return { mean, variance: sum2 / n - mean * mean, distinct: buckets.size, n };
   }
 }
+
+const WHITE = new Float32Array([1, 1, 1]);
+const IDENT = mat4.identity();
+const SHADOW = new Float32Array([0.04, 0.04, 0.06]);
+const GLASS = new Float32Array([0.28, 0.33, 0.42]);
+const WHEEL = new Float32Array([0.08, 0.08, 0.09]);
+const RED = new Float32Array([1.0, 0.15, 0.12]);
+const BLUE = new Float32Array([0.2, 0.35, 1.0]);
