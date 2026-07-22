@@ -19,6 +19,11 @@ const hudCtx = hud.getContext('2d');
 
 const game = new Game((Math.random() * 1e9) | 0);
 const renderer = new Renderer(canvas);
+// Load the real CC0 car + character glTF models in the background. This is a
+// pure enhancement: loadModels() swallows every error internally and leaves the
+// procedural box meshes in place if anything fails, so the game never blocks or
+// breaks on a missing/corrupt asset.
+renderer.loadModels();
 const input = new Input(canvas);
 const audio = new Audio();
 
