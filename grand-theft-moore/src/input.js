@@ -11,8 +11,9 @@ export class Input {
     // edge events (set true for one frame)
     this._pending = {};
     // touch axes
-    this.touchMove = { x: 0, y: 0 };
-    this.touchLook = 0;
+    this.touchMove = { x: 0, y: 0 };   // left stick — walk / steer
+    this.lookStick = { x: 0, y: 0 };   // right stick — continuous camera (twin-stick)
+    this.touchLook = 0;                // legacy drag-look accumulator (still supported)
     this.touch = {};
 
     addEventListener('keydown', (e) => {
@@ -68,38 +69,58 @@ export class Input {
     this._driveBtns = Array.from(document.querySelectorAll('.drive-btn'));
     this._mode = null; // force first apply
 
-    // --- move stick (steers when driving, walks on foot) ---
-    let sid = null, sox = 0, soy = 0;
-    const start = (e) => {
-      reveal();
-      const t = e.changedTouches[0]; sid = t.identifier;
-      const r = stick.getBoundingClientRect(); sox = r.left + r.width / 2; soy = r.top + r.height / 2;
-      e.preventDefault();
-    };
-    const move = (e) => {
-      for (const t of e.changedTouches) {
-        if (t.identifier === sid) {
-          let dx = t.clientX - sox, dy = t.clientY - soy;
-          const mag = Math.hypot(dx, dy) || 1; const cl = Math.min(mag, 52);
-          dx = dx / mag * cl; dy = dy / mag * cl;
-          knob.style.transform = `translate(${dx - 26}px,${dy - 26}px)`;
-          this.touchMove.x = dx / 52; this.touchMove.y = dy / 52;
+    // --- generic analog stick: writes a normalized {x,y} in [-1,1] to `vec`
+    // and translates its knob. `radius` is the max thumb travel in px. ---
+    const KR = 48, KHALF = 25; // knob travel clamp, knob half-size (50px knob)
+    const bindStick = (stickEl, knobEl, vec) => {
+      let id = null, ox = 0, oy = 0;
+      const reset = () => { id = null; vec.x = 0; vec.y = 0; if (knobEl) knobEl.style.transform = `translate(-${KHALF}px,-${KHALF}px)`; };
+      stickEl.addEventListener('touchstart', (e) => {
+        reveal();
+        const t = e.changedTouches[0]; id = t.identifier;
+        const r = stickEl.getBoundingClientRect(); ox = r.left + r.width / 2; oy = r.top + r.height / 2;
+        // seed position immediately so a tap-and-hold registers deflection at once
+        let dx = t.clientX - ox, dy = t.clientY - oy;
+        const mag = Math.hypot(dx, dy) || 1, cl = Math.min(mag, KR);
+        dx = dx / mag * cl; dy = dy / mag * cl;
+        if (knobEl) knobEl.style.transform = `translate(${dx - KHALF}px,${dy - KHALF}px)`;
+        vec.x = dx / KR; vec.y = dy / KR;
+        e.preventDefault();
+      }, { passive: false });
+      stickEl.addEventListener('touchmove', (e) => {
+        for (const t of e.changedTouches) {
+          if (t.identifier === id) {
+            let dx = t.clientX - ox, dy = t.clientY - oy;
+            const mag = Math.hypot(dx, dy) || 1, cl = Math.min(mag, KR);
+            dx = dx / mag * cl; dy = dy / mag * cl;
+            if (knobEl) knobEl.style.transform = `translate(${dx - KHALF}px,${dy - KHALF}px)`;
+            vec.x = dx / KR; vec.y = dy / KR;
+          }
         }
-      }
-      e.preventDefault();
+        e.preventDefault();
+      }, { passive: false });
+      const up = (e) => { for (const t of e.changedTouches) if (t.identifier === id) reset(); };
+      stickEl.addEventListener('touchend', up, { passive: false });
+      stickEl.addEventListener('touchcancel', up, { passive: false });
+      reset();
     };
-    const end = (e) => {
-      for (const t of e.changedTouches) if (t.identifier === sid) { sid = null; this.touchMove.x = 0; this.touchMove.y = 0; knob.style.transform = 'translate(-26px,-26px)'; }
-    };
-    stick.addEventListener('touchstart', start); stick.addEventListener('touchmove', move); stick.addEventListener('touchend', end); stick.addEventListener('touchcancel', end);
 
-    // --- look drag (camera yaw, both on foot and driving) ---
-    let lid = null, lx = 0;
-    look.addEventListener('touchstart', (e) => { reveal(); this._pending.enter = true; const t = e.changedTouches[0]; lid = t.identifier; lx = t.clientX; e.preventDefault(); });
-    // A finger drags a short distance, so touch look needs a much higher
-    // per-pixel factor than the mouse (0.15 was ~3 deg per full swipe).
-    look.addEventListener('touchmove', (e) => { for (const t of e.changedTouches) if (t.identifier === lid) { this.touchLook += (t.clientX - lx) * 2.2; lx = t.clientX; } e.preventDefault(); });
-    look.addEventListener('touchend', (e) => { for (const t of e.changedTouches) if (t.identifier === lid) lid = null; });
+    // left stick — walks on foot, steers (and throttles via y) when driving
+    bindStick(stick, knob, this.touchMove);
+    // right stick — continuous camera control (twin-stick right stick)
+    const lookStickEl = document.getElementById('look-stick');
+    const lookKnob = document.getElementById('look-knob');
+    if (lookStickEl) bindStick(lookStickEl, lookKnob, this.lookStick);
+
+    // --- legacy look-drag zone (camera yaw). Kept so a swipe on the upper
+    // right also nudges the camera; the right stick is the primary control. ---
+    if (look) {
+      let lid = null, lx = 0;
+      look.addEventListener('touchstart', (e) => { reveal(); this._pending.enter = true; const t = e.changedTouches[0]; lid = t.identifier; lx = t.clientX; e.preventDefault(); }, { passive: false });
+      look.addEventListener('touchmove', (e) => { for (const t of e.changedTouches) if (t.identifier === lid) { this.touchLook += (t.clientX - lx) * 2.2; lx = t.clientX; } e.preventDefault(); }, { passive: false });
+      look.addEventListener('touchend', (e) => { for (const t of e.changedTouches) if (t.identifier === lid) lid = null; });
+      look.addEventListener('touchcancel', (e) => { for (const t of e.changedTouches) if (t.identifier === lid) lid = null; });
+    }
 
     // --- tap anywhere on the canvas advances title / busted / wasted screens ---
     // (enter is only consumed by main.js while in a menu state, so this is inert during play)
@@ -110,9 +131,9 @@ export class Input {
     // all buttons also fire an edge via _pending[name] on press (JUMP/F/HIT).
     const bind = (id, name) => {
       const el = document.getElementById(id); if (!el) return;
-      el.addEventListener('touchstart', (e) => { this._pending[name] = true; this.touch[name] = true; e.preventDefault(); });
-      el.addEventListener('touchend', (e) => { this.touch[name] = false; e.preventDefault(); });
-      el.addEventListener('touchcancel', (e) => { this.touch[name] = false; });
+      el.addEventListener('touchstart', (e) => { this._pending[name] = true; this.touch[name] = true; e.preventDefault(); }, { passive: false });
+      el.addEventListener('touchend', (e) => { this.touch[name] = false; e.preventDefault(); }, { passive: false });
+      el.addEventListener('touchcancel', (e) => { this.touch[name] = false; }, { passive: false });
     };
     bind('b-enter', 'enterExit');   // F — enter/exit (both modes)
     bind('b-jump', 'jump');         // on foot
@@ -149,14 +170,22 @@ export class Input {
     const left = k['a'] || k['arrowleft'] || tm.x < -0.3;
     const right = k['d'] || k['arrowright'] || tm.x > 0.3;
     const run = k['shift'];
-    // camera turn from Q/E, mouse, or touch-look (works on foot and driving)
+    // camera turn from Q/E, mouse, drag-look, or the right LOOK STICK.
+    // camTurn is a *rate* (game does camYaw += camTurn * 2.4 * dt), so the
+    // right stick maps its x-offset straight to a continuous turn rate:
+    // full deflection (ls.x=±1) -> ±0.90 * 2.4 = ±2.16 rad/s ≈ ±124°/s.
+    const ls = this.lookStick;
     let camTurn = 0;
     if (k['q']) camTurn -= 1; if (k['e']) camTurn += 1;
     camTurn += this.mouseDX * 0.06;
     camTurn += this.touchLook * 0.06;
+    camTurn += ls.x * 0.90;                 // continuous while held
+    // camPitch is also a rate (game accumulates & clamps -1.2..0.2). Pushing
+    // the stick up (ls.y<0) looks up, down looks down — matching the mouse.
     let camPitch = 0;
     if (k['r']) camPitch += 1; if (k['t']) camPitch -= 1;
     camPitch += -this.mouseDY * 0.05;
+    camPitch += -ls.y * 1.20;               // continuous while held
     this.mouseDX = 0; this.mouseDY = 0; this.touchLook = 0;
     // jump on foot (edge from key/JUMP button); handbrake while driving (held HAND button)
     const jump = this.take('jump') || !!t.hand;
