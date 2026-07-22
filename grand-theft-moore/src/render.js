@@ -8,6 +8,7 @@
 
 import { P, ROAD, SW, LOT, NB, TILE } from './city.js';
 import { mat4, normalize, cross, texture, program, locations, buffer } from './gl.js';
+import { loadModel } from './gltf.js';
 
 const FAR = 96;            // fog end / draw distance (world units)
 const FOG_START = 44;
@@ -137,6 +138,65 @@ export class Renderer {
 
     this._proj = mat4.perspective(VFOV, canvas.width / canvas.height, 0.1, 600);
     this._cityRef = null;
+
+    // Real downloaded CC0 glTF models. Null until loadModels() resolves; the
+    // draw code falls back to procedural box meshes whenever they are null, so
+    // a missing/broken asset never breaks the game.
+    this.carModel = null;
+    this.charModel = null;
+  }
+
+  // ---- CC0 glTF model loading (enhancement; degrades to boxes) -----------
+  // Fetches models/car.glb + models/character.glb, bakes an orientation +
+  // ground-centring transform into a GL buffer compatible with the world
+  // program, and records the oriented bounding size for per-entity scaling.
+  // Any failure leaves the corresponding model null (procedural fallback).
+  async loadModels(base = 'models/') {
+    await Promise.all([
+      this._tryLoad(base + 'car.glb', { yaw0: Math.PI / 2, tintAlpha: 0.45 })
+        .then(m => { this.carModel = m; console.log('[gtm] car model loaded: ' + m.n + ' verts'); })
+        .catch(e => console.warn('[gtm] car model unavailable, using procedural fallback:', e.message)),
+      this._tryLoad(base + 'character.glb', { yaw0: Math.PI / 2, tintAlpha: 0.0 })
+        .then(m => { this.charModel = m; console.log('[gtm] character model loaded: ' + m.n + ' verts'); })
+        .catch(e => console.warn('[gtm] character model unavailable, using procedural fallback:', e.message)),
+    ]);
+  }
+
+  async _tryLoad(url, opts) {
+    const raw = await loadModel(url);
+    return this._prepModel(raw, opts);
+  }
+
+  // Bake: rotate about Y by yaw0 (so the model's forward axis -> world +x, the
+  // game's heading-0 direction), centre in x/z, drop feet to y=0, and stamp a
+  // tint-mask alpha into every vertex colour. Returns { buf, n, size:[sx,sy,sz] }
+  // where size is the oriented bounding box (used to scale onto v.l/v.w/v.h).
+  _prepModel(raw, { yaw0 = 0, tintAlpha = 0 }) {
+    const src = raw.vertexData, n = raw.vertexCount;
+    const out = new Float32Array(src.length);
+    const c = Math.cos(yaw0), s = Math.sin(yaw0);
+    const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
+    // pass 1: rotate pos + normal, find oriented bbox
+    for (let i = 0; i < n; i++) {
+      const o = i * 12;
+      const px = src[o], py = src[o + 1], pz = src[o + 2];
+      const rx = px * c + pz * s, rz = -px * s + pz * c;
+      out[o] = rx; out[o + 1] = py; out[o + 2] = rz;
+      const nx = src[o + 3], ny = src[o + 4], nz = src[o + 5];
+      out[o + 3] = nx * c + nz * s; out[o + 4] = ny; out[o + 5] = -nx * s + nz * c;
+      out[o + 6] = src[o + 6]; out[o + 7] = src[o + 7]; out[o + 8] = src[o + 8]; out[o + 9] = tintAlpha;
+      out[o + 10] = src[o + 10]; out[o + 11] = src[o + 11];
+      if (rx < min[0]) min[0] = rx; if (rx > max[0]) max[0] = rx;
+      if (py < min[1]) min[1] = py; if (py > max[1]) max[1] = py;
+      if (rz < min[2]) min[2] = rz; if (rz > max[2]) max[2] = rz;
+    }
+    // pass 2: centre x/z, drop to ground (min-y -> 0)
+    const cx = (min[0] + max[0]) / 2, cz = (min[2] + max[2]) / 2, gy = min[1];
+    for (let i = 0; i < n; i++) { const o = i * 12; out[o] -= cx; out[o + 1] -= gy; out[o + 2] -= cz; }
+    const size = [max[0] - min[0], max[1] - min[1], max[2] - min[2]];
+    // guard against a degenerate model
+    for (let k = 0; k < 3; k++) if (!(size[k] > 1e-4)) throw new Error('degenerate model bbox');
+    return { buf: buffer(this.gl, out), n, size };
   }
 
   // ---- static geometry --------------------------------------------------
@@ -402,6 +462,26 @@ export class Renderer {
     const l = e.l, w = e.w, h = e.h;
     const tint = [e.color[0] / 255, e.color[1] / 255, e.color[2] / 255];
     const parent = mat4.fromTRS(e.x, 0, e.z, e.heading || 0, 1, 1, 1);
+
+    // --- real CC0 car model (scaled onto the vehicle's l/w/h box) ---------
+    if (this.carModel) {
+      const m = this.carModel;
+      const scl = mat4.fromTRS(0, 0, 0, 0, l / m.size[0], h / m.size[1], w / m.size[2]);
+      this._tmp2 = mat4.multiply(parent, scl, this._tmp2 || new Float32Array(16));
+      this._bind(m);
+      this._draw(m, this._tmp2, tint, 0, 1);
+      if (e.police) {
+        this._bind(this.unitBox);
+        const on = ((e.flash | 0) % 2) === 0;
+        const top = h * 0.94;
+        this._boxIn(parent, l * 0.02, top, -w * 0.2, 0.34, 0.22, 0.3, on ? RED : BLUE);
+        this._boxIn(parent, l * 0.02, top, w * 0.2, 0.34, 0.22, 0.3, on ? BLUE : RED);
+      }
+      return;
+    }
+
+    // --- procedural box fallback -----------------------------------------
+    this._bind(this.unitBox);
     const bodyH = Math.max(0.5, h * 0.55), bodyY = 0.32 + bodyH / 2;
     // body
     this._boxIn(parent, 0, bodyY, 0, l * 0.96, bodyH, w, tint);
@@ -425,6 +505,20 @@ export class Renderer {
   _drawPed(e) {
     const y = e.y || 0;
     const parent = mat4.fromTRS(e.x, y, e.z, e.heading || 0, 1, 1, 1);
+
+    // --- real CC0 character model (upright peds + player; y carries jump) --
+    if (this.charModel && e.state !== 'down') {
+      const m = this.charModel;
+      const sc = (e.h || 1.8) / m.size[1];
+      const scl = mat4.fromTRS(0, 0, 0, 0, sc, sc, sc);
+      this._tmp3 = mat4.multiply(parent, scl, this._tmp3 || new Float32Array(16));
+      this._bind(m);
+      this._draw(m, this._tmp3, WHITE, 0, 1);
+      return;
+    }
+
+    // --- procedural box fallback (also used for knocked-down peds) --------
+    this._bind(this.unitBox);
     const pants = [e.color[0] / 255, e.color[1] / 255, e.color[2] / 255];
     const shirt = [(e.shirt || e.color)[0] / 255, (e.shirt || e.color)[1] / 255, (e.shirt || e.color)[2] / 255];
     if (e.state === 'down') {
