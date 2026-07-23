@@ -462,6 +462,19 @@ export class Renderer {
       const ox = bx * P, oz = bz * P;
       this._curbRing(flat, ox + ROAD, oz + ROAD, ox + P, oz + P, SW);
     }
+    // street furniture — lamps line every road; hydrants / bins / benches /
+    // bollards are scattered deterministically along the curbs (render-only).
+    for (let bz = 0; bz < NB; bz++) for (let bx = 0; bx < NB; bx++) {
+      const ox = bx * P, oz = bz * P;
+      this._streetLamp(flat, ox + ROAD + 0.9, oz + P * 0.5, -1, 0);  // west edge
+      this._streetLamp(flat, ox + P * 0.5, oz + ROAD + 0.9, 0, -1);  // north edge
+      const r = h2(bx * 13 + 5, bz * 29 + 2);
+      const fx = ox + P - 0.9, fz = oz + P * 0.5;                    // east curb
+      if (r < 0.20) this._hydrant(flat, fx, fz);
+      else if (r < 0.42) this._trashCan(flat, fx, fz);
+      else if (r < 0.60) this._bench(flat, ox + P * 0.5, oz + P - 0.9, true);
+      else if (r < 0.74) this._bollard(flat, fx, fz);
+    }
     // trees in parks
     for (const pr of props || []) {
       const th = pr.h || 3.5, tr = 0.9;
@@ -543,6 +556,59 @@ export class Renderer {
     flat.box(xf, ry, za, x, ry + rh, za + t, railCol);
     flat.box(xf, ry, zb - t, x, ry + rh, zb, railCol);
     flat.box(xf, ry + rh - t, za, x, ry + rh, zb, railCol);
+  }
+
+  // ---- street furniture (all sit on the raised curb at y=CURB_H) ----------
+  // street lamp: base + pole + gooseneck arm reaching (dx,dz) over the road,
+  // with a warm-lit head at the arm's end.
+  _streetLamp(flat, x, z, dx, dz) {
+    const y = CURB_H, dark = [0.13, 0.14, 0.16, 0], metal = [0.22, 0.23, 0.26, 0];
+    const glow = [1.0, 0.86, 0.55, 0];
+    const ph = 4.3, ay = y + ph - 0.2, reach = 1.5;
+    flat.box(x - 0.2, y, z - 0.2, x + 0.2, y + 0.34, z + 0.2, dark);   // base
+    flat.box(x - 0.1, y, z - 0.1, x + 0.1, y + ph, z + 0.1, metal);    // pole
+    const ex = x + dx * reach, ez = z + dz * reach;                    // arm end
+    flat.box(Math.min(x, ex) - 0.07, ay, Math.min(z, ez) - 0.07,       // arm
+      Math.max(x, ex) + 0.07, ay + 0.13, Math.max(z, ez) + 0.07, metal);
+    flat.box(ex - 0.22, ay - 0.32, ez - 0.22, ex + 0.22, ay, ez + 0.22, glow); // head
+  }
+  // fire hydrant: squat red plug with a bonnet and two side caps
+  _hydrant(flat, x, z) {
+    const y = CURB_H, red = [0.72, 0.12, 0.10, 0], dark = [0.48, 0.08, 0.07, 0];
+    flat.cyl(x, z, 0.16, y, y + 0.5, 8, red, 1, 1);
+    flat.discUp(x, z, 0.16, y + 0.5, 8, red);
+    flat.box(x - 0.1, y + 0.5, z - 0.1, x + 0.1, y + 0.64, z + 0.1, red);
+    flat.discUp(x, z, 0.12, y + 0.64, 8, dark);
+    flat.box(x - 0.24, y + 0.26, z - 0.06, x + 0.24, y + 0.38, z + 0.06, dark);
+  }
+  // trash can: dark cylinder with a rim and a dark opening
+  _trashCan(flat, x, z) {
+    const y = CURB_H, body = [0.20, 0.27, 0.22, 0], rim = [0.12, 0.16, 0.13, 0];
+    flat.cyl(x, z, 0.28, y, y + 0.92, 10, body, 1, 1);
+    flat.discUp(x, z, 0.30, y + 0.92, 10, rim);
+    flat.discUp(x, z, 0.23, y + 0.9, 10, [0.05, 0.06, 0.05, 0]);
+  }
+  // park bench: slatted seat + back on two legs (alongX orients the long axis)
+  _bench(flat, x, z, alongX) {
+    const y = CURB_H, wood = [0.44, 0.29, 0.16, 0], leg = [0.18, 0.19, 0.22, 0];
+    const L = 1.7, W = 0.5, sy = y + 0.42, bh = 0.5;
+    if (alongX) {
+      flat.box(x - L / 2, sy, z - W / 2, x + L / 2, sy + 0.08, z + W / 2, wood);
+      flat.box(x - L / 2, sy + 0.08, z + W / 2 - 0.08, x + L / 2, sy + bh, z + W / 2, wood);
+      flat.box(x - L / 2 + 0.06, y, z - W / 2, x - L / 2 + 0.14, sy, z + W / 2, leg);
+      flat.box(x + L / 2 - 0.14, y, z - W / 2, x + L / 2 - 0.06, sy, z + W / 2, leg);
+    } else {
+      flat.box(x - W / 2, sy, z - L / 2, x + W / 2, sy + 0.08, z + L / 2, wood);
+      flat.box(x + W / 2 - 0.08, sy + 0.08, z - L / 2, x + W / 2, sy + bh, z + L / 2, wood);
+      flat.box(x - W / 2, y, z - L / 2 + 0.06, x + W / 2, sy, z - L / 2 + 0.14, leg);
+      flat.box(x - W / 2, y, z + L / 2 - 0.14, x + W / 2, sy, z + L / 2 - 0.06, leg);
+    }
+  }
+  // bollard: short post with a yellow cap
+  _bollard(flat, x, z) {
+    const y = CURB_H, c = [0.20, 0.22, 0.26, 0];
+    flat.cyl(x, z, 0.1, y, y + 0.72, 6, c, 1, 1);
+    flat.discUp(x, z, 0.1, y + 0.72, 6, [0.85, 0.7, 0.2, 0]);
   }
 
   // water tower: tank on 4 legs with a conical cap

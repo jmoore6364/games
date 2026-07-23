@@ -12,10 +12,23 @@ import { P, ROAD, TILE } from './city.js';
 
 const canvas = document.getElementById('view');
 const hud = document.getElementById('hud');
-const DW = 880, DH = 550;
-canvas.width = DW; canvas.height = DH;
-hud.width = DW; hud.height = DH;
 const hudCtx = hud.getContext('2d');
+// Responsive canvases: fill the window at devicePixelRatio so the game is
+// full-screen and crisp on desktop (it used to be a fixed 880x550 box centred
+// in the page). VW/VH are the logical CSS-pixel size the HUD draws in; the
+// WebGL renderer reads the higher-res backing store each frame and adapts its
+// viewport + projection automatically.
+let VW = 880, VH = 550;
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  VW = Math.max(1, Math.floor(window.innerWidth));
+  VH = Math.max(1, Math.floor(window.innerHeight));
+  canvas.width = Math.round(VW * dpr); canvas.height = Math.round(VH * dpr);
+  hud.width = Math.round(VW * dpr); hud.height = Math.round(VH * dpr);
+  hudCtx.setTransform(dpr, 0, 0, dpr, 0, 0);   // draw HUD in CSS pixels
+}
+resize();
+addEventListener('resize', resize);
 
 const game = new Game((Math.random() * 1e9) | 0);
 const renderer = new Renderer(canvas);
@@ -112,7 +125,7 @@ function drawHUD(ctx) {
   ctx.save();
   ctx.font = '14px monospace'; ctx.textBaseline = 'top';
   // minimap
-  const mmSize = 150, mx = 12, my = DH - mmSize - 12;
+  const mmSize = 150, mx = 12, my = VH - mmSize - 12;
   const view = 130; // world units shown across the minimap
   const p = g.player;
   const cx = p.inVehicle ? p.inVehicle.x : p.x;
@@ -153,15 +166,15 @@ function drawHUD(ctx) {
   ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 2; ctx.strokeRect(mx, my, mmSize, mmSize);
 
   // wanted stars (top-right)
-  drawStars(ctx, DW - 5 * 22 - 16, 14, g.stars);
+  drawStars(ctx, VW - 5 * 22 - 16, 14, g.stars);
 
   // cash
   ctx.fillStyle = '#3d3'; ctx.font = 'bold 22px monospace'; ctx.textAlign = 'right';
-  ctx.fillText('$' + g.cash, DW - 16, 40);
+  ctx.fillText('$' + g.cash, VW - 16, 40);
 
   // health bar (bottom-right)
   ctx.textAlign = 'left';
-  const hbw = 160, hbx = DW - hbw - 16, hby = DH - 30;
+  const hbw = 160, hbx = VW - hbw - 16, hby = VH - 30;
   ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(hbx, hby, hbw, 14);
   ctx.fillStyle = '#c33'; ctx.fillRect(hbx, hby, hbw * (g.player.health / g.player.maxHealth), 14);
   ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1; ctx.strokeRect(hbx, hby, hbw, 14);
@@ -172,36 +185,36 @@ function drawHUD(ctx) {
   if (g.player.inVehicle) {
     const v = g.player.inVehicle;
     const kmh = Math.abs(v.speed) * 7 | 0;
-    ctx.fillText(v.type.toUpperCase() + '  ' + kmh + ' km/h', 12, DH - mmSize - 34);
+    ctx.fillText(v.type.toUpperCase() + '  ' + kmh + ' km/h', 12, VH - mmSize - 34);
   } else {
-    ctx.fillText('ON FOOT', 12, DH - mmSize - 34);
+    ctx.fillText('ON FOOT', 12, VH - mmSize - 34);
   }
 
   // mission banner
   if (g.bannerTimer > 0 && g.banner) {
     ctx.textAlign = 'center'; ctx.font = 'bold 18px monospace';
-    ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(DW / 2 - 260, 60, 520, 30);
-    ctx.fillStyle = '#ffd23a'; ctx.fillText(g.banner, DW / 2, 66);
+    ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(VW / 2 - 260, 60, 520, 30);
+    ctx.fillStyle = '#ffd23a'; ctx.fillText(g.banner, VW / 2, 66);
   } else if (g.activeMission) {
     ctx.textAlign = 'center'; ctx.font = '14px monospace'; ctx.fillStyle = '#ffd23a';
-    ctx.fillText(g.activeMission.objective, DW / 2, 12);
+    ctx.fillText(g.activeMission.objective, VW / 2, 12);
   }
 
   // radio / toast
-  if (radioTimer > 0) { ctx.textAlign = 'center'; ctx.fillStyle = '#8cf'; ctx.font = '13px monospace'; ctx.fillText('♪ ' + radioName, DW / 2, DH - 24); }
-  if (toastTimer > 0) { ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.font = '13px monospace'; ctx.fillText(toast, DW / 2, 96); }
+  if (radioTimer > 0) { ctx.textAlign = 'center'; ctx.fillStyle = '#8cf'; ctx.font = '13px monospace'; ctx.fillText('♪ ' + radioName, VW / 2, VH - 24); }
+  if (toastTimer > 0) { ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.font = '13px monospace'; ctx.fillText(toast, VW / 2, 96); }
 
   ctx.textAlign = 'left'; ctx.restore();
 }
 
 function overlay(ctx, title, sub, col) {
   ctx.save();
-  ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(0, 0, DW, DH);
+  ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(0, 0, VW, VH);
   ctx.textAlign = 'center';
-  ctx.fillStyle = col; ctx.font = 'bold 64px monospace'; ctx.fillText(title, DW / 2, DH / 2 - 60);
+  ctx.fillStyle = col; ctx.font = 'bold 64px monospace'; ctx.fillText(title, VW / 2, VH / 2 - 60);
   ctx.fillStyle = '#eee'; ctx.font = '18px monospace';
   const lines = sub.split('\n');
-  lines.forEach((l, i) => ctx.fillText(l, DW / 2, DH / 2 + 10 + i * 26));
+  lines.forEach((l, i) => ctx.fillText(l, VW / 2, VH / 2 + 10 + i * 26));
   ctx.textAlign = 'left'; ctx.restore();
 }
 
@@ -253,7 +266,7 @@ function frame(now) {
   const cam = computeCamera();
   renderer.render({ city: game.city, eye: cam.eye, yaw: cam.yaw, pitch: cam.pitch, entities: buildEntities(), props: game.props, time: game.time });
   const ctx = hudCtx;
-  ctx.clearRect(0, 0, DW, DH);
+  ctx.clearRect(0, 0, VW, VH);
 
   if (state === 'title') {
     overlay(ctx, 'GRAND THEFT MOORE', 'A software-3D crime sandbox\n\nPress ENTER to hit the streets', '#ffd23a');
@@ -265,7 +278,7 @@ function frame(now) {
   }
   // fps
   ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.font = '11px monospace'; ctx.textAlign = 'right';
-  ctx.fillText(fpsShown + ' fps', DW - 8, DH - 14); ctx.textAlign = 'left';
+  ctx.fillText(fpsShown + ' fps', VW - 8, VH - 14); ctx.textAlign = 'left';
 
   requestAnimationFrame(frame);
 }
