@@ -432,6 +432,21 @@ export class Renderer {
       g.beginPath(); g.moveTo(cc, 0); g.lineTo(cc, R); g.stroke();
       g.beginPath(); g.moveTo(0, cc); g.lineTo(R, cc); g.stroke();
     }
+    g.setLineDash([]);
+    // zebra crosswalks framing every intersection square [k*P .. k*P+ROAD]^2
+    g.fillStyle = 'rgba(228,228,232,0.8)';
+    const bar = 0.6, gap = 0.6, dep = 2.0, ins = 0.5;
+    for (let bz = 0; bz < NB; bz++) for (let bx = 0; bx < NB; bx++) {
+      const ix = bx * P, iz = bz * P;
+      for (let x = ix + ins; x + bar <= ix + ROAD - ins; x += bar + gap) {
+        g.fillRect(x * s, (iz + ins) * s, bar * s, dep * s);
+        g.fillRect(x * s, (iz + ROAD - ins - dep) * s, bar * s, dep * s);
+      }
+      for (let z = iz + ins; z + bar <= iz + ROAD - ins; z += bar + gap) {
+        g.fillRect((ix + ins) * s, z * s, dep * s, bar * s);
+        g.fillRect((ix + ROAD - ins - dep) * s, z * s, dep * s, bar * s);
+      }
+    }
     return c;
   }
 
@@ -462,18 +477,32 @@ export class Renderer {
       const ox = bx * P, oz = bz * P;
       this._curbRing(flat, ox + ROAD, oz + ROAD, ox + P, oz + P, SW);
     }
-    // street furniture — lamps line every road; hydrants / bins / benches /
-    // bollards are scattered deterministically along the curbs (render-only).
+    // street furniture — lamps line every road; traffic lights sit on the
+    // intersection corners; trees / hydrants / bins / benches / bollards /
+    // planters / bus shelters are scattered deterministically (render-only).
     for (let bz = 0; bz < NB; bz++) for (let bx = 0; bx < NB; bx++) {
       const ox = bx * P, oz = bz * P;
       this._streetLamp(flat, ox + ROAD + 0.9, oz + P * 0.5, -1, 0);  // west edge
       this._streetLamp(flat, ox + P * 0.5, oz + ROAD + 0.9, 0, -1);  // north edge
+      // traffic signal on the NW intersection corner (most corners)
+      if (h2(bx * 71 + 9, bz * 17 + 4) < 0.68)
+        this._trafficLight(flat, ox + ROAD + 1.4, oz + ROAD + 1.4);
+      // street trees greening the west & north curbs (2 per block)
+      if (h2(bx * 5 + 1, bz * 41 + 6) < 0.6) {
+        this._streetTree(flat, ox + ROAD + 1.4, oz + P * 0.62);
+        this._streetTree(flat, ox + P * 0.62, oz + ROAD + 1.4);
+      }
+      // small-item scatter on the east curb
       const r = h2(bx * 13 + 5, bz * 29 + 2);
       const fx = ox + P - 0.9, fz = oz + P * 0.5;                    // east curb
-      if (r < 0.20) this._hydrant(flat, fx, fz);
-      else if (r < 0.42) this._trashCan(flat, fx, fz);
-      else if (r < 0.60) this._bench(flat, ox + P * 0.5, oz + P - 0.9, true);
-      else if (r < 0.74) this._bollard(flat, fx, fz);
+      if (r < 0.16) this._hydrant(flat, fx, fz);
+      else if (r < 0.32) this._trashCan(flat, fx, fz);
+      else if (r < 0.48) this._bench(flat, ox + P * 0.5, oz + P - 0.9, true);
+      else if (r < 0.60) this._bollard(flat, fx, fz);
+      else if (r < 0.74) this._planter(flat, fx, fz);
+      // occasional bus shelter along the south curb (offset from the bench)
+      if (h2(bx * 23 + 8, bz * 53 + 3) < 0.13)
+        this._busShelter(flat, ox + P * 0.68, oz + P - 1.3);
     }
     // trees in parks
     for (const pr of props || []) {
@@ -609,6 +638,46 @@ export class Renderer {
     const y = CURB_H, c = [0.20, 0.22, 0.26, 0];
     flat.cyl(x, z, 0.1, y, y + 0.72, 6, c, 1, 1);
     flat.discUp(x, z, 0.1, y + 0.72, 6, [0.85, 0.7, 0.2, 0]);
+  }
+  // traffic signal: pole + mast arm reaching -x over the intersection, with a
+  // 3-lens head (red/amber/green) hanging at the arm's end.
+  _trafficLight(flat, x, z) {
+    const y = CURB_H, pole = [0.16, 0.17, 0.19, 0], hood = [0.09, 0.10, 0.11, 0];
+    const ph = 5.0, arm = 2.6, ay = y + ph - 0.3;
+    flat.box(x - 0.16, y, z - 0.16, x + 0.16, y + 0.4, z + 0.16, [0.10, 0.10, 0.11, 0]); // base
+    flat.box(x - 0.11, y, z - 0.11, x + 0.11, y + ph, z + 0.11, pole);                   // pole
+    flat.box(x - arm, ay, z - 0.08, x + 0.09, ay + 0.14, z + 0.08, pole);                // mast arm
+    const hx = x - arm + 0.2, hy = ay - 0.1;
+    flat.box(hx - 0.18, hy - 1.05, z - 0.16, hx + 0.18, hy, z + 0.16, hood);             // housing
+    const lz = z - 0.18;  // lenses proud of the -z face
+    flat.box(hx - 0.1, hy - 0.32, lz, hx + 0.1, hy - 0.14, lz + 0.03, [0.92, 0.16, 0.13, 0]);
+    flat.box(hx - 0.1, hy - 0.62, lz, hx + 0.1, hy - 0.44, lz + 0.03, [0.92, 0.76, 0.22, 0]);
+    flat.box(hx - 0.1, hy - 0.92, lz, hx + 0.1, hy - 0.74, lz + 0.03, [0.22, 0.82, 0.32, 0]);
+  }
+  // street tree: trunk + two-tier canopy (a rounder silhouette than park trees)
+  _streetTree(flat, x, z) {
+    const y = CURB_H, th = 3.4, tr = 0.95, trunk = [0.34, 0.24, 0.15, 0], leaf = [0.18, 0.42, 0.20, 0];
+    flat.box(x - 0.16, y, z - 0.16, x + 0.16, y + th * 0.42, z + 0.16, trunk);
+    flat.box(x - tr, y + th * 0.36, z - tr, x + tr, y + th * 0.9, z + tr, leaf);
+    flat.box(x - tr * 0.68, y + th * 0.8, z - tr * 0.68, x + tr * 0.68, y + th + 0.5, z + tr * 0.68, leaf);
+  }
+  // sidewalk planter: stone box + soil + a low hedge
+  _planter(flat, x, z) {
+    const y = CURB_H, box = [0.42, 0.34, 0.26, 0], soil = [0.15, 0.10, 0.07, 0], grn = [0.20, 0.44, 0.22, 0];
+    flat.box(x - 0.5, y, z - 0.5, x + 0.5, y + 0.45, z + 0.5, box);
+    flat.box(x - 0.42, y + 0.45, z - 0.42, x + 0.42, y + 0.5, z + 0.42, soil);
+    flat.box(x - 0.4, y + 0.5, z - 0.4, x + 0.4, y + 1.05, z + 0.4, grn);
+  }
+  // bus shelter: 4 posts, a flat roof, a back glass panel and an inner bench
+  _busShelter(flat, x, z) {
+    const y = CURB_H, post = [0.20, 0.21, 0.24, 0], roof = [0.22, 0.28, 0.34, 0];
+    const glass = [0.40, 0.50, 0.60, 0], wood = [0.40, 0.28, 0.16, 0];
+    const W = 3.2, D = 1.2, H = 2.4;
+    for (const sx of [-1, 1]) for (const sz of [-1, 1])
+      flat.box(x + sx * W / 2 - 0.08, y, z + sz * D / 2 - 0.08, x + sx * W / 2 + 0.08, y + H, z + sz * D / 2 + 0.08, post);
+    flat.box(x - W / 2 - 0.15, y + H, z - D / 2 - 0.15, x + W / 2 + 0.15, y + H + 0.16, z + D / 2 + 0.15, roof);
+    flat.box(x - W / 2, y, z - D / 2, x + W / 2, y + H - 0.3, z - D / 2 + 0.05, glass);   // back wall (away from road)
+    flat.box(x - W / 2 + 0.2, y + 0.42, z - 0.05, x + W / 2 - 0.2, y + 0.5, z + 0.35, wood); // bench
   }
 
   // water tower: tank on 4 legs with a conical cap
