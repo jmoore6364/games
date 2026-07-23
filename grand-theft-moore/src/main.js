@@ -195,6 +195,11 @@ function drawHUD(ctx) {
     ctx.fillStyle = Math.floor(g.time * 6) % 2 ? '#4a7bff' : '#ff3a3a';
     ctx.fillRect(s.x - 2, s.y - 2, 4, 4);
   }
+  // shop blips (small green dollar-squares)
+  for (const sh of g.city.shops || []) {
+    const s = toMM(sh.doorX != null ? sh.doorX : sh.door.x, sh.doorZ != null ? sh.doorZ : sh.door.z);
+    ctx.fillStyle = '#2ecc71'; ctx.fillRect(s.x - 2, s.y - 2, 4, 4);
+  }
   // hospital + garage
   const gs = toMM(g.city.garage.x, g.city.garage.z); ctx.fillStyle = '#5cf'; ctx.fillRect(gs.x - 3, gs.y - 3, 6, 6);
   const hs = toMM(g.city.hospital.x, g.city.hospital.z); ctx.fillStyle = '#f5a'; ctx.fillRect(hs.x - 3, hs.y - 3, 6, 6);
