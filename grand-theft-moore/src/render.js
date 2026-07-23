@@ -7,6 +7,7 @@
 // external assets. GLSL ES 1.00 (WebGL1), SwiftShader-safe. BROWSER-ONLY.
 
 import { P, ROAD, SW, LOT, NB, TILE } from './city.js';
+import { INTERIOR } from './game.js';
 import { mat4, normalize, cross, texture, program, locations, buffer } from './gl.js';
 import { loadModel } from './gltf.js';
 
@@ -520,6 +521,9 @@ export class Renderer {
       if (h2(bx * 59 + 4, bz * 83 + 1) < 0.22)
         this._neonSign(flat, emit, ox + ROAD + 1.4, oz + P * 0.78, NEON_COLORS[(bx * 5 + bz * 2) % NEON_COLORS.length]);
     }
+    // enterable-shop storefronts: a glowing doorway + illuminated sign board on
+    // the street-facing (north, z=z0) facade of each shop block.
+    for (const s of city.shops || []) this._shopFront(flat, emit, s);
     // trees in parks
     for (const pr of props || []) {
       const th = pr.h || 3.5, tr = 0.9;
@@ -573,6 +577,7 @@ export class Renderer {
   }
   // draw-time ground height: entities standing on a sidewalk tile ride the curb
   _groundY(x, z) {
+    if (this._interior) return 0;   // interiors are flat; don't sample the city
     const c = this._cityRef;
     return (c && c.tileAt(x, z) === TILE.SIDEWALK) ? CURB_H : 0;
   }
@@ -718,6 +723,142 @@ export class Renderer {
     flat.box(x - w / 2, py, z - 0.1, x + w / 2, py + h, z + 0.1, frame);            // housing
     emit.box(x - w / 2 + 0.08, py + 0.08, z - 0.13, x + w / 2 - 0.08, py + h - 0.08, z - 0.09, col); // -z glow
     emit.box(x - w / 2 + 0.08, py + 0.08, z + 0.09, x + w / 2 - 0.08, py + h - 0.08, z + 0.13, col); // +z glow
+  }
+
+  // storefront for an enterable shop: framed glowing doorway + lit sign board +
+  // colored awning on the -z (street) facade. Glowing parts go in `emit`.
+  _shopFront(flat, emit, s) {
+    const { x0, x1, z0, cx, col } = s;
+    const frame = [0.12, 0.11, 0.10, 0];
+    const dw = 1.15, dh = 2.6, zf = z0;                    // door half-width / height / facade plane
+    // door frame (jambs + lintel), slightly proud of the wall
+    flat.box(cx - dw - 0.22, 0, zf - 0.08, cx - dw, dh + 0.25, zf + 0.02, frame);
+    flat.box(cx + dw, 0, zf - 0.08, cx + dw + 0.22, dh + 0.25, zf + 0.02, frame);
+    flat.box(cx - dw - 0.22, dh, zf - 0.08, cx + dw + 0.22, dh + 0.25, zf + 0.02, frame);
+    // warm glowing doorway panel (reads as a lit entrance day or night)
+    emit.box(cx - dw, 0.06, zf - 0.06, cx + dw, dh, zf - 0.02, [1.0, 0.82, 0.48, 0]);
+    // colored awning over the door
+    const ay = dh + 0.3, ad = 1.4, awn = [col[0] * 0.85, col[1] * 0.85, col[2] * 0.85, 0];
+    flat.quad([cx + dw + 0.3, ay, zf], [cx - dw - 0.3, ay, zf],
+      [cx - dw - 0.3, ay - 0.4, zf - ad], [cx + dw + 0.3, ay - 0.4, zf - ad], awn);
+    flat.box(cx - dw - 0.3, ay - 0.42, zf - ad, cx + dw + 0.3, ay - 0.32, zf - ad + 0.06, frame); // valance
+    // illuminated sign board above the awning
+    const sw = Math.min((x1 - x0) * 0.88, 5.2), sy0 = dh + 0.75, sy1 = dh + 1.9;
+    flat.box(cx - sw / 2 - 0.18, sy0 - 0.18, zf - 0.3, cx + sw / 2 + 0.18, sy1 + 0.18, zf - 0.06, [0.05, 0.05, 0.06, 0]);
+    emit.box(cx - sw / 2, sy0, zf - 0.34, cx + sw / 2, sy1, zf - 0.28, [col[0], col[1], col[2], 0]);
+  }
+
+  // ---- shop interior (built once, drawn by renderInterior) ---------------
+  _buildInterior() {
+    const I = INTERIOR, W = I.W, D = I.D, H = I.H;
+    const flat = new Mesh(), emit = new Mesh();
+    const floor = [0.34, 0.31, 0.28, 0], wall = [0.66, 0.63, 0.58, 0], wall2 = [0.60, 0.57, 0.53, 0];
+    const ceil = [0.80, 0.80, 0.82, 0], shelfC = [0.46, 0.47, 0.52, 0], board = [0.36, 0.37, 0.41, 0];
+    const counterC = [0.46, 0.31, 0.19, 0], counterTop = [0.30, 0.20, 0.12, 0];
+    // floor + ceiling
+    flat.box(0, -0.1, 0, W, 0, D, floor);
+    flat.box(0, H, 0, W, H + 0.1, D, ceil);
+    // walls (inner faces visible)
+    flat.box(-0.3, 0, 0, 0, H, D, wall);
+    flat.box(W, 0, 0, W + 0.3, H, D, wall);
+    flat.box(0, 0, D, W, H, D + 0.3, wall2);
+    // front wall with a door gap
+    const dcx = I.door.cx, dhw = I.door.halfW, dtop = I.door.top;
+    flat.box(0, 0, -0.3, dcx - dhw, H, 0, wall2);
+    flat.box(dcx + dhw, 0, -0.3, W, H, 0, wall2);
+    flat.box(dcx - dhw, dtop, -0.3, dcx + dhw, H, 0, wall2);
+    flat.box(dcx - dhw, 0, -0.36, dcx + dhw, dtop, -0.28, [0.05, 0.05, 0.06, 0]); // dark door recess
+    // glowing EXIT sign above the door, facing into the room
+    emit.box(dcx - 0.85, dtop + 0.12, 0.02, dcx + 0.85, dtop + 0.58, 0.09, [0.15, 1.0, 0.35, 0]);
+    // ceiling light panel (modest fixture toward the back so it doesn't fill
+    // the top of the chase-cam view / clash with the HUD)
+    emit.box(W / 2 - 1.1, H - 0.14, D / 2 + 0.4, W / 2 + 1.1, H - 0.05, D / 2 + 2.0, [0.95, 0.9, 0.78, 0]);
+    // counter + top slab + register
+    const c = I.counter, mzz = (c.z0 + c.z1) / 2;
+    flat.box(c.x0, 0, c.z0, c.x1, c.h, c.z1, counterC);
+    flat.box(c.x0 - 0.12, c.h, c.z0 - 0.12, c.x1 + 0.12, c.h + 0.12, c.z1 + 0.12, counterTop);
+    flat.box(c.x1 - 1.5, c.h + 0.12, mzz - 0.28, c.x1 - 0.7, c.h + 0.55, mzz + 0.28, [0.14, 0.15, 0.19, 0]);
+    // shelves with boards + colorful goods
+    const goods = [[0.9, 0.2, 0.2], [0.95, 0.55, 0.15], [0.95, 0.85, 0.2], [0.2, 0.72, 0.32], [0.2, 0.5, 0.9], [0.72, 0.3, 0.85]];
+    I.shelves.forEach((sh, si) => {
+      flat.box(sh.x0, 0, sh.z0, sh.x1, sh.h, sh.z1, shelfC);
+      const longX = (sh.x1 - sh.x0) >= (sh.z1 - sh.z0);
+      for (let yy = 0.55; yy <= sh.h + 0.001; yy += 0.55) {
+        flat.box(sh.x0 - 0.06, yy - 0.05, sh.z0 - 0.06, sh.x1 + 0.06, yy + 0.02, sh.z1 + 0.06, board);
+        let k = 0;
+        if (longX) {
+          const mz = (sh.z0 + sh.z1) / 2;
+          for (let gx = sh.x0 + 0.22; gx < sh.x1 - 0.28; gx += 0.44) {
+            const g = goods[(si * 2 + k++) % goods.length];
+            flat.box(gx, yy + 0.02, mz - 0.14, gx + 0.3, yy + 0.4, mz + 0.14, [g[0], g[1], g[2], 0]);
+          }
+        } else {
+          const mx = (sh.x0 + sh.x1) / 2;
+          for (let gz = sh.z0 + 0.22; gz < sh.z1 - 0.28; gz += 0.44) {
+            const g = goods[(si * 2 + k++) % goods.length];
+            flat.box(mx - 0.14, yy + 0.02, gz, mx + 0.14, yy + 0.4, gz + 0.3, [g[0], g[1], g[2], 0]);
+          }
+        }
+      }
+    });
+    const gl = this.gl;
+    this._interiorFlat = { buf: buffer(gl, flat.data()), n: flat.count };
+    this._interiorEmit = { buf: buffer(gl, emit.data()), n: emit.count };
+  }
+
+  // draw a shop interior with fixed bright lighting (independent of time-of-day)
+  renderInterior(scene) {
+    const gl = this.gl;
+    if (!this._interiorFlat) this._buildInterior();
+    this._tmp = this._tmp || new Float32Array(16);
+    this._interior = true;
+
+    const W = this.canvas.width, Hh = this.canvas.height;
+    gl.viewport(0, 0, W, Hh);
+    if (this._aspect !== W / Hh) { this._aspect = W / Hh; this._proj = mat4.perspective(VFOV, this._aspect, 0.1, 600); }
+
+    const e = scene.eye, yaw = scene.yaw, pitch = scene.pitch, cp = Math.cos(pitch);
+    const fwd = [Math.cos(yaw) * cp, Math.sin(pitch), Math.sin(yaw) * cp];
+    const eye = [e.x, e.y, e.z];
+    const view = mat4.lookAt(eye, [eye[0] + fwd[0], eye[1] + fwd[1], eye[2] + fwd[2]], [0, 1, 0]);
+
+    const amb = [0.74, 0.73, 0.74], lit = [0.34, 0.33, 0.31], sunDir = normalize([0.3, 0.9, 0.25]);
+    gl.clearColor(0.04, 0.04, 0.05, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    gl.useProgram(this.prog);
+    const U = this.loc.uniform;
+    gl.uniform1f(U.uEmissive, 0);
+    gl.uniformMatrix4fv(U.uProj, false, this._proj);
+    gl.uniformMatrix4fv(U.uView, false, view);
+    gl.uniform3fv(U.uLightDir, sunDir);
+    gl.uniform3fv(U.uAmbient, amb);
+    gl.uniform3fv(U.uSun, lit);
+    gl.uniform3fv(U.uFogColor, [0.05, 0.05, 0.06]);
+    gl.uniform1f(U.uFogStart, 80); gl.uniform1f(U.uFogEnd, 240);
+    gl.uniform1f(U.uTexMix, 0);
+
+    this._bind(this._interiorFlat);
+    this._draw(this._interiorFlat, IDENT, WHITE, 0, 1);
+    // emissive fittings (ceiling light, EXIT sign)
+    gl.uniform1f(U.uEmissive, 0.9);
+    this._bind(this._interiorEmit);
+    this._draw(this._interiorEmit, IDENT, WHITE, 0, 1);
+    // per-shop glowing brand sign on the back wall above the counter
+    const shop = scene.shop;
+    if (shop) {
+      this._bind(this.unitBox);
+      const c = INTERIOR.counter, col = new Float32Array([shop.col[0], shop.col[1], shop.col[2]]);
+      const parent = mat4.fromTRS((c.x0 + c.x1) / 2, INTERIOR.H - 1.0, INTERIOR.D - 0.18, 0, 1, 1, 1);
+      this._boxIn(parent, 0, 0, 0, 5.0, 0.8, 0.08, col);
+    }
+    gl.uniform1f(U.uEmissive, 0);
+
+    // entities (shopkeeper + player character)
+    gl.uniform1f(U.uTexMix, 0);
+    this._bind(this.unitBox);
+    for (const en of scene.entities || []) this._drawPed(en);
+    this._interior = false;
   }
 
   // water tower: tank on 4 legs with a conical cap
@@ -1053,6 +1194,7 @@ export class Renderer {
   // ---- frame ------------------------------------------------------------
   render(scene) {
     const gl = this.gl, city = scene.city;
+    this._interior = false;
     if (this._cityRef !== city) this._buildCity(city, scene.props);
     this._tmp = this._tmp || new Float32Array(16);
 

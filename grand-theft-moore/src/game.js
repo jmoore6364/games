@@ -13,6 +13,34 @@ import { Ped, spawnPeds, genProps } from './entities.js';
 
 const STAR_THRESH = [0, 6, 18, 34, 54, 78]; // heat needed for each star count
 
+// ---- shop interior layout (shared by sim collision + the renderer) ----------
+// A small rectangular room in its own local coordinate space (x:0..W, z:0..D).
+// `solids` are AABB footprints (walls + counter + shelves) used for collision;
+// the renderer draws matching 3D geometry from the same numbers.
+export const INTERIOR = (() => {
+  const W = 12, D = 9, H = 4;
+  const counter = { x0: 2, z0: 6.8, x1: 10, z1: 7.6, h: 1.1 };
+  const shelves = [
+    { x0: 0.0, z0: 2.0, x1: 1.0, z1: 7.0, h: 1.7 },      // left wall units
+    { x0: W - 1.0, z0: 2.0, x1: W, z1: 7.0, h: 1.7 },    // right wall units
+    { x0: 1.8, z0: 3.0, x1: 3.6, z1: 4.4, h: 1.35 },     // island (off-centre)
+  ];
+  const door = { cx: W / 2, halfW: 1.2, top: 2.6 };
+  const spawn = { x: W / 2, z: 1.7, heading: Math.PI / 2 };  // faces +z into room
+  const exit = { x: W / 2, z: 1.0, r: 2.0 };
+  const buy = { x: (counter.x0 + counter.x1) / 2, z: (counter.z0 + counter.z1) / 2, r: 2.7, price: 50 };
+  const walls = [
+    { x0: -1, z0: -1, x1: 0, z1: D + 1 },
+    { x0: W, z0: -1, x1: W + 1, z1: D + 1 },
+    { x0: -1, z0: D, x1: W + 1, z1: D + 1 },
+    { x0: -1, z0: -1, x1: W + 1, z1: 0 },
+  ];
+  const solids = walls
+    .concat([{ x0: counter.x0, z0: counter.z0, x1: counter.x1, z1: counter.z1 }])
+    .concat(shelves.map(s => ({ x0: s.x0, z0: s.z0, x1: s.x1, z1: s.z1 })));
+  return { W, D, H, counter, shelves, door, spawn, exit, buy, solids };
+})();
+
 export class Game {
   constructor(seed = 20260721) {
     this.seed = seed;
@@ -38,6 +66,9 @@ export class Game {
     this.events = [];      // transient events for audio/hud {type,...}
     this.banner = '';      // mission-objective banner text
     this.bannerTimer = 0;
+
+    this.inShop = null;    // current shop when inside an interior (null on street)
+    this.shopReturn = null;// saved street pose to restore on exit
 
     this._spawnTraffic(14);
     this.peds = spawnPeds(this.city, this.player, 26, this.rng);
@@ -191,7 +222,7 @@ export class Game {
       const d = Math.hypot(v.x - p.x, v.z - p.z);
       if (d < bd) { best = v; bd = d; }
     }
-    if (!best) return false;
+    if (!best) return this._tryEnterShop();
     const wasOccupied = best.occupant === 'ai';
     p.inVehicle = best;
     best.occupant = 'player'; best.role = 'player';
@@ -199,6 +230,66 @@ export class Game {
     else this.events.push({ type: 'enter' });
     // keep traffic count up
     return true;
+  }
+
+  // ---- shop interiors ---------------------------------------------------
+  _tryEnterShop() {
+    const p = this.player;
+    const shop = this.city.shopAt(p.x, p.z, 3.0);
+    if (!shop) return false;
+    this.shopReturn = { x: p.x, z: p.z, heading: p.heading, camYaw: this.camYaw };
+    this.inShop = shop;
+    p.x = INTERIOR.spawn.x; p.z = INTERIOR.spawn.z; p.y = 0; p.vy = 0; p.onGround = true;
+    p.heading = INTERIOR.spawn.heading;
+    this.camYaw = INTERIOR.spawn.heading; this.camPitch = 0;
+    this.events.push({ type: 'enterShop', name: shop.name });
+    return true;
+  }
+
+  _tryExitShop() {
+    const p = this.player, e = INTERIOR.exit;
+    if (Math.hypot(p.x - e.x, p.z - e.z) > e.r) return false;
+    const r = this.shopReturn || { x: this.city.playerSpawn.x, z: this.city.playerSpawn.z, heading: 0, camYaw: this.camYaw };
+    this.inShop = null;
+    p.x = r.x; p.z = r.z; p.heading = r.heading; p.y = 0; p.vy = 0; p.onGround = true;
+    this.camYaw = r.camYaw;
+    this.events.push({ type: 'exitShop' });
+    return true;
+  }
+
+  // buy full health for cash when standing at the counter (ACTION button)
+  _tryBuy() {
+    const p = this.player, b = INTERIOR.buy;
+    if (Math.hypot(p.x - b.x, p.z - b.z) > b.r) return false;
+    if (p.health >= p.maxHealth) { this.events.push({ type: 'buyFail', reason: 'full' }); return false; }
+    if (this.cash < b.price) { this.events.push({ type: 'buyFail', reason: 'cash' }); return false; }
+    this.cash -= b.price;
+    p.health = p.maxHealth;
+    this.events.push({ type: 'buy', amount: b.price });
+    return true;
+  }
+
+  // circle-vs-AABB test against the interior fittings (walls/counter/shelves)
+  _interiorBlocked(x, z, r) {
+    for (const s of INTERIOR.solids) {
+      const cx = Math.max(s.x0, Math.min(x, s.x1)), cz = Math.max(s.z0, Math.min(z, s.z1));
+      const dx = x - cx, dz = z - cz;
+      if (dx * dx + dz * dz < r * r) return true;
+    }
+    return false;
+  }
+
+  // one sim step while inside a shop: interior movement + buy + exit only
+  _stepShop(input, dt) {
+    const p = this.player;
+    if (input.enterExit && this._tryExitShop()) return;
+    const mf = (input.forward ? 1 : 0) - (input.back ? 1 : 0);
+    const ms = (input.right ? 1 : 0) - (input.left ? 1 : 0);
+    // reuse Player movement, feeding it interior collision instead of city.blocked
+    const collider = { MAP: 1000, blocked: (x, z, r) => this._interiorBlocked(x, z, r) };
+    p.update(collider, { mf, ms, run: input.run, jump: input.jump, dt, camYaw: this.camYaw });
+    if (p.jumped) this.events.push({ type: 'jump' });
+    if (input.action) this._tryBuy();
   }
 
   // steal a police car too (for evasion) — separate explicit action if adjacent
@@ -411,8 +502,13 @@ export class Game {
     if (input.camTurn) this.camYaw += input.camTurn * 2.4 * dt;
     if (input.camPitch) this.camPitch = Math.max(-1.2, Math.min(0.2, this.camPitch + input.camPitch * dt));
 
+    // inside a shop interior: run the isolated interior sim and skip the city
+    if (this.inShop) { this._stepShop(input, dt); return; }
+
     // enter/exit (edge-triggered by caller)
     if (input.enterExit) this.tryEnterExit();
+    // entering a shop this frame pauses the city sim immediately
+    if (this.inShop) return;
 
     if (p.inVehicle) {
       // driving control
