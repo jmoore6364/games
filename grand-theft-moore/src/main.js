@@ -2,7 +2,7 @@
 // state screens (title/busted/wasted/win), audio wiring, and the __gtm test
 // hook. The pure simulation lives in game.js. BROWSER-ONLY.
 
-import { Game } from './game.js';
+import { Game, INTERIOR } from './game.js';
 import { Renderer } from './render.js';
 import { Input } from './input.js';
 import { Audio } from './audio.js';
@@ -70,6 +70,19 @@ MM.width = game.city.MAP; MM.height = game.city.MAP;
 // ---- camera --------------------------------------------------------------
 function computeCamera() {
   const g = game, p = g.player;
+  // inside a shop: simple chase cam clamped to the room (no city pull-in)
+  if (g.inShop) {
+    const yaw = g.camYaw;
+    if (g.firstPerson) return { eye: { x: p.x, y: 2.5, z: p.z }, yaw, pitch: Math.max(-1.2, Math.min(0.4, g.camPitch)) };
+    const dist = 4.0, height = 2.7, hx = Math.cos(yaw), hz = Math.sin(yaw);
+    const eye = {
+      x: Math.max(0.4, Math.min(INTERIOR.W - 0.4, p.x - hx * dist)),
+      y: height,
+      z: Math.max(0.4, Math.min(INTERIOR.D - 0.4, p.z - hz * dist)),
+    };
+    const basePitch = Math.atan2(1.6 - height, dist);
+    return { eye, yaw, pitch: Math.max(-1.25, Math.min(0.25, basePitch + g.camPitch)) };
+  }
   const driving = !!p.inVehicle;
   const tx = driving ? p.inVehicle.x : p.x;
   const tz = driving ? p.inVehicle.z : p.z;
@@ -99,6 +112,13 @@ function computeCamera() {
 function buildEntities() {
   const g = game, out = [];
   const flash = Math.floor(g.time * 5);
+  // inside a shop: only the player character + the shopkeeper behind the counter
+  if (g.inShop) {
+    const p = g.player, c = INTERIOR.counter;
+    out.push({ x: p.x, y: p.y || 0, z: p.z, h: 1.85, heading: p.heading, color: [40, 60, 110], shirt: [200, 210, 220], state: 'walk', kind: 'ped' });
+    out.push({ x: (c.x0 + c.x1) / 2, y: 0, z: INTERIOR.D - 0.9, h: 1.8, heading: -Math.PI / 2, color: [30, 40, 60], shirt: [220, 180, 60], skin: [210, 170, 140], tint: [1.0, 0.86, 0.62], state: 'walk', kind: 'ped' });
+    return out;
+  }
   for (const v of g.vehicles) {
     if (g.firstPerson && v === g.player.inVehicle) continue;
     out.push({
@@ -125,6 +145,30 @@ function drawHUD(ctx) {
   const g = game;
   ctx.save();
   ctx.font = '14px monospace'; ctx.textBaseline = 'top';
+
+  // inside a shop: name + interior hints + health/cash (no minimap/stars)
+  if (g.inShop) {
+    ctx.textAlign = 'center';
+    // dark plate behind the name + hint so they stay readable over the interior
+    ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(VW / 2 - 220, 8, 440, 66);
+    ctx.font = 'bold 24px monospace'; ctx.fillStyle = g.inShop.col
+      ? `rgb(${g.inShop.col.map(c => Math.round(c * 255)).join(',')})` : '#ffd23a';
+    ctx.fillText(g.inShop.name, VW / 2, 20);
+    ctx.font = '14px monospace'; ctx.fillStyle = '#cde';
+    ctx.fillText('F: exit    J: buy health $' + INTERIOR.buy.price, VW / 2, 52);
+    // cash
+    ctx.textAlign = 'right'; ctx.fillStyle = '#3d3'; ctx.font = 'bold 22px monospace';
+    ctx.fillText('$' + g.cash, VW - 16, 40);
+    // health bar
+    ctx.textAlign = 'left';
+    const hbw = 160, hbx = VW - hbw - 16, hby = VH - 30;
+    ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(hbx, hby, hbw, 14);
+    ctx.fillStyle = '#c33'; ctx.fillRect(hbx, hby, hbw * (g.player.health / g.player.maxHealth), 14);
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1; ctx.strokeRect(hbx, hby, hbw, 14);
+    ctx.fillStyle = '#fff'; ctx.font = '11px monospace'; ctx.fillText('HEALTH', hbx, hby - 13);
+    if (toastTimer > 0) { ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.font = '13px monospace'; ctx.fillText(toast, VW / 2, 96); }
+    ctx.textAlign = 'left'; ctx.restore(); return;
+  }
   // minimap
   const mmSize = 150, mx = 12, my = VH - mmSize - 12;
   const view = 130; // world units shown across the minimap
@@ -277,6 +321,9 @@ function frame(now) {
       audio.event(ev.type);
       if (ev.type === 'missionComplete') { audio.event('cash'); toast = 'MISSION PASSED  +$' + ev.cash; toastTimer = 3; }
       if (ev.type === 'wantedUp') { toast = 'WANTED LEVEL UP'; toastTimer = 1.5; }
+      if (ev.type === 'enterShop') { toast = 'WELCOME TO ' + ev.name; toastTimer = 2.5; }
+      if (ev.type === 'buy') { audio.event('cash'); toast = 'HEALTH RESTORED  -$' + ev.amount; toastTimer = 2.5; }
+      if (ev.type === 'buyFail') { toast = ev.reason === 'cash' ? 'NOT ENOUGH CASH' : 'HEALTH ALREADY FULL'; toastTimer = 2; }
     }
     if (game.state === 'busted') { state = 'busted'; downTimer = 2.5; audio.event('busted'); }
     else if (game.state === 'wasted') { state = 'wasted'; downTimer = 2.5; audio.event('wasted'); }
@@ -297,7 +344,11 @@ function frame(now) {
 
   // render 3D (WebGL) then the 2D HUD overlay on top
   const cam = computeCamera();
-  renderer.render({ city: game.city, eye: cam.eye, yaw: cam.yaw, pitch: cam.pitch, entities: buildEntities(), props: game.props, time: game.time, wet: weather.wet });
+  if (game.inShop) {
+    renderer.renderInterior({ eye: cam.eye, yaw: cam.yaw, pitch: cam.pitch, entities: buildEntities(), shop: game.inShop });
+  } else {
+    renderer.render({ city: game.city, eye: cam.eye, yaw: cam.yaw, pitch: cam.pitch, entities: buildEntities(), props: game.props, time: game.time, wet: weather.wet });
+  }
   const ctx = hudCtx;
   ctx.clearRect(0, 0, VW, VH);
   drawRain(ctx, weather.wet, game.time);
@@ -330,9 +381,22 @@ window.__gtm = {
   setWet(w) { weather.mode = w > 0.5 ? 'rain' : 'clear'; weather.wet = w; weather.timer = 999; },
   renderOnce() {
     const cam = computeCamera();
-    renderer.render({ city: game.city, eye: cam.eye, yaw: cam.yaw, pitch: cam.pitch, entities: buildEntities(), props: game.props, time: game.time, wet: weather.wet });
+    if (game.inShop) renderer.renderInterior({ eye: cam.eye, yaw: cam.yaw, pitch: cam.pitch, entities: buildEntities(), shop: game.inShop });
+    else renderer.render({ city: game.city, eye: cam.eye, yaw: cam.yaw, pitch: cam.pitch, entities: buildEntities(), props: game.props, time: game.time, wet: weather.wet });
     return true;
   },
+  // teleport the player to the nearest shop door and enter it (test helper)
+  enterNearestShop() {
+    const p = game.player;
+    let best = null, bd = 1e9;
+    for (const s of game.city.shops) { const d = Math.hypot(s.doorX - p.x, s.doorZ - p.z); if (d < bd) { best = s; bd = d; } }
+    if (!best) return false;
+    p.x = best.doorX; p.z = best.doorZ; p.inVehicle = null;
+    game.tryEnterExit();
+    return !!game.inShop;
+  },
+  shops() { return game.city.shops; },
+  buyHealth() { return game.inShop ? game._tryBuy() : false; },
   // analyze the GL framebuffer: distinct-ish colors + variance (to prove the
   // 3D actually drew, not a flat fill)
   frameStats() { return renderer.frameStats(); },
@@ -345,7 +409,7 @@ window.__gtm = {
     const p = game.player;
     return {
       state, x: p.x, z: p.z, health: p.health, cash: game.cash, stars: game.stars,
-      heat: game.heat, inVehicle: !!p.inVehicle,
+      heat: game.heat, inVehicle: !!p.inVehicle, inShop: game.inShop ? game.inShop.name : null,
       police: game.vehicles.filter(v => v.role === 'police').length,
       vehicles: game.vehicles.length, peds: game.peds.length,
       activeMission: game.activeMission ? game.activeMission.def.id : null,

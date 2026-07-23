@@ -13,6 +13,17 @@ export const SW = 3;      // sidewalk ring width inside a block
 export const NB = 8;      // blocks per side
 export const LOT = P - ROAD; // building lot width (18)
 
+// enterable shops: themed names + glowing sign colours (rgb 0..1)
+const SHOP_NAMES = [
+  'MOORE-MART', 'AMMU-MOORE', 'BURGER MOORE', 'MOORE LIQUOR', '24/7 MOORE',
+  "PAY 'N' SPRAY", 'MOORE THREADS', 'PIZZA MOORE', 'MOORE COFFEE', 'EL MOORE TACOS',
+];
+const SHOP_COLS = [
+  [1.0, 0.30, 0.25], [0.20, 0.80, 1.0], [1.0, 0.75, 0.20], [0.60, 0.42, 1.0],
+  [0.30, 1.0, 0.55], [1.0, 0.42, 0.70], [0.92, 0.90, 0.28], [1.0, 0.55, 0.15],
+  [0.55, 0.85, 1.0], [1.0, 0.35, 0.45],
+];
+
 export function mulberry32(a) {
   return function () {
     a |= 0; a = (a + 0x6D2B79F5) | 0;
@@ -111,6 +122,43 @@ export class City {
     // player spawn: a road intersection near the middle
     const midK = Math.floor(NB / 2);
     this.playerSpawn = { x: midK * P + ROAD * 0.5, z: midK * P + ROAD * 0.5 };
+    this._buildShops();
+  }
+
+  // enterable shops — deterministically pick ~10 building blocks and place a
+  // door trigger on the street-facing (north, z=z0) sidewalk in front of each.
+  _buildShops() {
+    const cand = [];
+    for (let bz = 0; bz < NB; bz++) for (let bx = 0; bx < NB; bx++) {
+      if (this.blockKind[bx + ',' + bz] !== 'building') continue;
+      cand.push({ bx, bz, r: hash2(bx * 97 + 5, bz * 57 + 11, this.seed) });
+    }
+    cand.sort((a, b) => a.r - b.r);
+    this.shops = [];
+    const n = Math.min(10, cand.length);
+    for (let i = 0; i < n; i++) {
+      const { bx, bz } = cand[i];
+      const x0 = bx * P + ROAD + SW, x1 = bx * P + ROAD + LOT - SW;
+      const z0 = bz * P + ROAD + SW, z1 = bz * P + ROAD + LOT - SW;
+      const cx = (x0 + x1) / 2;
+      // door on the north facade (z = z0); trigger point a bit out on the sidewalk
+      this.shops.push({
+        bx, bz, x0, z0, x1, z1, cx,
+        door: { x: cx, z: z0 },
+        doorX: cx, doorZ: z0 - 1.6,
+        name: SHOP_NAMES[i % SHOP_NAMES.length], col: SHOP_COLS[i % SHOP_COLS.length],
+      });
+    }
+  }
+
+  // nearest shop whose door trigger is within r of (x,z); null if none
+  shopAt(x, z, r = 3.0) {
+    let best = null, bd = r;
+    for (const s of this.shops) {
+      const d = Math.hypot(s.doorX - x, s.doorZ - z);
+      if (d < bd) { best = s; bd = d; }
+    }
+    return best;
   }
 
   // ---- lane helpers -----------------------------------------------------
