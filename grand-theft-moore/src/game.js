@@ -71,9 +71,9 @@ export class Game {
       if (c.blocked(x, z, 1.5)) continue;
       const dp = Math.hypot(x - this.player.x, z - this.player.z);
       if (dp < 8) continue;
-      const types = ['sedan', 'sedan', 'sports', 'truck'];
+      const types = ['sedan', 'sedan', 'sports', 'truck', 'van', 'sedan'];
       const t = types[(this.rng() * types.length) | 0];
-      const v = new Vehicle(t, x, z, heading, (this.rng() * 8) | 0);
+      const v = new Vehicle(t, x, z, heading, (this.rng() * 12) | 0);
       v.role = 'traffic'; v.occupant = 'ai'; v.axis = axis; v.sign = sign;
       this.vehicles.push(v);
     }
