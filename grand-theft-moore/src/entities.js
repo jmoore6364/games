@@ -6,6 +6,19 @@ import { TILE } from './city.js';
 const PED_COLORS = [
   [60, 70, 90], [140, 60, 60], [40, 110, 90], [160, 150, 90],
   [90, 60, 120], [180, 120, 80], [50, 50, 60], [120, 130, 140],
+  [200, 80, 70], [40, 70, 130], [30, 120, 120], [210, 190, 90],
+];
+const SKIN_TONES = [
+  [250, 214, 180], [232, 186, 150], [198, 148, 110], [156, 108, 74], [110, 76, 52],
+];
+const HAIR_COLORS = [
+  [30, 24, 20], [70, 45, 25], [120, 85, 45], [180, 150, 90], [90, 90, 96], [220, 215, 210],
+];
+// light-ish per-ped tint for the shared character model (0..1) so the crowd
+// isn't all one outfit; kept unsaturated so it reads as varied clothing/tone.
+const PED_TINTS = [
+  [1.0, 0.95, 0.9], [0.78, 0.84, 1.0], [0.95, 0.82, 0.8], [0.82, 0.95, 0.86],
+  [1.0, 0.9, 0.72], [0.86, 0.86, 0.92], [0.96, 0.78, 0.82], [0.8, 0.9, 0.95],
 ];
 
 let PID = 1;
@@ -18,10 +31,16 @@ export class Ped {
     this.state = 'walk';        // 'walk' | 'flee' | 'down'
     this.color = PED_COLORS[(rng() * PED_COLORS.length) | 0];
     this.shirt = PED_COLORS[(rng() * PED_COLORS.length) | 0];
+    this.skin = SKIN_TONES[(rng() * SKIN_TONES.length) | 0];
+    this.hair = HAIR_COLORS[(rng() * HAIR_COLORS.length) | 0];
+    this.tint = PED_TINTS[(rng() * PED_TINTS.length) | 0];
+    // ~45% render as the colourful procedural body so the crowd looks mixed
+    // rather than a street full of the one shared character model.
+    this.boxPed = rng() < 0.45;
     this.changeTimer = rng() * 3;
     this.downTimer = 0;
     this.walkPhase = rng() * 6;
-    this.h = 1.8;
+    this.h = 1.6 + rng() * 0.44;   // build/height variety
   }
 
   update(city, dt, threats, rng) {

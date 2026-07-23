@@ -8,12 +8,14 @@ export const VEHICLE_TYPES = {
   sedan:  { maxSpeed: 17, accel: 24, turn: 2.3, w: 2.0, l: 4.2, h: 1.5, mass: 1 },
   sports: { maxSpeed: 25, accel: 34, turn: 2.7, w: 1.9, l: 4.0, h: 1.2, mass: 0.8 },
   truck:  { maxSpeed: 12, accel: 17, turn: 1.6, w: 2.6, l: 6.0, h: 2.6, mass: 2 },
+  van:    { maxSpeed: 15, accel: 20, turn: 1.9, w: 2.3, l: 5.0, h: 2.3, mass: 1.5 },
   police: { maxSpeed: 21, accel: 30, turn: 2.5, w: 2.1, l: 4.4, h: 1.6, mass: 1.1 },
 };
 
 const CAR_COLORS = [
   [200, 60, 55], [70, 110, 200], [220, 200, 70], [80, 170, 100],
   [180, 180, 190], [140, 90, 200], [230, 140, 60], [60, 60, 70],
+  [30, 90, 80], [235, 235, 240], [120, 30, 40], [40, 50, 70],
 ];
 
 let VID = 1;

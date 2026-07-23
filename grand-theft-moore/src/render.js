@@ -237,7 +237,7 @@ export class Renderer {
       this._tryLoad(base + 'car.glb', { yaw0: Math.PI / 2, tintAlpha: 0.45 })
         .then(m => { this.carModel = m; console.log('[gtm] car model loaded: ' + m.n + ' verts'); })
         .catch(e => console.warn('[gtm] car model unavailable, using procedural fallback:', e.message)),
-      this._tryLoad(base + 'character.glb', { yaw0: Math.PI / 2, tintAlpha: 0.0 })
+      this._tryLoad(base + 'character.glb', { yaw0: Math.PI / 2, tintAlpha: 0.38 })
         .then(m => { this.charModel = m; console.log('[gtm] character model loaded: ' + m.n + ' verts'); })
         .catch(e => console.warn('[gtm] character model unavailable, using procedural fallback:', e.message)),
     ]);
@@ -1162,6 +1162,20 @@ export class Renderer {
     const tint = [e.color[0] / 255, e.color[1] / 255, e.color[2] / 255];
     const parent = mat4.fromTRS(e.x, 0, e.z, e.heading || 0, 1, 1, 1);
 
+    // --- tall boxy body for trucks & vans (distinct silhouette) ----------
+    if (e.type === 'truck' || e.type === 'van') {
+      this._bind(this.unitBox);
+      const bodyH = h * 0.6, bodyY = 0.36 + bodyH / 2;
+      this._boxIn(parent, -l * 0.12, bodyY, 0, l * 0.74, bodyH, w, tint);       // cargo box
+      const cabH = h * 0.48, cabY = 0.36 + cabH / 2;
+      this._boxIn(parent, l * 0.34, cabY, 0, l * 0.3, cabH, w * 0.98, tint);    // cab
+      this._boxIn(parent, l * 0.45, 0.36 + cabH * 0.72, 0, l * 0.06, cabH * 0.5, w * 0.86, GLASS); // windshield
+      const wx = l * 0.32, wz = w * 0.52, wy = 0.36;
+      for (const sx of [-1, 1]) for (const sz of [-1, 1])
+        this._boxIn(parent, sx * wx, wy, sz * wz, 0.82, 0.72, 0.34, WHEEL);
+      return;
+    }
+
     // --- real CC0 car model (scaled onto the vehicle's l/w/h box) ---------
     if (this.carModel) {
       const m = this.carModel;
@@ -1206,28 +1220,35 @@ export class Renderer {
     const parent = mat4.fromTRS(e.x, y, e.z, e.heading || 0, 1, 1, 1);
 
     // --- real CC0 character model (upright peds + player; y carries jump) --
-    if (this.charModel && e.state !== 'down') {
+    // e.tint gives each ped a subtle per-body colour cast (the player passes
+    // none -> WHITE -> unchanged).
+    if (this.charModel && e.state !== 'down' && !e.boxPed) {
       const m = this.charModel;
       const sc = (e.h || 1.8) / m.size[1];
       const scl = mat4.fromTRS(0, 0, 0, 0, sc, sc, sc);
       this._tmp3 = mat4.multiply(parent, scl, this._tmp3 || new Float32Array(16));
       this._bind(m);
-      this._draw(m, this._tmp3, WHITE, 0, 1);
+      this._draw(m, this._tmp3, e.tint || WHITE, 0, 1);
       return;
     }
 
     // --- procedural box fallback (also used for knocked-down peds) --------
+    // scaled by height, with per-ped skin + hair for a varied crowd.
     this._bind(this.unitBox);
+    const s = (e.h || 1.8) / 1.8;
     const pants = [e.color[0] / 255, e.color[1] / 255, e.color[2] / 255];
     const shirt = [(e.shirt || e.color)[0] / 255, (e.shirt || e.color)[1] / 255, (e.shirt || e.color)[2] / 255];
+    const skin = e.skin ? [e.skin[0] / 255, e.skin[1] / 255, e.skin[2] / 255] : SKIN;
+    const hair = e.hair ? [e.hair[0] / 255, e.hair[1] / 255, e.hair[2] / 255] : [0.12, 0.1, 0.08];
     if (e.state === 'down') {
       this._boxIn(parent, 0, 0.2, 0, 1.3, 0.34, 0.55, shirt);
-      this._boxIn(parent, 0.72, 0.2, 0, 0.32, 0.32, 0.4, SKIN);
+      this._boxIn(parent, 0.72, 0.2, 0, 0.32, 0.32, 0.4, skin);
       return;
     }
-    this._boxIn(parent, 0, 0.46, 0, 0.34, 0.92, 0.36, pants);   // legs
-    this._boxIn(parent, 0, 1.2, 0, 0.46, 0.68, 0.36, shirt);    // torso
-    this._boxIn(parent, 0, 1.7, 0, 0.34, 0.34, 0.34, SKIN);     // head
+    this._boxIn(parent, 0, 0.46 * s, 0, 0.34, 0.92 * s, 0.36, pants);   // legs
+    this._boxIn(parent, 0, 1.2 * s, 0, 0.46, 0.68 * s, 0.36, shirt);    // torso
+    this._boxIn(parent, 0, 1.7 * s, 0, 0.34, 0.34 * s, 0.34, skin);     // head
+    this._boxIn(parent, 0, 1.86 * s, 0, 0.37, 0.12 * s, 0.37, hair);    // hair
   }
 
   // ---- test-hook helpers ------------------------------------------------

@@ -103,16 +103,17 @@ function buildEntities() {
     if (g.firstPerson && v === g.player.inVehicle) continue;
     out.push({
       x: v.x, z: v.z, heading: v.heading, w: v.w, l: v.l, h: v.h,
-      color: v.color, kind: v.role === 'police' ? 'police' : 'car',
+      color: v.color, kind: v.role === 'police' ? 'police' : 'car', type: v.type,
       police: v.role === 'police', flash,
       mission: v.mission,
     });
   }
   for (const ped of g.peds) {
-    out.push({ x: ped.x, z: ped.z, h: ped.h, heading: ped.heading, color: ped.color, shirt: ped.shirt, state: ped.state, kind: 'ped' });
+    out.push({ x: ped.x, z: ped.z, h: ped.h, heading: ped.heading, color: ped.color, shirt: ped.shirt, skin: ped.skin, hair: ped.hair, tint: ped.tint, boxPed: ped.boxPed, state: ped.state, kind: 'ped' });
   }
   // draw the player's own character on foot in 3rd person. Pass y so the
-  // mesh actually rises when jumping (was pinned to the ground).
+  // mesh actually rises when jumping (was pinned to the ground). No tint -> the
+  // player renders at the model's native colours.
   if (!g.player.inVehicle && !g.firstPerson) {
     out.push({ x: g.player.x, y: g.player.y || 0, z: g.player.z, h: 1.85, heading: g.player.heading, color: [40, 60, 110], shirt: [200, 210, 220], state: 'walk', kind: 'ped' });
   }
