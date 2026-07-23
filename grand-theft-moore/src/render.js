@@ -503,6 +503,14 @@ export class Renderer {
       // occasional bus shelter along the south curb (offset from the bench)
       if (h2(bx * 23 + 8, bz * 53 + 3) < 0.13)
         this._busShelter(flat, ox + P * 0.68, oz + P - 1.3);
+      // parked cars in the kerb lane of the west & north roads (mid-block, well
+      // clear of the intersection crosswalks)
+      const pc = h2(bx * 37 + 6, bz * 19 + 9);
+      if (pc < 0.34) this._parkedCar(flat, ox + ROAD - 1.4, oz + P * 0.5, true, PARK_COLORS[(bx * 3 + bz) % PARK_COLORS.length]);
+      if (h2(bx * 43 + 2, bz * 11 + 7) < 0.30) this._parkedCar(flat, ox + P * 0.5, oz + ROAD - 1.4, false, PARK_COLORS[(bx + bz * 3) % PARK_COLORS.length]);
+      // freestanding lit sign (advertising lightbox) on the lower west curb
+      if (h2(bx * 59 + 4, bz * 83 + 1) < 0.22)
+        this._neonSign(flat, ox + ROAD + 1.4, oz + P * 0.78, NEON_COLORS[(bx * 5 + bz * 2) % NEON_COLORS.length]);
     }
     // trees in parks
     for (const pr of props || []) {
@@ -678,6 +686,29 @@ export class Renderer {
     flat.box(x - W / 2 - 0.15, y + H, z - D / 2 - 0.15, x + W / 2 + 0.15, y + H + 0.16, z + D / 2 + 0.15, roof);
     flat.box(x - W / 2, y, z - D / 2, x + W / 2, y + H - 0.3, z - D / 2 + 0.05, glass);   // back wall (away from road)
     flat.box(x - W / 2 + 0.2, y + 0.42, z - 0.05, x + W / 2 - 0.2, y + 0.5, z + 0.35, wood); // bench
+  }
+  // static parked car in the kerb lane (procedural body + cabin + wheels).
+  // alongZ: long axis runs north-south; otherwise east-west.
+  _parkedCar(flat, cx, cz, alongZ, col) {
+    const hlz = alongZ ? 2.0 : 0.9, hlx = alongZ ? 0.9 : 2.0;
+    const glass = [0.15, 0.17, 0.22, 0], tyre = [0.05, 0.05, 0.06, 0];
+    flat.box(cx - hlx, 0.32, cz - hlz, cx + hlx, 1.12, cz + hlz, col);              // body
+    const cix = hlx * 0.8, ciz = hlz * 0.6;
+    flat.box(cx - cix, 1.12, cz - ciz, cx + cix, 1.68, cz + ciz, glass);            // cabin
+    const wx = hlx * 0.92, wz = hlz * 0.66;
+    for (const sx of [-1, 1]) for (const sz of [-1, 1])
+      flat.box(cx + sx * wx - 0.15, 0.06, cz + sz * wz - 0.18, cx + sx * wx + 0.15, 0.52, cz + sz * wz + 0.18, tyre);
+  }
+  // freestanding illuminated sign (advertising lightbox) on two posts; the
+  // glowing panel faces both ±z so it reads from either direction of travel.
+  _neonSign(flat, x, z, col) {
+    const y = CURB_H, post = [0.12, 0.12, 0.14, 0], frame = [0.06, 0.06, 0.07, 0];
+    const ph = 2.2, w = 1.5, h = 1.0, py = y + ph;
+    flat.box(x - w / 2, y, z - 0.06, x - w / 2 + 0.12, y + ph, z + 0.06, post);
+    flat.box(x + w / 2 - 0.12, y, z - 0.06, x + w / 2, y + ph, z + 0.06, post);
+    flat.box(x - w / 2, py, z - 0.1, x + w / 2, py + h, z + 0.1, frame);            // housing
+    flat.box(x - w / 2 + 0.08, py + 0.08, z - 0.13, x + w / 2 - 0.08, py + h - 0.08, z - 0.09, col); // -z glow
+    flat.box(x - w / 2 + 0.08, py + 0.08, z + 0.09, x + w / 2 - 0.08, py + h - 0.08, z + 0.13, col); // +z glow
   }
 
   // water tower: tank on 4 legs with a conical cap
@@ -1161,6 +1192,16 @@ export class Renderer {
 
 const WHITE = new Float32Array([1, 1, 1]);
 const CURB_H = 0.2;   // raised sidewalk height (world units)
+// parked-car body colours + freestanding-sign glow colours (col.a = 0 flat)
+const PARK_COLORS = [
+  [0.75, 0.16, 0.15, 0], [0.18, 0.28, 0.55, 0], [0.85, 0.82, 0.78, 0],
+  [0.15, 0.16, 0.18, 0], [0.20, 0.45, 0.30, 0], [0.80, 0.62, 0.15, 0],
+  [0.45, 0.47, 0.52, 0],
+];
+const NEON_COLORS = [
+  [1.0, 0.24, 0.6, 0], [0.2, 0.9, 1.0, 0], [1.0, 0.6, 0.12, 0],
+  [0.55, 1.0, 0.35, 0], [0.7, 0.4, 1.0, 0],
+];
 const IDENT = mat4.identity();
 const SHADOW = new Float32Array([0.04, 0.04, 0.06]);
 const GLASS = new Float32Array([0.28, 0.33, 0.42]);
