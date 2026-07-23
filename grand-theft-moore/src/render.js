@@ -466,6 +466,7 @@ export class Renderer {
     };
     const flat = new Mesh();
     const emit = new Mesh();   // self-lit parts (lamp heads, signals, sign panels)
+    this._signs = [];          // textured text signs (shop names + billboards)
     for (let bz = 0; bz < NB; bz++) for (let bx = 0; bx < NB; bx++) {
       const kind = city.blockKind[bx + ',' + bz];
       if (kind === 'park') continue;
@@ -524,6 +525,15 @@ export class Renderer {
     // enterable-shop storefronts: a glowing doorway + illuminated sign board on
     // the street-facing (north, z=z0) facade of each shop block.
     for (const s of city.shops || []) this._shopFront(flat, emit, s);
+    // roadside billboards on open park blocks (so they stand clear of buildings)
+    const ADS = [['MOORE COLA', [0.92, 0.24, 0.28]], ['VISIT MOORE BEACH', [0.2, 0.72, 0.92]],
+      ['MOORE BANK', [0.3, 0.82, 0.44]], ["EAT MOORE'S", [0.95, 0.6, 0.15]],
+      ['MOORE MOTORS', [0.7, 0.42, 0.95]], ['MOORE NEWS 9', [0.95, 0.8, 0.2]]];
+    let ai = 0;
+    for (let bz = 0; bz < NB && ai < ADS.length; bz++) for (let bx = 0; bx < NB && ai < ADS.length; bx++) {
+      if (city.blockKind[bx + ',' + bz] !== 'park') continue;
+      this._billboard(flat, bx * P + P * 0.5, bz * P + ROAD + 1.2, ADS[ai][0], ADS[ai][1]); ai++;
+    }
     // trees in parks
     for (const pr of props || []) {
       const th = pr.h || 3.5, tr = 0.9;
@@ -742,10 +752,46 @@ export class Renderer {
     flat.quad([cx + dw + 0.3, ay, zf], [cx - dw - 0.3, ay, zf],
       [cx - dw - 0.3, ay - 0.4, zf - ad], [cx + dw + 0.3, ay - 0.4, zf - ad], awn);
     flat.box(cx - dw - 0.3, ay - 0.42, zf - ad, cx + dw + 0.3, ay - 0.32, zf - ad + 0.06, frame); // valance
-    // illuminated sign board above the awning
+    // illuminated sign board above the awning, carrying the shop's NAME as text
     const sw = Math.min((x1 - x0) * 0.88, 5.2), sy0 = dh + 0.75, sy1 = dh + 1.9;
     flat.box(cx - sw / 2 - 0.18, sy0 - 0.18, zf - 0.3, cx + sw / 2 + 0.18, sy1 + 0.18, zf - 0.06, [0.05, 0.05, 0.06, 0]);
-    emit.box(cx - sw / 2, sy0, zf - 0.34, cx + sw / 2, sy1, zf - 0.28, [col[0], col[1], col[2], 0]);
+    this._addSign(s.name, col, cx - sw / 2, sy0, cx + sw / 2, sy1, zf - 0.33, 'z');
+  }
+
+  // ---- textured text signs (shop fronts + roadside billboards) -----------
+  // rasterise text onto a canvas -> GL texture (self-lit at draw time).
+  _makeSignText(text, col) {
+    const W = 512, H = 128, c = document.createElement('canvas');   // power-of-two (WebGL1 mip-safe)
+    c.width = W; c.height = H;
+    const g = c.getContext('2d');
+    const br = (k) => Math.round(Math.min(255, col[0] * 255 * k)) + ',' + Math.round(Math.min(255, col[1] * 255 * k)) + ',' + Math.round(Math.min(255, col[2] * 255 * k));
+    g.fillStyle = '#0a0b12'; g.fillRect(0, 0, W, H);
+    g.strokeStyle = `rgb(${br(1.0)})`; g.lineWidth = 10; g.strokeRect(7, 7, W - 14, H - 14);
+    g.fillStyle = `rgb(${br(1.4)})`;
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    let fs = 72; g.font = `bold ${fs}px monospace`;
+    while (g.measureText(text).width > W - 44 && fs > 16) { fs -= 3; g.font = `bold ${fs}px monospace`; }
+    g.fillText(text, W / 2, H / 2 + 3);
+    return c;
+  }
+  // register a flat text quad facing -z (axis 'z') or -x (axis 'x') at plane p.
+  _addSign(text, col, a0, y0, a1, y1, p, axis) {
+    const tex = texture(this.gl, this._makeSignText(text, col), { repeat: false, mip: true });
+    const m = new Mesh(), w = [1, 1, 1, 0];
+    const uv = [[0, 0], [1, 0], [1, 1], [0, 1]];
+    if (axis === 'z') // faces -z; wound so text reads from the street (-z side)
+      m.quad([a1, y0, p], [a0, y0, p], [a0, y1, p], [a1, y1, p], w, uv);
+    else              // faces -x
+      m.quad([p, y0, a0], [p, y0, a1], [p, y1, a1], [p, y1, a0], w, uv);
+    this._signs.push({ buf: buffer(this.gl, m.data()), n: m.count, tex });
+  }
+  // roadside billboard: two posts + a large text panel facing -z
+  _billboard(flat, cx, z, text, col) {
+    const post = [0.12, 0.13, 0.15, 0], py = 5.4, pw = 5.6, ph = 2.4;
+    flat.box(cx - pw / 2, 0, z - 0.1, cx - pw / 2 + 0.18, py + ph, z + 0.1, post);
+    flat.box(cx + pw / 2 - 0.18, 0, z - 0.1, cx + pw / 2, py + ph, z + 0.1, post);
+    flat.box(cx - pw / 2 - 0.2, py - 0.2, z - 0.02, cx + pw / 2 + 0.2, py + ph + 0.2, z + 0.14, [0.05, 0.05, 0.06, 0]);
+    this._addSign(text, col, cx - pw / 2, py, cx + pw / 2, py + ph, z - 0.04, 'z');
   }
 
   // ---- shop interior (built once, drawn by renderInterior) ---------------
@@ -1270,6 +1316,17 @@ export class Renderer {
       gl.uniform1f(U.uEmissive, 0.12 + S.night * 1.25);
       this._bind(this.emitMesh);
       this._draw(this.emitMesh, IDENT, WHITE, 0, 1);
+      gl.uniform1f(U.uEmissive, 0);
+    }
+    // textured text signs (shop names + billboards): readable by day, glow at night
+    if (this._signs && this._signs.length) {
+      gl.uniform1f(U.uEmissive, 0.55 + S.night * 0.75);
+      gl.activeTexture(gl.TEXTURE0);
+      for (const sg of this._signs) {
+        gl.bindTexture(gl.TEXTURE_2D, sg.tex);
+        this._bind(sg);
+        this._draw(sg, IDENT, WHITE, 1, 1);
+      }
       gl.uniform1f(U.uEmissive, 0);
     }
 
