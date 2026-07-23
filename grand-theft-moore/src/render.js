@@ -454,6 +454,14 @@ export class Renderer {
       const H = (s) => h2(bx * 137 + s * 31 + 7, bz * 211 + s * 53 + 3);
       this._buildBuilding(M, flat, { bx, bz, kind, x0, z0, x1, z1, hh, H });
     }
+    // raised 3D sidewalk curbs — a concrete ring around EVERY block lot
+    // (parks included). The SW-wide frame sits between the road corridor and the
+    // building footprint, lifted CURB_H above the road. Render-only: collision
+    // is unchanged; peds/player are lifted onto the curb in _drawPed.
+    for (let bz = 0; bz < NB; bz++) for (let bx = 0; bx < NB; bx++) {
+      const ox = bx * P, oz = bz * P;
+      this._curbRing(flat, ox + ROAD, oz + ROAD, ox + P, oz + P, SW);
+    }
     // trees in parks
     for (const pr of props || []) {
       const th = pr.h || 3.5, tr = 0.9;
@@ -490,6 +498,24 @@ export class Renderer {
     this._wallSeg(mesh, [x0, z0], [x0, z1], y0, y1, col, div, uOff, vOff);
     this._wallSeg(mesh, [x0, z1], [x1, z1], y0, y1, col, div, uOff, vOff);
     this._wallSeg(mesh, [x1, z0], [x0, z0], y0, y1, col, div, uOff, vOff);
+  }
+
+  // raised sidewalk ring: 4 concrete curb strips (a frame of width w, height
+  // CURB_H) filling [x0,x1]x[z0,z1] minus the inner footprint. Lambert shading
+  // darkens the vertical curb faces so it reads clearly 3D against the road.
+  _curbRing(flat, x0, z0, x1, z1, w) {
+    const col = [0.54, 0.54, 0.575, 0], y = CURB_H;
+    // N (low z) and S (high z) strips span the full width, including corners;
+    // W and E strips fill the gap between them (abutting, no overlap).
+    flat.box(x0, 0, z0, x1, y, z0 + w, col);
+    flat.box(x0, 0, z1 - w, x1, y, z1, col);
+    flat.box(x0, 0, z0 + w, x0 + w, y, z1 - w, col);
+    flat.box(x1 - w, 0, z0 + w, x1, y, z1 - w, col);
+  }
+  // draw-time ground height: entities standing on a sidewalk tile ride the curb
+  _groundY(x, z) {
+    const c = this._cityRef;
+    return (c && c.tileAt(x, z) === TILE.SIDEWALK) ? CURB_H : 0;
   }
 
   // low wall ringing a flat roof (four thin boxes on the inside edge)
@@ -894,7 +920,7 @@ export class Renderer {
     for (const en of ents) {
       if ((en.x - ex) ** 2 + (en.z - ez) ** 2 > FAR * FAR) continue;
       if (en.kind === 'ped') {
-        const parent = mat4.fromTRS(en.x, 0, en.z, en.heading || 0, 1, 1, 1);
+        const parent = mat4.fromTRS(en.x, this._groundY(en.x, en.z), en.z, en.heading || 0, 1, 1, 1);
         this._boxIn(parent, 0, 0.03, 0, 0.85, 0.02, 0.85, SHADOW, 0.32);
       } else {
         const parent = mat4.fromTRS(en.x, 0, en.z, en.heading || 0, 1, 1, 1);
@@ -955,7 +981,7 @@ export class Renderer {
   }
 
   _drawPed(e) {
-    const y = e.y || 0;
+    const y = (e.y || 0) + this._groundY(e.x, e.z);
     const parent = mat4.fromTRS(e.x, y, e.z, e.heading || 0, 1, 1, 1);
 
     // --- real CC0 character model (upright peds + player; y carries jump) --
@@ -999,6 +1025,7 @@ export class Renderer {
 }
 
 const WHITE = new Float32Array([1, 1, 1]);
+const CURB_H = 0.2;   // raised sidewalk height (world units)
 const IDENT = mat4.identity();
 const SHADOW = new Float32Array([0.04, 0.04, 0.06]);
 const GLASS = new Float32Array([0.28, 0.33, 0.42]);
