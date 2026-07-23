@@ -22,6 +22,12 @@ const AMBIENT = [0.50, 0.53, 0.60];
 const SUN_LIT = [0.62, 0.60, 0.52];
 const SUN_COL = [1.0, 0.95, 0.82];
 const SUN_DIR = normalize([0.45, 0.82, 0.40]);
+// --- day/night cycle -------------------------------------------------------
+const DAY_LENGTH = 210;    // seconds per full day->night->day cycle
+const DAY_START = 0.34;    // tod the game opens at (mid-morning)
+const NIGHT_SKY = { top: [0.02, 0.03, 0.09], hor: [0.05, 0.07, 0.15], amb: [0.13, 0.15, 0.24], lit: [0.10, 0.12, 0.20], sun: [0.55, 0.62, 0.85] };
+const DAY_SKY = { top: SKY_TOP, hor: SKY_HOR, amb: AMBIENT, lit: SUN_LIT, sun: SUN_COL };
+const clamp01 = (v) => v < 0 ? 0 : v > 1 ? 1 : v;
 const SKIN = [0.86, 0.70, 0.55];
 
 function h2(x, y) {
@@ -162,13 +168,14 @@ export class Renderer {
       precision mediump float;
       uniform sampler2D uTex; uniform float uTexMix; uniform float uAlpha;
       uniform vec3 uLightDir, uAmbient, uSun, uFogColor; uniform float uFogStart, uFogEnd;
+      uniform float uEmissive;
       varying vec3 vN; varying vec4 vColor; varying vec2 vUV; varying float vDist;
       void main() {
         vec3 base = vColor.rgb;
         if (uTexMix > 0.0) base *= mix(vec3(1.0), texture2D(uTex, vUV).rgb, uTexMix);
         vec3 N = normalize(vN);
         float diff = max(dot(N, uLightDir), 0.0);
-        vec3 lit = base * (uAmbient + uSun * diff);
+        vec3 lit = base * (uAmbient + uSun * diff) + base * uEmissive;
         float f = clamp((uFogEnd - vDist) / (uFogEnd - uFogStart), 0.0, 1.0);
         vec3 col = mix(uFogColor, lit, f);
         gl_FragColor = vec4(col, uAlpha);
@@ -457,6 +464,7 @@ export class Renderer {
       facade: new Mesh(), brick: new Mesh(), glass: new Mesh(), stone: new Mesh(),
     };
     const flat = new Mesh();
+    const emit = new Mesh();   // self-lit parts (lamp heads, signals, sign panels)
     for (let bz = 0; bz < NB; bz++) for (let bx = 0; bx < NB; bx++) {
       const kind = city.blockKind[bx + ',' + bz];
       if (kind === 'park') continue;
@@ -482,11 +490,11 @@ export class Renderer {
     // planters / bus shelters are scattered deterministically (render-only).
     for (let bz = 0; bz < NB; bz++) for (let bx = 0; bx < NB; bx++) {
       const ox = bx * P, oz = bz * P;
-      this._streetLamp(flat, ox + ROAD + 0.9, oz + P * 0.5, -1, 0);  // west edge
-      this._streetLamp(flat, ox + P * 0.5, oz + ROAD + 0.9, 0, -1);  // north edge
+      this._streetLamp(flat, emit, ox + ROAD + 0.9, oz + P * 0.5, -1, 0);  // west edge
+      this._streetLamp(flat, emit, ox + P * 0.5, oz + ROAD + 0.9, 0, -1);  // north edge
       // traffic signal on the NW intersection corner (most corners)
       if (h2(bx * 71 + 9, bz * 17 + 4) < 0.68)
-        this._trafficLight(flat, ox + ROAD + 1.4, oz + ROAD + 1.4);
+        this._trafficLight(flat, emit, ox + ROAD + 1.4, oz + ROAD + 1.4);
       // street trees greening the west & north curbs (2 per block)
       if (h2(bx * 5 + 1, bz * 41 + 6) < 0.6) {
         this._streetTree(flat, ox + ROAD + 1.4, oz + P * 0.62);
@@ -510,7 +518,7 @@ export class Renderer {
       if (h2(bx * 43 + 2, bz * 11 + 7) < 0.30) this._parkedCar(flat, ox + P * 0.5, oz + ROAD - 1.4, false, PARK_COLORS[(bx + bz * 3) % PARK_COLORS.length]);
       // freestanding lit sign (advertising lightbox) on the lower west curb
       if (h2(bx * 59 + 4, bz * 83 + 1) < 0.22)
-        this._neonSign(flat, ox + ROAD + 1.4, oz + P * 0.78, NEON_COLORS[(bx * 5 + bz * 2) % NEON_COLORS.length]);
+        this._neonSign(flat, emit, ox + ROAD + 1.4, oz + P * 0.78, NEON_COLORS[(bx * 5 + bz * 2) % NEON_COLORS.length]);
     }
     // trees in parks
     for (const pr of props || []) {
@@ -525,6 +533,7 @@ export class Renderer {
       tri(M.glass, this._glassTex), tri(M.stone, this._stoneTex),
     ];
     this.flatMesh = { buf: buffer(gl, flat.data()), n: flat.count };
+    this.emitMesh = { buf: buffer(gl, emit.data()), n: emit.count };
     // ground plane
     const gm = new Mesh(), MM = city.MAP;
     gm.quad([0, 0, 0], [0, 0, MM], [MM, 0, MM], [MM, 0, 0], [1, 1, 1, 0],
@@ -598,7 +607,7 @@ export class Renderer {
   // ---- street furniture (all sit on the raised curb at y=CURB_H) ----------
   // street lamp: base + pole + gooseneck arm reaching (dx,dz) over the road,
   // with a warm-lit head at the arm's end.
-  _streetLamp(flat, x, z, dx, dz) {
+  _streetLamp(flat, emit, x, z, dx, dz) {
     const y = CURB_H, dark = [0.13, 0.14, 0.16, 0], metal = [0.22, 0.23, 0.26, 0];
     const glow = [1.0, 0.86, 0.55, 0];
     const ph = 4.3, ay = y + ph - 0.2, reach = 1.5;
@@ -607,7 +616,7 @@ export class Renderer {
     const ex = x + dx * reach, ez = z + dz * reach;                    // arm end
     flat.box(Math.min(x, ex) - 0.07, ay, Math.min(z, ez) - 0.07,       // arm
       Math.max(x, ex) + 0.07, ay + 0.13, Math.max(z, ez) + 0.07, metal);
-    flat.box(ex - 0.22, ay - 0.32, ez - 0.22, ex + 0.22, ay, ez + 0.22, glow); // head
+    emit.box(ex - 0.22, ay - 0.32, ez - 0.22, ex + 0.22, ay, ez + 0.22, glow); // lit head
   }
   // fire hydrant: squat red plug with a bonnet and two side caps
   _hydrant(flat, x, z) {
@@ -649,7 +658,7 @@ export class Renderer {
   }
   // traffic signal: pole + mast arm reaching -x over the intersection, with a
   // 3-lens head (red/amber/green) hanging at the arm's end.
-  _trafficLight(flat, x, z) {
+  _trafficLight(flat, emit, x, z) {
     const y = CURB_H, pole = [0.16, 0.17, 0.19, 0], hood = [0.09, 0.10, 0.11, 0];
     const ph = 5.0, arm = 2.6, ay = y + ph - 0.3;
     flat.box(x - 0.16, y, z - 0.16, x + 0.16, y + 0.4, z + 0.16, [0.10, 0.10, 0.11, 0]); // base
@@ -657,10 +666,10 @@ export class Renderer {
     flat.box(x - arm, ay, z - 0.08, x + 0.09, ay + 0.14, z + 0.08, pole);                // mast arm
     const hx = x - arm + 0.2, hy = ay - 0.1;
     flat.box(hx - 0.18, hy - 1.05, z - 0.16, hx + 0.18, hy, z + 0.16, hood);             // housing
-    const lz = z - 0.18;  // lenses proud of the -z face
-    flat.box(hx - 0.1, hy - 0.32, lz, hx + 0.1, hy - 0.14, lz + 0.03, [0.92, 0.16, 0.13, 0]);
-    flat.box(hx - 0.1, hy - 0.62, lz, hx + 0.1, hy - 0.44, lz + 0.03, [0.92, 0.76, 0.22, 0]);
-    flat.box(hx - 0.1, hy - 0.92, lz, hx + 0.1, hy - 0.74, lz + 0.03, [0.22, 0.82, 0.32, 0]);
+    const lz = z - 0.18;  // lit lenses proud of the -z face
+    emit.box(hx - 0.1, hy - 0.32, lz, hx + 0.1, hy - 0.14, lz + 0.03, [0.92, 0.16, 0.13, 0]);
+    emit.box(hx - 0.1, hy - 0.62, lz, hx + 0.1, hy - 0.44, lz + 0.03, [0.92, 0.76, 0.22, 0]);
+    emit.box(hx - 0.1, hy - 0.92, lz, hx + 0.1, hy - 0.74, lz + 0.03, [0.22, 0.82, 0.32, 0]);
   }
   // street tree: trunk + two-tier canopy (a rounder silhouette than park trees)
   _streetTree(flat, x, z) {
@@ -701,14 +710,14 @@ export class Renderer {
   }
   // freestanding illuminated sign (advertising lightbox) on two posts; the
   // glowing panel faces both ±z so it reads from either direction of travel.
-  _neonSign(flat, x, z, col) {
+  _neonSign(flat, emit, x, z, col) {
     const y = CURB_H, post = [0.12, 0.12, 0.14, 0], frame = [0.06, 0.06, 0.07, 0];
     const ph = 2.2, w = 1.5, h = 1.0, py = y + ph;
     flat.box(x - w / 2, y, z - 0.06, x - w / 2 + 0.12, y + ph, z + 0.06, post);
     flat.box(x + w / 2 - 0.12, y, z - 0.06, x + w / 2, y + ph, z + 0.06, post);
     flat.box(x - w / 2, py, z - 0.1, x + w / 2, py + h, z + 0.1, frame);            // housing
-    flat.box(x - w / 2 + 0.08, py + 0.08, z - 0.13, x + w / 2 - 0.08, py + h - 0.08, z - 0.09, col); // -z glow
-    flat.box(x - w / 2 + 0.08, py + 0.08, z + 0.09, x + w / 2 - 0.08, py + h - 0.08, z + 0.13, col); // +z glow
+    emit.box(x - w / 2 + 0.08, py + 0.08, z - 0.13, x + w / 2 - 0.08, py + h - 0.08, z - 0.09, col); // -z glow
+    emit.box(x - w / 2 + 0.08, py + 0.08, z + 0.09, x + w / 2 - 0.08, py + h - 0.08, z + 0.13, col); // +z glow
   }
 
   // water tower: tank on 4 legs with a conical cap
@@ -1011,6 +1020,26 @@ export class Renderer {
     gl.drawArrays(gl.TRIANGLES, 0, this.unitBox.n);
   }
 
+  // day/night palette for a time-of-day in [0,1): 0=midnight, .25=sunrise,
+  // .5=noon, .75=sunset. Lerps night<->day by sun elevation and adds a warm
+  // dusk band near the horizon at sunrise/sunset. `night` (0..1) drives the
+  // emissive boost for lamps / signs / signals.
+  _computeSky(tod) {
+    const ang = (tod - 0.25) * Math.PI * 2;
+    const el = Math.sin(ang);                          // sun elevation -1..1
+    const day = clamp01(el * 1.15 + 0.30);
+    const night = 1 - clamp01(el * 2.2 + 0.55);
+    const sunDir = normalize([Math.cos(ang) * 0.55, Math.max(0.06, el * 0.92 + 0.12), 0.38]);
+    const dusk = clamp01(1 - Math.abs(el) * 2.6) * clamp01(el + 0.55);
+    const L = (a, b) => a + (b - a) * day;
+    const top = [L(NIGHT_SKY.top[0], DAY_SKY.top[0]), L(NIGHT_SKY.top[1], DAY_SKY.top[1]), L(NIGHT_SKY.top[2], DAY_SKY.top[2])];
+    const hor = [L(NIGHT_SKY.hor[0], DAY_SKY.hor[0]) + dusk * 0.55, L(NIGHT_SKY.hor[1], DAY_SKY.hor[1]) + dusk * 0.20, L(NIGHT_SKY.hor[2], DAY_SKY.hor[2]) - dusk * 0.04];
+    const amb = [L(NIGHT_SKY.amb[0], DAY_SKY.amb[0]), L(NIGHT_SKY.amb[1], DAY_SKY.amb[1]), L(NIGHT_SKY.amb[2], DAY_SKY.amb[2])];
+    const lit = [L(NIGHT_SKY.lit[0], DAY_SKY.lit[0]) + dusk * 0.42, L(NIGHT_SKY.lit[1], DAY_SKY.lit[1]) + dusk * 0.16, L(NIGHT_SKY.lit[2], DAY_SKY.lit[2])];
+    const sun = [L(NIGHT_SKY.sun[0], DAY_SKY.sun[0]) + dusk * 0.30, L(NIGHT_SKY.sun[1], DAY_SKY.sun[1]), L(NIGHT_SKY.sun[2], DAY_SKY.sun[2])];
+    return { sunDir, top, hor, amb, lit, sun, night };
+  }
+
   // ---- frame ------------------------------------------------------------
   render(scene) {
     const gl = this.gl, city = scene.city;
@@ -1028,7 +1057,13 @@ export class Renderer {
     const view = mat4.lookAt(eye, [eye[0] + fwd[0], eye[1] + fwd[1], eye[2] + fwd[2]], [0, 1, 0]);
     const viewRot = new Float32Array(view); viewRot[12] = viewRot[13] = viewRot[14] = 0;
 
-    gl.clearColor(SKY_HOR[0], SKY_HOR[1], SKY_HOR[2], 1);
+    // time of day drives the whole palette (override wins for tests/screenshots)
+    const tod = this._todOverride != null ? this._todOverride
+      : (((scene.time || 0) / DAY_LENGTH) + DAY_START) % 1;
+    const S = this._computeSky(tod);
+    this._sky = S;
+
+    gl.clearColor(S.hor[0], S.hor[1], S.hor[2], 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     // --- sky --------------------------------------------------------------
@@ -1037,8 +1072,8 @@ export class Renderer {
     gl.depthMask(false); gl.disable(gl.CULL_FACE);
     gl.uniformMatrix4fv(SL.uniform.uProj, false, this._proj);
     gl.uniformMatrix4fv(SL.uniform.uViewRot, false, viewRot);
-    gl.uniform3fv(SL.uniform.uSkyTop, SKY_TOP); gl.uniform3fv(SL.uniform.uSkyHor, SKY_HOR);
-    gl.uniform3fv(SL.uniform.uSunDir, SUN_DIR); gl.uniform3fv(SL.uniform.uSunCol, SUN_COL);
+    gl.uniform3fv(SL.uniform.uSkyTop, S.top); gl.uniform3fv(SL.uniform.uSkyHor, S.hor);
+    gl.uniform3fv(SL.uniform.uSunDir, S.sunDir); gl.uniform3fv(SL.uniform.uSunCol, S.sun);
     gl.bindBuffer(gl.ARRAY_BUFFER, this.sky.buf);
     gl.enableVertexAttribArray(SL.attrib.aPos);
     gl.vertexAttribPointer(SL.attrib.aPos, 3, gl.FLOAT, false, 12, 0);
@@ -1048,12 +1083,13 @@ export class Renderer {
     // --- world program setup ---------------------------------------------
     gl.useProgram(this.prog);
     const U = this.loc.uniform;
+    gl.uniform1f(U.uEmissive, 0);
     gl.uniformMatrix4fv(U.uProj, false, this._proj);
     gl.uniformMatrix4fv(U.uView, false, view);
-    gl.uniform3fv(U.uLightDir, SUN_DIR);
-    gl.uniform3fv(U.uAmbient, AMBIENT);
-    gl.uniform3fv(U.uSun, SUN_LIT);
-    gl.uniform3fv(U.uFogColor, FOG_COL);
+    gl.uniform3fv(U.uLightDir, S.sunDir);
+    gl.uniform3fv(U.uAmbient, S.amb);
+    gl.uniform3fv(U.uSun, S.lit);
+    gl.uniform3fv(U.uFogColor, S.hor);
     gl.uniform1f(U.uFogStart, FOG_START);
     gl.uniform1f(U.uFogEnd, FAR);
     gl.uniform1i(U.uTex, 0);
@@ -1075,6 +1111,14 @@ export class Renderer {
     // roofs / greebles / trees (flat)
     this._bind(this.flatMesh);
     this._draw(this.flatMesh, IDENT, WHITE, 0, 1);
+
+    // self-lit street furniture (lamp heads, signals, signs) — glows at night
+    if (this.emitMesh.n) {
+      gl.uniform1f(U.uEmissive, 0.12 + S.night * 1.25);
+      this._bind(this.emitMesh);
+      this._draw(this.emitMesh, IDENT, WHITE, 0, 1);
+      gl.uniform1f(U.uEmissive, 0);
+    }
 
     // --- dynamic entities -------------------------------------------------
     gl.uniform1f(U.uTexMix, 0);
