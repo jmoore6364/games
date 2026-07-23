@@ -1024,7 +1024,7 @@ export class Renderer {
   // .5=noon, .75=sunset. Lerps night<->day by sun elevation and adds a warm
   // dusk band near the horizon at sunrise/sunset. `night` (0..1) drives the
   // emissive boost for lamps / signs / signals.
-  _computeSky(tod) {
+  _computeSky(tod, wet) {
     const ang = (tod - 0.25) * Math.PI * 2;
     const el = Math.sin(ang);                          // sun elevation -1..1
     const day = clamp01(el * 1.15 + 0.30);
@@ -1037,7 +1037,17 @@ export class Renderer {
     const amb = [L(NIGHT_SKY.amb[0], DAY_SKY.amb[0]), L(NIGHT_SKY.amb[1], DAY_SKY.amb[1]), L(NIGHT_SKY.amb[2], DAY_SKY.amb[2])];
     const lit = [L(NIGHT_SKY.lit[0], DAY_SKY.lit[0]) + dusk * 0.42, L(NIGHT_SKY.lit[1], DAY_SKY.lit[1]) + dusk * 0.16, L(NIGHT_SKY.lit[2], DAY_SKY.lit[2])];
     const sun = [L(NIGHT_SKY.sun[0], DAY_SKY.sun[0]) + dusk * 0.30, L(NIGHT_SKY.sun[1], DAY_SKY.sun[1]), L(NIGHT_SKY.sun[2], DAY_SKY.sun[2])];
-    return { sunDir, top, hor, amb, lit, sun, night };
+    const S = { sunDir, top, hor, amb, lit, sun, night };
+    // overcast: blend the palette toward a flat grey and dim the sun in rain
+    if (wet > 0) {
+      const w = wet, og = 0.42 + day * 0.12;   // grey darker at night
+      const mix = (c, g, a) => { c[0] += (g - c[0]) * a; c[1] += (g - c[1]) * a; c[2] += (g - c[2]) * a; };
+      mix(S.top, og, w * 0.6); mix(S.hor, og + 0.05, w * 0.6);
+      mix(S.amb, og - 0.06, w * 0.35);
+      S.lit[0] *= 1 - w * 0.65; S.lit[1] *= 1 - w * 0.65; S.lit[2] *= 1 - w * 0.65;
+      mix(S.sun, 0.6, w * 0.5);
+    }
+    return S;
   }
 
   // ---- frame ------------------------------------------------------------
@@ -1060,7 +1070,8 @@ export class Renderer {
     // time of day drives the whole palette (override wins for tests/screenshots)
     const tod = this._todOverride != null ? this._todOverride
       : (((scene.time || 0) / DAY_LENGTH) + DAY_START) % 1;
-    const S = this._computeSky(tod);
+    const wet = scene.wet || 0;
+    const S = this._computeSky(tod, wet);
     this._sky = S;
 
     gl.clearColor(S.hor[0], S.hor[1], S.hor[2], 1);
@@ -1090,8 +1101,8 @@ export class Renderer {
     gl.uniform3fv(U.uAmbient, S.amb);
     gl.uniform3fv(U.uSun, S.lit);
     gl.uniform3fv(U.uFogColor, S.hor);
-    gl.uniform1f(U.uFogStart, FOG_START);
-    gl.uniform1f(U.uFogEnd, FAR);
+    gl.uniform1f(U.uFogStart, FOG_START * (1 - wet * 0.45));   // haze rolls in with rain
+    gl.uniform1f(U.uFogEnd, FAR * (1 - wet * 0.25));
     gl.uniform1i(U.uTex, 0);
     gl.activeTexture(gl.TEXTURE0);
 

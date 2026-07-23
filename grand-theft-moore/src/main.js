@@ -218,6 +218,37 @@ function overlay(ctx, title, sub, col) {
   ctx.textAlign = 'left'; ctx.restore();
 }
 
+// ---- weather -------------------------------------------------------------
+// A simple clear<->rain cycle. `wet` (0..1) ramps between states and is passed
+// to the renderer (overcast sky/fog/light) and drives the 2D rain overlay.
+const weather = { mode: 'clear', wet: 0, timer: 18 };
+const RAIN = Array.from({ length: 260 }, () => ({
+  x: Math.random(), y: Math.random(), l: 0.5 + Math.random() * 0.6, s: 0.7 + Math.random() * 0.9,
+}));
+function updateWeather(dt) {
+  weather.timer -= dt;
+  if (weather.timer <= 0) {
+    if (weather.mode === 'clear') { weather.mode = 'rain'; weather.timer = 14 + Math.random() * 16; toast = 'RAIN MOVING IN'; toastTimer = 2.5; }
+    else { weather.mode = 'clear'; weather.timer = 22 + Math.random() * 28; toast = 'SKIES CLEARING'; toastTimer = 2.5; }
+  }
+  const target = weather.mode === 'rain' ? 1 : 0;
+  weather.wet += (target - weather.wet) * Math.min(1, dt * 0.5);
+}
+function drawRain(ctx, wet, t) {
+  if (wet < 0.03) return;
+  const n = Math.floor(RAIN.length * wet), slant = 0.26;
+  ctx.strokeStyle = 'rgba(190,205,230,' + (0.30 * wet).toFixed(3) + ')';
+  ctx.lineWidth = 1.2; ctx.beginPath();
+  for (let i = 0; i < n; i++) {
+    const d = RAIN[i];
+    const yy = ((d.y + t * d.s) % 1) * VH;
+    const xx = (((d.x - t * d.s * slant * 0.35) % 1) + 1) % 1 * VW;
+    const len = d.l * 26;
+    ctx.moveTo(xx, yy); ctx.lineTo(xx - slant * len, yy + len);
+  }
+  ctx.stroke();
+}
+
 // ---- loop ----------------------------------------------------------------
 let last = performance.now();
 let fpsSmooth = 60, frames = 0, fpsAccum = 0, fpsShown = 60;
@@ -261,12 +292,14 @@ function frame(now) {
   audio.radioTick(dt);
   if (radioTimer > 0) radioTimer -= dt;
   if (toastTimer > 0) toastTimer -= dt;
+  updateWeather(dt);
 
   // render 3D (WebGL) then the 2D HUD overlay on top
   const cam = computeCamera();
-  renderer.render({ city: game.city, eye: cam.eye, yaw: cam.yaw, pitch: cam.pitch, entities: buildEntities(), props: game.props, time: game.time });
+  renderer.render({ city: game.city, eye: cam.eye, yaw: cam.yaw, pitch: cam.pitch, entities: buildEntities(), props: game.props, time: game.time, wet: weather.wet });
   const ctx = hudCtx;
   ctx.clearRect(0, 0, VW, VH);
+  drawRain(ctx, weather.wet, game.time);
 
   if (state === 'title') {
     overlay(ctx, 'GRAND THEFT MOORE', 'A software-3D crime sandbox\n\nPress ENTER to hit the streets', '#ffd23a');
@@ -293,9 +326,10 @@ window.__gtm = {
     const base = { dt: 0.033, forward: false, back: false, left: false, right: false, run: false, jump: false, camTurn: 0, camPitch: 0, enterExit: false, action: false };
     for (let i = 0; i < n; i++) game.step(Object.assign({}, base, over || {}));
   },
+  setWet(w) { weather.mode = w > 0.5 ? 'rain' : 'clear'; weather.wet = w; weather.timer = 999; },
   renderOnce() {
     const cam = computeCamera();
-    renderer.render({ city: game.city, eye: cam.eye, yaw: cam.yaw, pitch: cam.pitch, entities: buildEntities(), props: game.props, time: game.time });
+    renderer.render({ city: game.city, eye: cam.eye, yaw: cam.yaw, pitch: cam.pitch, entities: buildEntities(), props: game.props, time: game.time, wet: weather.wet });
     return true;
   },
   // analyze the GL framebuffer: distinct-ish colors + variance (to prove the
