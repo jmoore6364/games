@@ -23,6 +23,11 @@ const SHOP_COLS = [
   [0.30, 1.0, 0.55], [1.0, 0.42, 0.70], [0.92, 0.90, 0.28], [1.0, 0.55, 0.15],
   [0.55, 0.85, 1.0], [1.0, 0.35, 0.45],
 ];
+// interior theme per shop (parallel to SHOP_NAMES) — drives the fittings
+const SHOP_KINDS = [
+  'grocery', 'guns', 'food', 'liquor', 'convenience',
+  'garage', 'clothing', 'food', 'cafe', 'food',
+];
 
 export function mulberry32(a) {
   return function () {
@@ -147,6 +152,7 @@ export class City {
         door: { x: cx, z: z0 },
         doorX: cx, doorZ: z0 - 1.6,
         name: SHOP_NAMES[i % SHOP_NAMES.length], col: SHOP_COLS[i % SHOP_COLS.length],
+        kind: SHOP_KINDS[i % SHOP_KINDS.length],
       });
     }
   }

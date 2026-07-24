@@ -803,38 +803,47 @@ export class Renderer {
     this._addSign(text, col, cx - pw / 2, py, cx + pw / 2, py + ph, z - 0.04, 'z');
   }
 
-  // ---- shop interior (built once, drawn by renderInterior) ---------------
-  _buildInterior() {
+  // ---- shop interior (one mesh per shop KIND, built + cached on demand) ----
+  _buildInterior(kind) {
+    const THEMES = {
+      grocery:     { floor: [0.30, 0.33, 0.30, 0], wall: [0.62, 0.66, 0.60, 0], goods: [[0.9, 0.2, 0.2], [0.95, 0.6, 0.15], [0.9, 0.85, 0.25], [0.25, 0.72, 0.32], [0.9, 0.5, 0.2], [0.3, 0.6, 0.9]], style: 'box' },
+      convenience: { floor: [0.30, 0.31, 0.34, 0], wall: [0.60, 0.62, 0.66, 0], goods: [[0.9, 0.3, 0.3], [0.2, 0.6, 0.9], [0.95, 0.8, 0.2], [0.3, 0.8, 0.4], [0.8, 0.4, 0.85]], style: 'box' },
+      guns:        { floor: [0.19, 0.19, 0.21, 0], wall: [0.33, 0.34, 0.38, 0], goods: [[0.12, 0.12, 0.13], [0.20, 0.20, 0.22], [0.30, 0.25, 0.17], [0.15, 0.16, 0.18]], style: 'weapon', accent: [0.75, 0.12, 0.12, 0] },
+      food:        { floor: [0.40, 0.30, 0.22, 0], wall: [0.82, 0.60, 0.40, 0], goods: [[0.9, 0.5, 0.2], [0.95, 0.8, 0.3], [0.85, 0.3, 0.2], [0.95, 0.9, 0.5], [0.7, 0.4, 0.2]], style: 'box', accent: [0.9, 0.25, 0.2, 0] },
+      liquor:      { floor: [0.25, 0.21, 0.19, 0], wall: [0.44, 0.38, 0.34, 0], goods: [[0.2, 0.6, 0.3], [0.7, 0.5, 0.2], [0.6, 0.15, 0.15], [0.2, 0.3, 0.6], [0.85, 0.75, 0.35], [0.12, 0.12, 0.12]], style: 'bottle' },
+      clothing:    { floor: [0.42, 0.40, 0.44, 0], wall: [0.74, 0.72, 0.76, 0], goods: [[0.85, 0.3, 0.5], [0.3, 0.4, 0.85], [0.3, 0.75, 0.5], [0.9, 0.8, 0.3], [0.6, 0.3, 0.8], [0.9, 0.5, 0.3]], style: 'garment' },
+      cafe:        { floor: [0.33, 0.25, 0.19, 0], wall: [0.60, 0.50, 0.40, 0], goods: [[0.45, 0.30, 0.20], [0.7, 0.5, 0.35], [0.85, 0.80, 0.70], [0.55, 0.35, 0.22]], style: 'bottle', accent: [0.5, 0.34, 0.2, 0] },
+      garage:      { floor: [0.22, 0.23, 0.25, 0], wall: [0.40, 0.42, 0.46, 0], goods: [[0.7, 0.15, 0.12], [0.2, 0.3, 0.6], [0.85, 0.7, 0.2], [0.25, 0.26, 0.28]], style: 'weapon', accent: [0.3, 0.55, 0.9, 0] },
+    };
+    const T = THEMES[kind] || THEMES.grocery;
+    const DIMS = { box: [0.15, 0.40, 0.44, 0.02], bottle: [0.09, 0.62, 0.30, 0.02], garment: [0.08, 0.80, 0.22, -0.34], weapon: [0.24, 0.16, 0.52, 0.02] };
+    const [gw, gtall, step, yoff] = DIMS[T.style] || DIMS.box;
     const I = INTERIOR, W = I.W, D = I.D, H = I.H;
     const flat = new Mesh(), emit = new Mesh();
-    const floor = [0.34, 0.31, 0.28, 0], wall = [0.66, 0.63, 0.58, 0], wall2 = [0.60, 0.57, 0.53, 0];
-    const ceil = [0.80, 0.80, 0.82, 0], shelfC = [0.46, 0.47, 0.52, 0], board = [0.36, 0.37, 0.41, 0];
+    const floor = T.floor, wall = T.wall, wall2 = [wall[0] * 0.92, wall[1] * 0.92, wall[2] * 0.92, 0];
+    const ceil = [0.80, 0.80, 0.82, 0], shelfC = [0.42, 0.43, 0.47, 0], board = [0.32, 0.33, 0.37, 0];
     const counterC = [0.46, 0.31, 0.19, 0], counterTop = [0.30, 0.20, 0.12, 0];
-    // floor + ceiling
     flat.box(0, -0.1, 0, W, 0, D, floor);
     flat.box(0, H, 0, W, H + 0.1, D, ceil);
-    // walls (inner faces visible)
     flat.box(-0.3, 0, 0, 0, H, D, wall);
     flat.box(W, 0, 0, W + 0.3, H, D, wall);
     flat.box(0, 0, D, W, H, D + 0.3, wall2);
+    // themed accent stripes down the side walls
+    if (T.accent) { flat.box(0, H * 0.52, 0, 0.06, H * 0.68, D, T.accent); flat.box(W - 0.06, H * 0.52, 0, W, H * 0.68, D, T.accent); }
     // front wall with a door gap
     const dcx = I.door.cx, dhw = I.door.halfW, dtop = I.door.top;
     flat.box(0, 0, -0.3, dcx - dhw, H, 0, wall2);
     flat.box(dcx + dhw, 0, -0.3, W, H, 0, wall2);
     flat.box(dcx - dhw, dtop, -0.3, dcx + dhw, H, 0, wall2);
-    flat.box(dcx - dhw, 0, -0.36, dcx + dhw, dtop, -0.28, [0.05, 0.05, 0.06, 0]); // dark door recess
-    // glowing EXIT sign above the door, facing into the room
-    emit.box(dcx - 0.85, dtop + 0.12, 0.02, dcx + 0.85, dtop + 0.58, 0.09, [0.15, 1.0, 0.35, 0]);
-    // ceiling light panel (modest fixture toward the back so it doesn't fill
-    // the top of the chase-cam view / clash with the HUD)
-    emit.box(W / 2 - 1.1, H - 0.14, D / 2 + 0.4, W / 2 + 1.1, H - 0.05, D / 2 + 2.0, [0.95, 0.9, 0.78, 0]);
+    flat.box(dcx - dhw, 0, -0.36, dcx + dhw, dtop, -0.28, [0.05, 0.05, 0.06, 0]);
+    emit.box(dcx - 0.85, dtop + 0.12, 0.02, dcx + 0.85, dtop + 0.58, 0.09, [0.15, 1.0, 0.35, 0]); // EXIT
+    emit.box(W / 2 - 1.1, H - 0.14, D / 2 + 0.4, W / 2 + 1.1, H - 0.05, D / 2 + 2.0, [0.95, 0.9, 0.78, 0]); // light
     // counter + top slab + register
     const c = I.counter, mzz = (c.z0 + c.z1) / 2;
     flat.box(c.x0, 0, c.z0, c.x1, c.h, c.z1, counterC);
     flat.box(c.x0 - 0.12, c.h, c.z0 - 0.12, c.x1 + 0.12, c.h + 0.12, c.z1 + 0.12, counterTop);
     flat.box(c.x1 - 1.5, c.h + 0.12, mzz - 0.28, c.x1 - 0.7, c.h + 0.55, mzz + 0.28, [0.14, 0.15, 0.19, 0]);
-    // shelves with boards + colorful goods
-    const goods = [[0.9, 0.2, 0.2], [0.95, 0.55, 0.15], [0.95, 0.85, 0.2], [0.2, 0.72, 0.32], [0.2, 0.5, 0.9], [0.72, 0.3, 0.85]];
+    // shelves with boards + themed goods
     I.shelves.forEach((sh, si) => {
       flat.box(sh.x0, 0, sh.z0, sh.x1, sh.h, sh.z1, shelfC);
       const longX = (sh.x1 - sh.x0) >= (sh.z1 - sh.z0);
@@ -843,28 +852,30 @@ export class Renderer {
         let k = 0;
         if (longX) {
           const mz = (sh.z0 + sh.z1) / 2;
-          for (let gx = sh.x0 + 0.22; gx < sh.x1 - 0.28; gx += 0.44) {
-            const g = goods[(si * 2 + k++) % goods.length];
-            flat.box(gx, yy + 0.02, mz - 0.14, gx + 0.3, yy + 0.4, mz + 0.14, [g[0], g[1], g[2], 0]);
+          for (let gx = sh.x0 + 0.22; gx < sh.x1 - 0.28; gx += step) {
+            const g = T.goods[(si * 2 + k++) % T.goods.length];
+            flat.box(gx, yy + 0.02 + yoff, mz - gw, gx + gw * 2, yy + 0.02 + yoff + gtall, mz + gw, [g[0], g[1], g[2], 0]);
           }
         } else {
           const mx = (sh.x0 + sh.x1) / 2;
-          for (let gz = sh.z0 + 0.22; gz < sh.z1 - 0.28; gz += 0.44) {
-            const g = goods[(si * 2 + k++) % goods.length];
-            flat.box(mx - 0.14, yy + 0.02, gz, mx + 0.14, yy + 0.4, gz + 0.3, [g[0], g[1], g[2], 0]);
+          for (let gz = sh.z0 + 0.22; gz < sh.z1 - 0.28; gz += step) {
+            const g = T.goods[(si * 2 + k++) % T.goods.length];
+            flat.box(mx - gw, yy + 0.02 + yoff, gz, mx + gw, yy + 0.02 + yoff + gtall, gz + gw * 2, [g[0], g[1], g[2], 0]);
           }
         }
       }
     });
     const gl = this.gl;
-    this._interiorFlat = { buf: buffer(gl, flat.data()), n: flat.count };
-    this._interiorEmit = { buf: buffer(gl, emit.data()), n: emit.count };
+    return { flat: { buf: buffer(gl, flat.data()), n: flat.count }, emit: { buf: buffer(gl, emit.data()), n: emit.count } };
   }
 
   // draw a shop interior with fixed bright lighting (independent of time-of-day)
   renderInterior(scene) {
     const gl = this.gl;
-    if (!this._interiorFlat) this._buildInterior();
+    const kind = (scene.shop && scene.shop.kind) || 'grocery';
+    this._interiors = this._interiors || {};
+    if (!this._interiors[kind]) this._interiors[kind] = this._buildInterior(kind);
+    const IM = this._interiors[kind];
     this._tmp = this._tmp || new Float32Array(16);
     this._interior = true;
 
@@ -893,12 +904,12 @@ export class Renderer {
     gl.uniform1f(U.uFogStart, 80); gl.uniform1f(U.uFogEnd, 240);
     gl.uniform1f(U.uTexMix, 0);
 
-    this._bind(this._interiorFlat);
-    this._draw(this._interiorFlat, IDENT, WHITE, 0, 1);
+    this._bind(IM.flat);
+    this._draw(IM.flat, IDENT, WHITE, 0, 1);
     // emissive fittings (ceiling light, EXIT sign)
     gl.uniform1f(U.uEmissive, 0.9);
-    this._bind(this._interiorEmit);
-    this._draw(this._interiorEmit, IDENT, WHITE, 0, 1);
+    this._bind(IM.emit);
+    this._draw(IM.emit, IDENT, WHITE, 0, 1);
     // per-shop glowing brand sign on the back wall above the counter
     const shop = scene.shop;
     if (shop) {
