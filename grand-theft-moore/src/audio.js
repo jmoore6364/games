@@ -101,12 +101,46 @@ export class Audio {
   }
   _stations() {
     return [
-      { name: 'MOORE FM', notes: [0, 3, 7, 10, 7, 3], tempo: 0.22, type: 'square' },
-      { name: 'VICE WAVE', notes: [0, 4, 7, 12, 7, 4, 2], tempo: 0.28, type: 'sawtooth' },
+      { name: 'MOORE FM',      notes: [0, 3, 7, 10, 7, 3, 5, 7],    tempo: 0.22, type: 'square',   chord: [0, 4, 7],     perc: 'pop',   root: 0 },
+      { name: 'VICE WAVE',     notes: [0, 4, 7, 12, 7, 4, 2, 0],    tempo: 0.26, type: 'sawtooth', chord: [0, 3, 7],     perc: 'four',  root: -12 },
+      { name: 'K-MRE JAZZ',    notes: [0, 2, 3, 5, 7, 9, 10, 7],    tempo: 0.30, type: 'triangle', chord: [0, 3, 7, 10], perc: 'swing', root: -5 },
+      { name: 'MOORE ROCK',    notes: [0, 0, 7, 7, 5, 5, 3, 3],     tempo: 0.18, type: 'sawtooth', chord: [0, 7],        perc: 'rock',  root: 0 },
+      { name: 'CLASSIQUE MRE', notes: [0, 4, 7, 12, 16, 12, 7, 4],  tempo: 0.20, type: 'triangle', chord: null,          perc: null,    root: -12 },
+      { name: '108 DRIVE',     notes: [0, 5, 3, 7, 10, 7, 3, 5],    tempo: 0.34, type: 'sine',     chord: [0, 5, 7],     perc: 'chill', root: -7 },
     ];
   }
   _startStation() {
     this._radioSeq = 0;
+  }
+  _hz(semi) { return 220 * Math.pow(2, semi / 12); }
+  _radioTone(t, freq, type, dur, vol) {
+    const o = this.ctx.createOscillator(); o.type = type; o.frequency.value = freq;
+    const g = this.ctx.createGain(); g.gain.value = 0; o.connect(g); g.connect(this.radioGain);
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.start(t); o.stop(t + dur + 0.02);
+  }
+  _radioKick(t) {
+    const o = this.ctx.createOscillator(); o.type = 'sine';
+    o.frequency.setValueAtTime(125, t); o.frequency.exponentialRampToValueAtTime(45, t + 0.12);
+    const g = this.ctx.createGain(); g.gain.setValueAtTime(0.28, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+    o.connect(g); g.connect(this.radioGain); o.start(t); o.stop(t + 0.17);
+  }
+  _radioNoise(t, dur, vol, hp) {
+    const n = Math.max(1, (this.ctx.sampleRate * dur) | 0);
+    const buf = this.ctx.createBuffer(1, n, this.ctx.sampleRate); const d = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+    const src = this.ctx.createBufferSource(); src.buffer = buf;
+    const f = this.ctx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = hp;
+    const g = this.ctx.createGain(); g.gain.value = vol;
+    src.connect(f); f.connect(g); g.connect(this.radioGain); src.start(t);
+  }
+  _radioPerc(kind, step, t, tempo) {
+    if (kind === 'four') { this._radioKick(t); if (step % 2) this._radioNoise(t, 0.03, 0.05, 7000); }
+    else if (kind === 'pop') { if (step % 2 === 0) this._radioKick(t); this._radioNoise(t, 0.025, 0.04, 8000); if (step % 4 === 2) this._radioNoise(t, 0.11, 0.10, 1600); }
+    else if (kind === 'rock') { if (step % 4 === 0 || step % 4 === 2) this._radioKick(t); if (step % 4 === 1 || step % 4 === 3) this._radioNoise(t, 0.12, 0.13, 1400); }
+    else if (kind === 'swing') { if (step % 2 === 1) this._radioNoise(t, 0.04, 0.05, 6500); if (step % 4 === 0) this._radioKick(t); }
+    else if (kind === 'chill') { if (step % 4 === 0) this._radioKick(t); if (step % 4 === 2) this._radioNoise(t, 0.03, 0.03, 7000); }
   }
   radioTick(dt) {
     if (!this.ok || this.muted || !this.radioOn) return;
@@ -114,19 +148,19 @@ export class Audio {
     if (this._radioTimer <= 0) {
       const st = this._stations()[this.radioIdx];
       this._radioTimer = st.tempo;
-      const note = st.notes[this._radioSeq % st.notes.length]; this._radioSeq++;
-      const freq = 220 * Math.pow(2, note / 12);
-      const t = this.ctx.currentTime;
-      const o = this.ctx.createOscillator(); o.type = st.type; o.frequency.value = freq;
-      const g = this.ctx.createGain(); g.gain.value = 0; g.connect(this.radioGain); o.connect(g);
-      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.25, t + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.001, t + st.tempo * 0.9);
-      o.start(t); o.stop(t + st.tempo);
-      // bass
-      const b = this.ctx.createOscillator(); b.type = 'triangle'; b.frequency.value = freq / 2;
-      const bg = this.ctx.createGain(); bg.gain.value = 0.12; bg.connect(this.radioGain); b.connect(bg);
-      bg.gain.exponentialRampToValueAtTime(0.001, t + st.tempo);
-      b.start(t); b.stop(t + st.tempo);
+      const step = this._radioSeq++, t = this.ctx.currentTime;
+      const note = st.notes[step % st.notes.length];
+      const freq = this._hz(note);
+      // lead
+      this._radioTone(t, freq, st.type, st.tempo * 0.9, 0.22);
+      // bass on each step (root of the station, an octave down)
+      this._radioTone(t, this._hz(st.root - 12), 'triangle', st.tempo * 0.95, 0.12);
+      // chord pad every 4th step
+      if (st.chord && step % 4 === 0) {
+        for (const iv of st.chord) this._radioTone(t, this._hz(st.root + iv), 'sine', st.tempo * 3.4, 0.05);
+      }
+      // percussion
+      if (st.perc) this._radioPerc(st.perc, step, t, st.tempo);
     }
   }
 }
