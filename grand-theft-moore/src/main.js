@@ -326,6 +326,7 @@ function frame(now) {
       audio.event(ev.type);
       if (ev.type === 'missionComplete') { audio.event('cash'); toast = 'MISSION PASSED  +$' + ev.cash; toastTimer = 3; }
       if (ev.type === 'wantedUp') { toast = 'WANTED LEVEL UP'; toastTimer = 1.5; }
+      if (ev.type === 'respray') { audio.event('cash'); toast = 'RESPRAYED · WANTED CLEARED'; toastTimer = 2.5; }
       if (ev.type === 'enterShop') { toast = 'WELCOME TO ' + ev.name; toastTimer = 2.5; }
       if (ev.type === 'buy') { audio.event('cash'); toast = 'HEALTH RESTORED  -$' + ev.amount; toastTimer = 2.5; }
       if (ev.type === 'buyFail') { toast = ev.reason === 'cash' ? 'NOT ENOUGH CASH' : 'HEALTH ALREADY FULL'; toastTimer = 2; }

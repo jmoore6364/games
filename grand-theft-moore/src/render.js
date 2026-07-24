@@ -534,6 +534,15 @@ export class Renderer {
       if (city.blockKind[bx + ',' + bz] !== 'park') continue;
       this._billboard(flat, bx * P + P * 0.5, bz * P + ROAD + 1.2, ADS[ai][0], ADS[ai][1]); ai++;
     }
+    // Pay 'n' Spray sign on the garage building's street facade (drive in while
+    // wanted to lose the cops + repair — handled in game.js)
+    const gb = city.garageBlock;
+    if (gb) {
+      const gx0 = gb[0] * P + ROAD + SW, gx1 = gb[0] * P + ROAD + LOT - SW, gz0 = gb[1] * P + ROAD + SW;
+      const gcx = (gx0 + gx1) / 2, gsw = Math.min((gx1 - gx0) * 0.9, 5.8);
+      flat.box(gcx - gsw / 2 - 0.2, 3.0, gz0 - 0.34, gcx + gsw / 2 + 0.2, 4.7, gz0 - 0.06, [0.05, 0.05, 0.06, 0]);
+      this._addSign("PAY 'N' SPRAY", [0.35, 0.72, 1.0], gcx - gsw / 2, 3.2, gcx + gsw / 2, 4.5, gz0 - 0.36, 'z');
+    }
     // trees in parks
     for (const pr of props || []) {
       const th = pr.h || 3.5, tr = 0.9;

@@ -69,6 +69,7 @@ export class Game {
 
     this.inShop = null;    // current shop when inside an interior (null on street)
     this.shopReturn = null;// saved street pose to restore on exit
+    this.sprayTimer = 0;   // Pay 'n' Spray cooldown (s)
 
     this._spawnTraffic(14);
     this.peds = spawnPeds(this.city, this.player, 26, this.rng);
@@ -503,6 +504,7 @@ export class Game {
     if (input.camPitch) this.camPitch = Math.max(-1.2, Math.min(0.2, this.camPitch + input.camPitch * dt));
 
     // inside a shop interior: run the isolated interior sim and skip the city
+    if (this.sprayTimer > 0) this.sprayTimer -= dt;
     if (this.inShop) { this._stepShop(input, dt); return; }
 
     // enter/exit (edge-triggered by caller)
@@ -528,6 +530,16 @@ export class Game {
       while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2;
       this.camYaw += d * Math.min(1, 5 * dt);
       p.x = v.x; p.z = v.z;
+      // Pay 'n' Spray: drive into the garage while wanted -> lose the cops,
+      // repair the car and patch the driver up (short cooldown).
+      if (this.sprayTimer <= 0 && this.stars > 0 &&
+          Math.hypot(this.city.garage.x - v.x, this.city.garage.z - v.z) < 4.6) {
+        this.heat = 0; this.stars = 0; this.coolTimer = 0;
+        this.vehicles = this.vehicles.filter(x => x.role !== 'police');
+        v.hp = 100; p.heal(p.maxHealth);
+        this.sprayTimer = 10;
+        this.events.push({ type: 'respray' });
+      }
     } else {
       // on-foot
       const mf = (input.forward ? 1 : 0) - (input.back ? 1 : 0);
