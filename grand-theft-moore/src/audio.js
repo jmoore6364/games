@@ -89,6 +89,7 @@ export class Audio {
       case 'busted': [200, 260, 200, 260].forEach((f, i) => setTimeout(() => this._ping(f, 0.3, 'square', 0.25), i * 180)); break;
       case 'cash': this._ping(880, 0.08); this._ping(1320, 0.12); break;
       case 'wantedUp': this._ping(660, 0.1, 'square', 0.25); this._ping(440, 0.15, 'square', 0.2); break;
+      case 'thunder': this._noise(0.9, 0.5, 70); this._ping(48, 0.7, 'sawtooth', 0.22); this._ping(70, 0.5, 'triangle', 0.18); break;
     }
   }
 

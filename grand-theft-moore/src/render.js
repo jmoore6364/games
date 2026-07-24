@@ -1324,6 +1324,13 @@ export class Renderer {
       : (((scene.time || 0) / DAY_LENGTH) + DAY_START) % 1;
     const wet = scene.wet || 0;
     const S = this._computeSky(tod, wet);
+    // lightning: briefly lift the whole palette toward white
+    const flash = scene.flash || 0;
+    if (flash > 0) {
+      const f = Math.min(1, flash) * 0.85;
+      const lift = (c, t) => { c[0] += (t - c[0]) * f; c[1] += (t - c[1]) * f; c[2] += (t - c[2]) * f; };
+      lift(S.top, 0.92); lift(S.hor, 0.96); lift(S.amb, 0.9); lift(S.lit, 0.8); lift(S.sun, 0.95);
+    }
     this._sky = S;
 
     gl.clearColor(S.hor[0], S.hor[1], S.hor[2], 1);

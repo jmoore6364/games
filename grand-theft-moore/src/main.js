@@ -278,7 +278,7 @@ function overlay(ctx, title, sub, col) {
 // ---- weather -------------------------------------------------------------
 // A simple clear<->rain cycle. `wet` (0..1) ramps between states and is passed
 // to the renderer (overcast sky/fog/light) and drives the 2D rain overlay.
-const weather = { mode: 'clear', wet: 0, timer: 18 };
+const weather = { mode: 'clear', wet: 0, timer: 18, flash: 0, strikeCool: 8, reflash: 0, thunder: 0 };
 const RAIN = Array.from({ length: 260 }, () => ({
   x: Math.random(), y: Math.random(), l: 0.5 + Math.random() * 0.6, s: 0.7 + Math.random() * 0.9,
 }));
@@ -290,6 +290,19 @@ function updateWeather(dt) {
   }
   const target = weather.mode === 'rain' ? 1 : 0;
   weather.wet += (target - weather.wet) * Math.min(1, dt * 0.5);
+  // lightning during heavier rain: a flash (with a quick second flicker) and
+  // a rolling thunder clap a beat later.
+  weather.flash = Math.max(0, weather.flash - dt * 4.0);
+  if (weather.reflash > 0) { weather.reflash -= dt; if (weather.reflash <= 0) weather.flash = 0.85; }
+  if (weather.wet > 0.55) {
+    weather.strikeCool -= dt;
+    if (weather.strikeCool <= 0) {
+      weather.flash = 1; weather.reflash = 0.09;
+      weather.strikeCool = 7 + Math.random() * 12;
+      weather.thunder = 0.5 + Math.random() * 0.9;   // delay before the clap
+    }
+  }
+  if (weather.thunder > 0) { weather.thunder -= dt; if (weather.thunder <= 0) { weather.thunder = 0; audio.event('thunder'); } }
 }
 function drawRain(ctx, wet, t) {
   if (wet < 0.03) return;
@@ -360,11 +373,12 @@ function frame(now) {
   if (game.inShop) {
     renderer.renderInterior({ eye: cam.eye, yaw: cam.yaw, pitch: cam.pitch, entities: buildEntities(), shop: game.inShop });
   } else {
-    renderer.render({ city: game.city, eye: cam.eye, yaw: cam.yaw, pitch: cam.pitch, entities: buildEntities(), props: game.props, time: game.time, wet: weather.wet });
+    renderer.render({ city: game.city, eye: cam.eye, yaw: cam.yaw, pitch: cam.pitch, entities: buildEntities(), props: game.props, time: game.time, wet: weather.wet, flash: weather.flash });
   }
   const ctx = hudCtx;
   ctx.clearRect(0, 0, VW, VH);
-  drawRain(ctx, weather.wet, game.time);
+  if (!game.inShop) drawRain(ctx, weather.wet, game.time);
+  if (weather.flash > 0.01 && !game.inShop) { ctx.fillStyle = 'rgba(232,240,255,' + (weather.flash * 0.28).toFixed(3) + ')'; ctx.fillRect(0, 0, VW, VH); }
 
   if (state === 'title') {
     overlay(ctx, 'GRAND THEFT MOORE', 'A software-3D crime sandbox\n\nPress ENTER to hit the streets', '#ffd23a');
@@ -392,10 +406,11 @@ window.__gtm = {
     for (let i = 0; i < n; i++) game.step(Object.assign({}, base, over || {}));
   },
   setWet(w) { weather.mode = w > 0.5 ? 'rain' : 'clear'; weather.wet = w; weather.timer = 999; },
+  strikeLightning() { weather.flash = 1; },
   renderOnce() {
     const cam = computeCamera();
     if (game.inShop) renderer.renderInterior({ eye: cam.eye, yaw: cam.yaw, pitch: cam.pitch, entities: buildEntities(), shop: game.inShop });
-    else renderer.render({ city: game.city, eye: cam.eye, yaw: cam.yaw, pitch: cam.pitch, entities: buildEntities(), props: game.props, time: game.time, wet: weather.wet });
+    else renderer.render({ city: game.city, eye: cam.eye, yaw: cam.yaw, pitch: cam.pitch, entities: buildEntities(), props: game.props, time: game.time, wet: weather.wet, flash: weather.flash });
     return true;
   },
   // teleport the player to the nearest shop door and enter it (test helper)
