@@ -31,6 +31,30 @@ resize();
 addEventListener('resize', resize);
 
 const game = new Game((Math.random() * 1e9) | 0);
+
+// ---- persistence: cash + mission progress + outfit survive reloads --------
+const SAVE_KEY = 'gtm_save_v1';
+function loadSave() {
+  try {
+    if (location.search.includes('reset')) { localStorage.removeItem(SAVE_KEY); return; }
+    const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
+    if (!s) return;
+    if (typeof s.cash === 'number') game.cash = s.cash;
+    if (s.completed && typeof s.completed === 'object') game.completedMissions = s.completed;
+    if (Array.isArray(s.outfit)) game.player.outfit = s.outfit;
+  } catch (e) { /* storage unavailable / corrupt — start fresh */ }
+}
+function saveGame() {
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({
+      cash: game.cash, completed: game.completedMissions, outfit: game.player.outfit,
+    }));
+  } catch (e) { /* ignore */ }
+}
+loadSave();
+addEventListener('beforeunload', saveGame);
+let _saveTimer = 0;
+
 const renderer = new Renderer(canvas);
 // Load the real CC0 car + character glTF models in the background. This is a
 // pure enhancement: loadModels() swallows every error internally and leaves the
@@ -344,13 +368,15 @@ function frame(now) {
     // handle events -> audio + toasts
     for (const ev of game.events) {
       audio.event(ev.type);
-      if (ev.type === 'missionComplete') { audio.event('cash'); toast = 'MISSION PASSED  +$' + ev.cash; toastTimer = 3; }
+      if (ev.type === 'missionComplete') { audio.event('cash'); toast = 'MISSION PASSED  +$' + ev.cash; toastTimer = 3; saveGame(); }
       if (ev.type === 'wantedUp') { toast = 'WANTED LEVEL UP'; toastTimer = 1.5; }
       if (ev.type === 'respray') { audio.event('cash'); toast = 'RESPRAYED · WANTED CLEARED'; toastTimer = 2.5; }
       if (ev.type === 'enterShop') { toast = 'WELCOME TO ' + ev.name; toastTimer = 2.5; }
-      if (ev.type === 'buy') { audio.event('cash'); toast = ev.label + ' BOUGHT'; toastTimer = 2.5; }
+      if (ev.type === 'buy') { audio.event('cash'); toast = ev.label + ' BOUGHT'; toastTimer = 2.5; saveGame(); }
       if (ev.type === 'buyFail') { toast = ev.reason === 'cash' ? 'NOT ENOUGH CASH' : 'ALREADY MAXED OUT'; toastTimer = 2; }
     }
+    // periodic autosave (~every 12s of play)
+    _saveTimer += dt; if (_saveTimer > 12) { _saveTimer = 0; saveGame(); }
     if (game.state === 'busted') { state = 'busted'; downTimer = 2.5; audio.event('busted'); }
     else if (game.state === 'wasted') { state = 'wasted'; downTimer = 2.5; audio.event('wasted'); }
     else if (game.state === 'win') { state = 'win'; }
@@ -381,7 +407,13 @@ function frame(now) {
   if (weather.flash > 0.01 && !game.inShop) { ctx.fillStyle = 'rgba(232,240,255,' + (weather.flash * 0.28).toFixed(3) + ')'; ctx.fillRect(0, 0, VW, VH); }
 
   if (state === 'title') {
-    overlay(ctx, 'GRAND THEFT MOORE', 'A software-3D crime sandbox\n\nPress ENTER to hit the streets', '#ffd23a');
+    {
+      const done = Object.keys(game.completedMissions).length;
+      const prog = (game.cash > 0 || done > 0)
+        ? `Welcome back — $${game.cash}, ${done}/${game.missionDefs.length} jobs done\n\nPress ENTER to hit the streets`
+        : 'A software-3D crime sandbox\n\nPress ENTER to hit the streets';
+      overlay(ctx, 'GRAND THEFT MOORE', prog, '#ffd23a');
+    }
   } else {
     drawHUD(ctx);
     if (state === 'busted') overlay(ctx, 'BUSTED', 'The cops got you.\nPress ENTER to continue', '#4a7bff');
@@ -407,6 +439,7 @@ window.__gtm = {
   },
   setWet(w) { weather.mode = w > 0.5 ? 'rain' : 'clear'; weather.wet = w; weather.timer = 999; },
   strikeLightning() { weather.flash = 1; },
+  save() { saveGame(); },
   renderOnce() {
     const cam = computeCamera();
     if (game.inShop) renderer.renderInterior({ eye: cam.eye, yaw: cam.yaw, pitch: cam.pitch, entities: buildEntities(), shop: game.inShop });
