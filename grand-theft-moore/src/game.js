@@ -41,6 +41,23 @@ export const INTERIOR = (() => {
   return { W, D, H, counter, shelves, door, spawn, exit, buy, solids };
 })();
 
+// what each shop kind sells at the counter (ACTION / J button)
+const SHOP_OFFERS = {
+  guns:        { label: 'BODY ARMOR', price: 75, kind: 'armor' },
+  garage:      { label: 'BODY ARMOR', price: 75, kind: 'armor' },
+  food:        { label: 'A SNACK', price: 20, kind: 'heal', amount: 30 },
+  cafe:        { label: 'A COFFEE', price: 15, kind: 'heal', amount: 22 },
+  liquor:      { label: 'A DRINK', price: 15, kind: 'heal', amount: 15 },
+  grocery:     { label: 'FULL HEALTH', price: 50, kind: 'heal', amount: 100 },
+  convenience: { label: 'FULL HEALTH', price: 50, kind: 'heal', amount: 100 },
+  clothing:    { label: 'NEW THREADS', price: 30, kind: 'outfit' },
+};
+export function shopOffer(kind) { return SHOP_OFFERS[kind] || SHOP_OFFERS.grocery; }
+const OUTFITS = [
+  [0.62, 0.80, 1.0], [1.0, 0.82, 0.6], [0.72, 1.0, 0.72],
+  [1.0, 0.72, 0.85], [0.86, 0.86, 0.62], [0.78, 0.7, 1.0],
+];
+
 export class Game {
   constructor(seed = 20260721) {
     this.seed = seed;
@@ -258,15 +275,24 @@ export class Game {
     return true;
   }
 
-  // buy full health for cash when standing at the counter (ACTION button)
+  // buy the current shop's offering for cash when standing at the counter
   _tryBuy() {
     const p = this.player, b = INTERIOR.buy;
     if (Math.hypot(p.x - b.x, p.z - b.z) > b.r) return false;
-    if (p.health >= p.maxHealth) { this.events.push({ type: 'buyFail', reason: 'full' }); return false; }
-    if (this.cash < b.price) { this.events.push({ type: 'buyFail', reason: 'cash' }); return false; }
-    this.cash -= b.price;
-    p.health = p.maxHealth;
-    this.events.push({ type: 'buy', amount: b.price });
+    const offer = shopOffer(this.inShop && this.inShop.kind);
+    if (this.cash < offer.price) { this.events.push({ type: 'buyFail', reason: 'cash' }); return false; }
+    if (offer.kind === 'armor') {
+      if (p.armor >= p.maxArmor) { this.events.push({ type: 'buyFail', reason: 'full' }); return false; }
+      p.armor = p.maxArmor;
+    } else if (offer.kind === 'heal') {
+      if (p.health >= p.maxHealth) { this.events.push({ type: 'buyFail', reason: 'full' }); return false; }
+      p.heal(offer.amount);
+    } else if (offer.kind === 'outfit') {
+      p._outfitIdx = ((p._outfitIdx | 0) + 1) % OUTFITS.length;
+      p.outfit = OUTFITS[p._outfitIdx];
+    }
+    this.cash -= offer.price;
+    this.events.push({ type: 'buy', label: offer.label });
     return true;
   }
 

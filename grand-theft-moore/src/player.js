@@ -11,6 +11,8 @@ export class Player {
     this.heading = 0;          // facing direction (radians), 0 = +x
     this.onGround = true;
     this.health = 100; this.maxHealth = 100;
+    this.armor = 0; this.maxArmor = 100;   // body armor absorbs damage first
+    this.outfit = null;                    // clothing-shop tint (null = default)
     this.cash = 0;
     this.inVehicle = null;     // Vehicle ref when driving
     this.speed = 0;            // current on-foot horizontal speed (for anim)
@@ -63,6 +65,7 @@ export class Player {
 
   hurt(n) {
     if (this.dead) return;
+    if (this.armor > 0) { const a = Math.min(this.armor, n); this.armor -= a; n -= a; }
     this.health = Math.max(0, this.health - n);
     if (this.health <= 0) { this.health = 0; this.dead = true; }
   }

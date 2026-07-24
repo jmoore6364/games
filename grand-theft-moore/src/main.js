@@ -2,7 +2,7 @@
 // state screens (title/busted/wasted/win), audio wiring, and the __gtm test
 // hook. The pure simulation lives in game.js. BROWSER-ONLY.
 
-import { Game, INTERIOR } from './game.js';
+import { Game, INTERIOR, shopOffer } from './game.js';
 import { Renderer } from './render.js';
 import { Input } from './input.js';
 import { Audio } from './audio.js';
@@ -115,7 +115,7 @@ function buildEntities() {
   // inside a shop: only the player character + the shopkeeper behind the counter
   if (g.inShop) {
     const p = g.player, c = INTERIOR.counter;
-    out.push({ x: p.x, y: p.y || 0, z: p.z, h: 1.85, heading: p.heading, color: [40, 60, 110], shirt: [200, 210, 220], state: 'walk', kind: 'ped' });
+    out.push({ x: p.x, y: p.y || 0, z: p.z, h: 1.85, heading: p.heading, color: [40, 60, 110], shirt: [200, 210, 220], tint: p.outfit || undefined, state: 'walk', kind: 'ped' });
     out.push({ x: (c.x0 + c.x1) / 2, y: 0, z: INTERIOR.D - 0.9, h: 1.8, heading: -Math.PI / 2, color: [30, 40, 60], shirt: [220, 180, 60], skin: [210, 170, 140], tint: [1.0, 0.86, 0.62], state: 'walk', kind: 'ped' });
     return out;
   }
@@ -135,9 +135,24 @@ function buildEntities() {
   // mesh actually rises when jumping (was pinned to the ground). No tint -> the
   // player renders at the model's native colours.
   if (!g.player.inVehicle && !g.firstPerson) {
-    out.push({ x: g.player.x, y: g.player.y || 0, z: g.player.z, h: 1.85, heading: g.player.heading, color: [40, 60, 110], shirt: [200, 210, 220], state: 'walk', kind: 'ped' });
+    out.push({ x: g.player.x, y: g.player.y || 0, z: g.player.z, h: 1.85, heading: g.player.heading, color: [40, 60, 110], shirt: [200, 210, 220], tint: g.player.outfit || undefined, state: 'walk', kind: 'ped' });
   }
   return out;
+}
+
+// health bar + (when present) a blue armor bar stacked above it, bottom-right
+function drawVitals(ctx) {
+  const p = game.player, hbw = 160, hbx = VW - hbw - 16, hby = VH - 30;
+  ctx.textAlign = 'left';
+  ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(hbx, hby, hbw, 14);
+  ctx.fillStyle = '#c33'; ctx.fillRect(hbx, hby, hbw * (p.health / p.maxHealth), 14);
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1; ctx.strokeRect(hbx, hby, hbw, 14);
+  if (p.armor > 0) {
+    const aby = hby - 12;
+    ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(hbx, aby, hbw, 8);
+    ctx.fillStyle = '#5cf'; ctx.fillRect(hbx, aby, hbw * (p.armor / p.maxArmor), 8);
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 1; ctx.strokeRect(hbx, aby, hbw, 8);
+  }
 }
 
 // ---- HUD -----------------------------------------------------------------
@@ -155,17 +170,13 @@ function drawHUD(ctx) {
       ? `rgb(${g.inShop.col.map(c => Math.round(c * 255)).join(',')})` : '#ffd23a';
     ctx.fillText(g.inShop.name, VW / 2, 20);
     ctx.font = '14px monospace'; ctx.fillStyle = '#cde';
-    ctx.fillText('F: exit    J: buy health $' + INTERIOR.buy.price, VW / 2, 52);
+    const offer = shopOffer(g.inShop.kind);
+    ctx.fillText('F: exit    J: ' + offer.label + ' $' + offer.price, VW / 2, 52);
     // cash
     ctx.textAlign = 'right'; ctx.fillStyle = '#3d3'; ctx.font = 'bold 22px monospace';
     ctx.fillText('$' + g.cash, VW - 16, 40);
-    // health bar
-    ctx.textAlign = 'left';
-    const hbw = 160, hbx = VW - hbw - 16, hby = VH - 30;
-    ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(hbx, hby, hbw, 14);
-    ctx.fillStyle = '#c33'; ctx.fillRect(hbx, hby, hbw * (g.player.health / g.player.maxHealth), 14);
-    ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1; ctx.strokeRect(hbx, hby, hbw, 14);
-    ctx.fillStyle = '#fff'; ctx.font = '11px monospace'; ctx.fillText('HEALTH', hbx, hby - 13);
+    // health + armor
+    drawVitals(ctx);
     if (toastTimer > 0) { ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.font = '13px monospace'; ctx.fillText(toast, VW / 2, 96); }
     ctx.textAlign = 'left'; ctx.restore(); return;
   }
@@ -224,11 +235,7 @@ function drawHUD(ctx) {
 
   // health bar (bottom-right)
   ctx.textAlign = 'left';
-  const hbw = 160, hbx = VW - hbw - 16, hby = VH - 30;
-  ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(hbx, hby, hbw, 14);
-  ctx.fillStyle = '#c33'; ctx.fillRect(hbx, hby, hbw * (g.player.health / g.player.maxHealth), 14);
-  ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1; ctx.strokeRect(hbx, hby, hbw, 14);
-  ctx.fillStyle = '#fff'; ctx.font = '11px monospace'; ctx.fillText('HEALTH', hbx, hby - 13);
+  drawVitals(ctx);
 
   // vehicle indicator + speed
   ctx.font = '12px monospace'; ctx.fillStyle = '#cde';
@@ -328,8 +335,8 @@ function frame(now) {
       if (ev.type === 'wantedUp') { toast = 'WANTED LEVEL UP'; toastTimer = 1.5; }
       if (ev.type === 'respray') { audio.event('cash'); toast = 'RESPRAYED · WANTED CLEARED'; toastTimer = 2.5; }
       if (ev.type === 'enterShop') { toast = 'WELCOME TO ' + ev.name; toastTimer = 2.5; }
-      if (ev.type === 'buy') { audio.event('cash'); toast = 'HEALTH RESTORED  -$' + ev.amount; toastTimer = 2.5; }
-      if (ev.type === 'buyFail') { toast = ev.reason === 'cash' ? 'NOT ENOUGH CASH' : 'HEALTH ALREADY FULL'; toastTimer = 2; }
+      if (ev.type === 'buy') { audio.event('cash'); toast = ev.label + ' BOUGHT'; toastTimer = 2.5; }
+      if (ev.type === 'buyFail') { toast = ev.reason === 'cash' ? 'NOT ENOUGH CASH' : 'ALREADY MAXED OUT'; toastTimer = 2; }
     }
     if (game.state === 'busted') { state = 'busted'; downTimer = 2.5; audio.event('busted'); }
     else if (game.state === 'wasted') { state = 'wasted'; downTimer = 2.5; audio.event('wasted'); }
