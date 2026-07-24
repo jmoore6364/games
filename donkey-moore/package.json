@@ -1,0 +1,9 @@
+{
+  "name": "donkey-moore",
+  "version": "1.0.0",
+  "description": "Donkey Moore — a Donkey Kong style girder-climbing arcade platformer, vanilla JS + canvas",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
