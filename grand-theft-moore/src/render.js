@@ -865,8 +865,52 @@ export class Renderer {
         }
       }
     });
+    this._interiorProps(flat, emit, kind, T);
     const gl = this.gl;
     return { flat: { buf: buffer(gl, flat.data()), n: flat.count }, emit: { buf: buffer(gl, emit.data()), n: emit.count } };
+  }
+
+  // themed fixtures that hug the walls so each shop kind has its own character
+  _interiorProps(flat, emit, kind, T) {
+    const g = T.goods;
+    if (kind === 'clothing') {
+      // two mannequins on stands near the front corners
+      for (const mx of [1.9, 10.1]) {
+        const c = g[mx > 6 ? 0 : 2];
+        flat.box(mx - 0.35, 0, 1.9, mx + 0.35, 0.08, 2.6, [0.15, 0.15, 0.17, 0]);      // base
+        flat.box(mx - 0.06, 0.08, 2.19, mx + 0.06, 0.98, 2.31, [0.2, 0.2, 0.22, 0]);   // pole
+        flat.box(mx - 0.26, 0.98, 2.09, mx + 0.26, 1.72, 2.41, [c[0], c[1], c[2], 0]); // torso
+        flat.box(mx - 0.11, 1.72, 2.14, mx + 0.11, 1.96, 2.36, [0.72, 0.58, 0.48, 0]); // head
+      }
+    } else if (kind === 'food' || kind === 'cafe') {
+      // lit menu board on the left wall + a little bistro table
+      emit.box(0.05, 2.1, 2.4, 0.13, 3.4, 5.6, [0.10, 0.10, 0.12, 0]);
+      for (let i = 0; i < 4; i++) {
+        const c = g[i % g.length];
+        emit.box(0.13, 2.3 + i * 0.28, 2.6, 0.16, 2.44 + i * 0.28, 5.4, [c[0], c[1], c[2], 0]);
+      }
+      flat.cyl(9.6, 3.0, 0.08, 0, 0.72, 6, [0.30, 0.30, 0.32, 0], 1, 1);
+      flat.discUp(9.6, 3.0, 0.55, 0.72, 10, [0.52, 0.36, 0.22, 0]);
+    } else if (kind === 'guns' || kind === 'garage') {
+      // wall-mounted racks of gear on the left wall
+      for (let i = 0; i < 3; i++) {
+        const y = 1.3 + i * 0.55;
+        flat.box(0.06, y - 0.05, 2.0, 0.16, y + 0.05, 6.5, [0.09, 0.09, 0.10, 0]);
+        for (let z = 2.2; z < 6.3; z += 0.85) {
+          const c = g[(i + (z | 0)) % g.length];
+          flat.box(0.16, y - 0.03, z, 0.55, y + 0.07, z + 0.5, [c[0], c[1], c[2], 0]);
+        }
+      }
+    } else {
+      // grocery / convenience / liquor: a lit cooler against the right wall
+      flat.box(10.5, 0, 2.5, 11.9, 2.4, 5.6, [0.13, 0.15, 0.19, 0]);       // cabinet
+      flat.box(10.46, 0, 2.5, 10.5, 2.4, 5.6, [0.30, 0.36, 0.42, 0]);      // glass frame edge
+      emit.box(10.5, 0.25, 2.55, 10.56, 2.15, 5.55, [0.5, 0.72, 0.9, 0]);  // cold glow
+      for (let z = 2.75; z < 5.4; z += 0.4) {
+        const c = g[(z * 7 | 0) % g.length];
+        flat.box(10.56, 0.35, z, 10.8, 1.95, z + 0.26, [c[0], c[1], c[2], 0]); // bottles
+      }
+    }
   }
 
   // draw a shop interior with fixed bright lighting (independent of time-of-day)
