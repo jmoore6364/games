@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Moore-tris</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<link rel="icon" href="data:,">
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: #04060c;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+    touch-action: none;
+    overscroll-behavior: none;
+    font-family: monospace;
+  }
+  canvas {
+    background: #04060c;
+    touch-action: none;
+    display: block;
+  }
+  #hint {
+    position: fixed; bottom: 6px; left: 0; right: 0;
+    text-align: center; color: #55617f; font: 11px monospace;
+    user-select: none; pointer-events: none; padding: 0 8px;
+  }
+  #touch-ui { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
+  .tbtn {
+    position: absolute; pointer-events: auto;
+    width: 58px; height: 58px; border-radius: 50%;
+    background: rgba(255,255,255,0.08); border: 2px solid rgba(120,160,255,0.35);
+    color: #dfe7ff; font: bold 20px monospace;
+    display: flex; align-items: center; justify-content: center;
+    user-select: none; -webkit-user-select: none; touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .tbtn.on { background: rgba(120,160,255,0.35); }
+  .tbtn.wide { width: 74px; border-radius: 14px; font-size: 13px; }
+  .b-left  { left: calc(14px + env(safe-area-inset-left, 0px));  bottom: calc(30px + env(safe-area-inset-bottom, 0px)); }
+  .b-right { left: calc(84px + env(safe-area-inset-left, 0px));  bottom: calc(30px + env(safe-area-inset-bottom, 0px)); }
+  .b-down  { left: calc(49px + env(safe-area-inset-left, 0px));  bottom: calc(-6px + env(safe-area-inset-bottom, 0px)); height: 40px; }
+  .b-rotcw { right: calc(14px + env(safe-area-inset-right, 0px)); bottom: calc(88px + env(safe-area-inset-bottom, 0px)); }
+  .b-rotccw{ right: calc(84px + env(safe-area-inset-right, 0px)); bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
+  .b-drop  { right: calc(14px + env(safe-area-inset-right, 0px)); bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
+  .b-hold  { right: calc(88px + env(safe-area-inset-right, 0px)); bottom: calc(4px + env(safe-area-inset-bottom, 0px)); }
+  .b-start { right: calc(12px + env(safe-area-inset-right, 0px)); top: calc(10px + env(safe-area-inset-top, 0px)); width: 62px; height: 32px; border-radius: 8px; font-size: 12px; }
+  .b-mute  { left: calc(12px + env(safe-area-inset-left, 0px)); top: calc(10px + env(safe-area-inset-top, 0px)); width: 48px; height: 32px; border-radius: 8px; font-size: 12px; }
+  @media (hover: hover) and (pointer: fine) {
+    #touch-ui { display: none; }
+  }
+</style>
+</head>
+<body>
+<canvas id="game" width="432" height="528"></canvas>
+<div id="hint">&larr;&rarr; move &nbsp;&middot;&nbsp; &uarr;/X rotate &nbsp;&middot;&nbsp; Z rotate CCW &nbsp;&middot;&nbsp; &darr; soft drop &nbsp;&middot;&nbsp; Space hard drop &nbsp;&middot;&nbsp; C hold &nbsp;&middot;&nbsp; Enter start &nbsp;&middot;&nbsp; P pause &nbsp;&middot;&nbsp; M mute</div>
+<div id="touch-ui">
+  <div class="tbtn b-left"  data-action="left">&#9664;</div>
+  <div class="tbtn b-right" data-action="right">&#9654;</div>
+  <div class="tbtn b-down"  data-action="down">&#9660;</div>
+  <div class="tbtn b-rotccw" data-action="rotateCCW">&#8630;</div>
+  <div class="tbtn b-rotcw"  data-action="rotateCW">&#8631;</div>
+  <div class="tbtn b-drop wide" data-action="hardDrop">DROP</div>
+  <div class="tbtn b-hold wide" data-action="hold">HOLD</div>
+  <div class="tbtn b-start" data-action="start">START</div>
+  <div class="tbtn b-mute" data-action="mute">MUTE</div>
+</div>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>

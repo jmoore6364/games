@@ -1,0 +1,9 @@
+{
+  "name": "moore-tris",
+  "version": "0.1.0",
+  "description": "Moore-tris — a Tetris style block-stacking puzzle, vanilla JS + canvas",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
