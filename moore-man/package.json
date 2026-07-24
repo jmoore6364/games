@@ -1,0 +1,9 @@
+{
+  "name": "moore-man",
+  "version": "0.1.0",
+  "description": "Moore-Man — a Pac-Man style maze chase, vanilla JS + canvas",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Moore-Man</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<link rel="icon" href="data:,">
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: #000;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+    touch-action: none;
+    overscroll-behavior: none;
+    font-family: monospace;
+  }
+  canvas {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    background: #000;
+    touch-action: none;
+    box-shadow: 0 0 24px rgba(60,60,255,0.35);
+  }
+  #hint {
+    position: fixed; bottom: 6px; left: 0; right: 0;
+    text-align: center; color: #66c; font: 11px monospace;
+    user-select: none; pointer-events: none;
+  }
+  #touch-ui { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
+  .tbtn {
+    position: absolute; pointer-events: auto;
+    width: 56px; height: 56px; border-radius: 12px;
+    background: rgba(90,90,255,0.14); border: 2px solid rgba(120,120,255,0.4);
+    color: #dfe; font: bold 22px monospace;
+    display: flex; align-items: center; justify-content: center;
+    user-select: none; -webkit-user-select: none; touch-action: none;
+  }
+  .tbtn.on { background: rgba(120,120,255,0.42); }
+  .b-left  { left: calc(16px + env(safe-area-inset-left, 0px));  bottom: calc(74px + env(safe-area-inset-bottom, 0px)); }
+  .b-right { left: calc(140px + env(safe-area-inset-left, 0px)); bottom: calc(74px + env(safe-area-inset-bottom, 0px)); }
+  .b-up    { left: calc(78px + env(safe-area-inset-left, 0px));  bottom: calc(134px + env(safe-area-inset-bottom, 0px)); }
+  .b-down  { left: calc(78px + env(safe-area-inset-left, 0px));  bottom: calc(14px + env(safe-area-inset-bottom, 0px)); }
+  .b-start { right: calc(18px + env(safe-area-inset-right, 0px)); bottom: calc(104px + env(safe-area-inset-bottom, 0px)); width: 64px; height: 40px; border-radius: 8px; font-size: 12px; }
+  @media (hover: hover) and (pointer: fine) { #touch-ui { display: none; } }
+</style>
+</head>
+<body>
+<canvas id="game" width="224" height="288"></canvas>
+<div id="hint">Arrows / WASD to move &nbsp;&middot;&nbsp; Enter start &nbsp;&middot;&nbsp; P pause &nbsp;&middot;&nbsp; M mute</div>
+<div id="touch-ui">
+  <div class="tbtn b-up"    data-dir="up">&#9650;</div>
+  <div class="tbtn b-left"  data-dir="left">&#9664;</div>
+  <div class="tbtn b-right" data-dir="right">&#9654;</div>
+  <div class="tbtn b-down"  data-dir="down">&#9660;</div>
+  <div class="tbtn b-start" data-act="start">START</div>
+</div>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
