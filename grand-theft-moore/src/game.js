@@ -348,6 +348,16 @@ export class Game {
         marker: { x: c.playerSpawn.x, z: c.playerSpawn.z - P },
         blurb: 'Drive to the far side of the city and back.',
       },
+      {
+        id: 'taxi', name: 'Cab Fare', cash: 200,
+        marker: { x: c.playerSpawn.x + P, z: c.playerSpawn.z + P },
+        blurb: 'Pick up a fare and drive them across town in time.',
+      },
+      {
+        id: 'rampage', name: 'Rampage', cash: 280,
+        marker: { x: c.playerSpawn.x - P, z: c.playerSpawn.z - P },
+        blurb: 'Take out 8 pedestrians before the timer runs out.',
+      },
     ];
     this.completedMissions = {};
     this.activeMission = null;
@@ -391,6 +401,16 @@ export class Game {
       am.data.back = { x: c.playerSpawn.x, z: c.playerSpawn.z };
       am.phase = 0;
       am.objective = 'Drive to the far corner of the city.';
+    } else if (id === 'taxi') {
+      const sx = c.playerSpawn.x, sz = c.playerSpawn.z;
+      am.data.pick = { x: sx + 2 * P, z: sz + P };
+      am.data.drop = { x: sx - 2 * P, z: sz + 3 * P };
+      am.phase = 0;
+      am.objective = 'Get a car and pick up the fare.';
+    } else if (id === 'rampage') {
+      am.data.goal = 8; am.data.count = 0; am.timer = 45;
+      am.phase = 0;
+      am.objective = 'Take out 8 pedestrians (0/8).';
     }
     this.activeMission = am;
     this.banner = def.name + ': ' + am.objective;
@@ -447,7 +467,31 @@ export class Game {
       } else {
         if (Math.hypot(am.data.back.x - px, am.data.back.z - pz) < 8) { this._completeMission(am); return; }
       }
+    } else if (id === 'taxi') {
+      if (am.phase === 0) {
+        if (p.inVehicle && Math.hypot(am.data.pick.x - px, am.data.pick.z - pz) < 6) {
+          am.phase = 1; am.timer = 45; am.objective = 'Drop the fare off — 45s!'; this._setBanner(am);
+        }
+      } else {
+        am.timer -= dt;
+        if (am.timer <= 0) { this._failMission(am, 'The fare gave up!'); return; }
+        if (!p.inVehicle) { this._failMission(am, 'You left the cab!'); return; }
+        am.objective = 'Drop off the fare — ' + Math.ceil(am.timer) + 's';
+        if (Math.hypot(am.data.drop.x - px, am.data.drop.z - pz) < 6) { this._completeMission(am); return; }
+      }
+    } else if (id === 'rampage') {
+      am.timer -= dt;
+      if (am.timer <= 0) { this._failMission(am, 'Rampage over!'); return; }
+      am.objective = 'Take out ' + am.data.goal + ' peds (' + am.data.count + '/' + am.data.goal + ') — ' + Math.ceil(am.timer) + 's';
     }
+  }
+
+  // a pedestrian was just knocked down — credit the Rampage mission
+  _onPedDown() {
+    const am = this.activeMission;
+    if (!am || am.def.id !== 'rampage') return;
+    am.data.count++;
+    if (am.data.count >= am.data.goal) this._completeMission(am);
   }
 
   _setBanner(am) { this.banner = am.def.name + ': ' + am.objective; this.bannerTimer = 4; }
@@ -490,6 +534,9 @@ export class Game {
         out.push({ x: cp.x, z: cp.z, kind: 'target' });
       } else if (am.def.id === 'airport') {
         const t = am.phase === 0 ? am.data.far : am.data.back;
+        out.push({ x: t.x, z: t.z, kind: 'target' });
+      } else if (am.def.id === 'taxi') {
+        const t = am.phase === 0 ? am.data.pick : am.data.drop;
         out.push({ x: t.x, z: t.z, kind: 'target' });
       }
     }
@@ -674,6 +721,7 @@ export class Game {
           this.events.push({ type: 'splat' });
           this.crime(8);
           if (pv) pv.speed *= 0.9;
+          this._onPedDown();
         }
       }
     }
@@ -690,6 +738,7 @@ export class Game {
         ped.knockDown();
         this.events.push({ type: 'punch' });
         this.crime(6);
+        this._onPedDown();
         break;
       }
     }
