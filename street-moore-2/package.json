@@ -1,0 +1,9 @@
+{
+  "name": "street-moore-2",
+  "version": "1.0.0",
+  "description": "Street Moore II — a Street Fighter II style 1-on-1 fighter, vanilla JS + canvas",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "doo-moore",
+  "version": "1.0.0",
+  "description": "Doo-Moore — a DOOM style raycaster FPS, vanilla JS + canvas",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

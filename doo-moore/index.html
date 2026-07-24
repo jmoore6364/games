@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Doo-Moore</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<link rel="icon" href="data:,">
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%; width: 100%;
+    background: #000; color: #cfc8b8;
+    font-family: "Courier New", monospace;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden; touch-action: none; overscroll-behavior: none;
+    -webkit-user-select: none; user-select: none;
+  }
+  #wrap {
+    position: relative; width: 100%; height: 100%;
+    background: #0a0806;
+    display: flex; align-items: center; justify-content: center;
+  }
+  canvas#game {
+    display: block; width: 100%; height: 100%;
+    image-rendering: pixelated; image-rendering: crisp-edges;
+    background: #000; cursor: crosshair; touch-action: none;
+  }
+  #hint {
+    position: fixed; bottom: 3px; left: 0; right: 0; text-align: center;
+    color: #6b5; font: 11px "Courier New", monospace; pointer-events: none;
+    text-shadow: 0 1px 2px #000; opacity: 0.7; z-index: 5;
+  }
+  /* ---------- touch controls ---------- */
+  #touch { position: fixed; inset: 0; pointer-events: none; z-index: 10; display: none; }
+  .tc { position: absolute; pointer-events: auto; touch-action: none;
+        -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  #move-stick {
+    left: calc(18px + env(safe-area-inset-left,0px)); bottom: calc(22px + env(safe-area-inset-bottom,0px));
+    width: 126px; height: 126px; border-radius: 50%;
+    background: rgba(180,60,30,0.10); border: 2px solid rgba(220,120,60,0.35);
+  }
+  #move-knob { position: absolute; left: 50%; top: 50%; width: 54px; height: 54px; border-radius: 50%;
+    transform: translate(-27px,-27px); background: rgba(230,120,60,0.30); border: 2px solid rgba(255,160,90,0.5); }
+  #look-zone { right: 0; top: 0; width: 58%; height: 66%; }
+  #fire-btn {
+    right: calc(20px + env(safe-area-inset-right,0px)); bottom: calc(30px + env(safe-area-inset-bottom,0px));
+    width: 96px; height: 96px; border-radius: 50%;
+    background: rgba(200,40,30,0.22); border: 3px solid rgba(255,80,50,0.6);
+    color: #ffceb0; font: bold 16px "Courier New", monospace;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #fire-btn:active { background: rgba(255,80,40,0.5); }
+  #use-btn {
+    right: calc(128px + env(safe-area-inset-right,0px)); bottom: calc(40px + env(safe-area-inset-bottom,0px));
+    width: 62px; height: 62px; border-radius: 50%;
+    background: rgba(60,120,200,0.20); border: 2px solid rgba(90,160,255,0.5);
+    color: #bfe0ff; font: bold 13px "Courier New", monospace;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #use-btn:active { background: rgba(90,160,255,0.45); }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game" width="640" height="400"></canvas>
+  <div id="hint">WASD move &nbsp;·&nbsp; mouse / ←→ look (click to lock) &nbsp;·&nbsp; SPACE fire &nbsp;·&nbsp; E use &nbsp;·&nbsp; R restart &nbsp;·&nbsp; M mute</div>
+  <div id="touch">
+    <div id="move-stick" class="tc"><div id="move-knob"></div></div>
+    <div id="look-zone" class="tc"></div>
+    <div id="use-btn" class="tc">USE</div>
+    <div id="fire-btn" class="tc">FIRE</div>
+  </div>
+</div>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>

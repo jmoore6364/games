@@ -1,0 +1,9 @@
+{
+  "name": "frogg-moore",
+  "version": "1.0.0",
+  "description": "Frogg-Moore — a Frogger style road-and-river crossing, vanilla JS + canvas",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

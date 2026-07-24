@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Frogg-Moore</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<link rel="icon" href="data:,">
+<style>
+  :root {
+    --sal: env(safe-area-inset-left, 0px);  --sar: env(safe-area-inset-right, 0px);
+    --sab: env(safe-area-inset-bottom, 0px); --sat: env(safe-area-inset-top, 0px);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; background: #05070a;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden; touch-action: none; overscroll-behavior: none;
+    font-family: 'Courier New', monospace; color: #cfeacc; }
+  #stage { position: relative; line-height: 0; width: 100vw; height: 100vh;
+    display: flex; align-items: center; justify-content: center; }
+  #game { display: block; background: #0a1a10; image-rendering: pixelated;
+    box-shadow: 0 0 40px rgba(0,0,0,0.8), 0 0 0 2px #16351f inset; }
+  #hint { position: fixed; bottom: calc(3px + var(--sab)); left: 0; right: 0; text-align: center;
+    color: #4c6e57; font: 11px 'Courier New', monospace; pointer-events: none; z-index: 5;
+    padding: 0 6px; }
+  /* on-screen touch d-pad */
+  #touch { position: fixed; inset: 0; pointer-events: none; z-index: 10; display: none; }
+  .pad { position: absolute; bottom: calc(24px + var(--sab)); left: calc(18px + var(--sal));
+    width: 168px; height: 168px; }
+  .dbtn { position: absolute; width: 56px; height: 56px; pointer-events: auto;
+    background: rgba(120,220,140,0.12); border: 2px solid rgba(140,240,160,0.4);
+    border-radius: 12px; color: #bff0c4; font: bold 22px monospace;
+    display: flex; align-items: center; justify-content: center; touch-action: none;
+    user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+  .dbtn:active { background: rgba(120,220,140,0.42); }
+  #d-up    { left: 56px; top: 0; }
+  #d-left  { left: 0; top: 56px; }
+  #d-right { left: 112px; top: 56px; }
+  #d-down  { left: 56px; top: 112px; }
+  #d-start { position: absolute; bottom: calc(34px + var(--sab)); right: calc(20px + var(--sar));
+    width: 92px; height: 66px; pointer-events: auto; background: rgba(240,200,90,0.16);
+    border: 2px solid rgba(240,210,110,0.5); border-radius: 14px; color: #f4e2a2;
+    font: bold 15px monospace; display: flex; align-items: center; justify-content: center;
+    touch-action: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+  #d-start:active { background: rgba(240,200,90,0.44); }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="game" width="480" height="560"></canvas>
+</div>
+<div id="touch">
+  <div class="pad">
+    <div id="d-up" class="dbtn">&#9650;</div>
+    <div id="d-left" class="dbtn">&#9664;</div>
+    <div id="d-right" class="dbtn">&#9654;</div>
+    <div id="d-down" class="dbtn">&#9660;</div>
+  </div>
+  <div id="d-start">START</div>
+</div>
+<div id="hint">Arrows / WASD to hop &middot; ENTER start/restart &middot; M mute &middot; get all 5 froggs home</div>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
