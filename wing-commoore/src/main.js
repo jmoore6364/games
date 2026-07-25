@@ -30,11 +30,12 @@ if ('ontouchstart' in window || navigator.maxTouchPoints > 0) touchEl.classList.
 const MAX_SPEED = 55, AB_SPEED = 120, MIN_SPEED = 0;
 const TURN = 1.5, ROLL = 2.2;
 const BOLT_SPEED = 300, BOLT_LIFE = 1.3, BOLT_DMG = 16;
-const E_BOLT_SPEED = 240, E_BOLT_LIFE = 2.2, E_BOLT_DMG = 8;
+const E_BOLT_SPEED = 200, E_BOLT_LIFE = 2.2, E_BOLT_DMG = 5;
 const FIRE_CD = 0.13, HEAT_PER = 0.085, HEAT_COOL = 0.55;
-const SHIELD_MAX = 60, HULL_MAX = 100, SHIELD_REGEN = 5, SHIELD_DELAY = 3;
+const SHIELD_MAX = 60, HULL_MAX = 100, SHIELD_REGEN = 10, SHIELD_DELAY = 2;
 const LOCK_RANGE = 420, LOCK_TIME = 1.35, MISSILE_DMG = 60, MISSILE_SPEED = 150;
-const WAVES = [2, 3, 4, 4];
+const WAVES = [1, 2, 3, 3];
+const MAX_ATTACKERS = 1; // how many fighters may actively engage at once
 
 let g;
 function newGame() {
@@ -109,8 +110,8 @@ function spawnOne(dirBias) {
   const e = spawnEnemy(pos, {
     name: pick(['DRALTHMOORE', 'SALTHMOORE', 'KRANT-MOORE', 'GRIKATH-M']),
     model: makeFighterModel(),
-    shield: 34 + Math.random() * 14,
-    hull: 46 + Math.random() * 20,
+    shield: 20 + Math.random() * 10,
+    hull: 32 + Math.random() * 14,
     speed: 30 + Math.random() * 12,
     maxTurn: 0.7 + Math.random() * 0.3,
   });
@@ -298,6 +299,11 @@ function update(dt) {
   }
 
   // ---- enemies ----
+  // coordinate the wing: only the closest MAX_ATTACKERS press the attack; the
+  // rest hold at standoff range so the player is never swarmed from all sides.
+  const active = g.enemies.filter((e) => !e.dead && e.warp <= 0);
+  active.sort((a, b) => dist2(a.pos, p.pos) - dist2(b.pos, p.pos));
+  active.forEach((e, i) => { e.hold = i >= MAX_ATTACKERS; });
   for (const e of g.enemies) {
     if (e.dead) continue;
     const res = updateEnemy(e, dt, g.player);
