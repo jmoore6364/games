@@ -1,0 +1,9 @@
+{
+  "name": "odyssey-moore",
+  "version": "1.0.0",
+  "description": "The Odyssey of Moore — an action-adventure retelling of Homer's Odyssey: sailing, naval battles, land battles, and island choices. Vanilla JS + Canvas, zero dependencies.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
