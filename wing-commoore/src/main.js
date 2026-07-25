@@ -275,11 +275,13 @@ function update(dt) {
   if (input.down('q')) rIn += 1;
   if (input.down('e')) rIn -= 1;
   if (input.stick.active) {
-    // Touch stick: a thumb rarely reaches the physical edge, so scale the input
-    // up (clamped) — full turn authority is reached at ~55% deflection, making
-    // the ship actually swing around fast enough to get an enemy off your tail.
-    yIn += Math.max(-1, Math.min(1, input.stick.x * 1.8));
-    pIn += -Math.max(-1, Math.min(1, input.stick.y * 1.8));
+    // Touch stick with a precision response curve: small deflections turn gently
+    // so you can settle the nose ON a target instead of whipping past it, while
+    // a full push still swings around fast. Cubic-ish blend, full authority just
+    // before the physical edge.
+    const curve = (s) => { const a = Math.max(-1, Math.min(1, s * 1.25)); return a * (0.32 + 0.68 * a * a); };
+    yIn += curve(input.stick.x);
+    pIn += -curve(input.stick.y);
   }
   pIn = Math.max(-1, Math.min(1, pIn));
   yIn = Math.max(-1, Math.min(1, yIn));
