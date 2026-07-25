@@ -5,7 +5,7 @@ export class Input {
     // analog steering from touch stick: -1..1
     this.stick = { x: 0, y: 0, active: false };
     // held buttons
-    this.held = { fire: false, ab: false };
+    this.held = { fire: false, ab: false, aim: false };
     // one-shot edge events consumed by the game
     this.pressed = new Set(); // 'fire','missile','target','start','restart','mute','throttleUp','throttleDown'
     this._bind();
@@ -85,6 +85,7 @@ export class Input {
     };
     holdBtn(dom.fire, 'fire');
     holdBtn(dom.ab, 'ab');
+    holdBtn(dom.aim, 'aim');
     tapBtn(dom.msl, 'missile');
     tapBtn(dom.target, 'target');
     repeatBtn(dom.thrUp, 'throttleUp');

@@ -53,6 +53,8 @@
   .btn.fire:active { background: rgba(230,70,70,0.8); }
   .btn.msl { background: rgba(120,90,30,0.55); border-color: rgba(255,190,90,0.7); }
   .btn.ab  { background: rgba(30,90,120,0.55); border-color: rgba(90,220,255,0.7); }
+  .btn.aim { background: rgba(40,110,60,0.6); border-color: rgba(120,255,150,0.8); }
+  .btn.aim:active, .btn.aim.act { background: rgba(80,235,120,0.85); }
   /* throttle pad on the left edge (tap or hold to ramp) */
   .thrpad { position: absolute; left: 2.5vw; top: 46%; transform: translateY(-50%);
     display: flex; flex-direction: column; gap: 1.6vh; pointer-events: none; }
@@ -84,12 +86,15 @@
       <div class="btn fire" id="tFire">FIRE</div>
     </div>
     <div class="row">
-      <div class="btn" id="tTarget">TGT</div>
+      <div class="btn aim" id="tAim">AIM<br>&#9673;</div>
       <div class="btn msl" id="tMsl">MSL</div>
+    </div>
+    <div class="row">
+      <div class="btn" id="tTarget">TGT</div>
     </div>
   </div>
 </div>
-<div id="hint">ARROWS/WS pitch · A/D yaw · Q/E roll · SPACE fire · M missile · T target · SHIFT afterburn · Z/X throttle · R restart · ; mute</div>
+<div id="hint">ARROWS/WS pitch · A/D yaw · Q/E roll · SPACE fire · F aim-assist (turn to nearest) · M missile · T target · SHIFT afterburn · Z/X throttle · R restart · ; mute</div>
 <script type="module" src="./src/main.js"></script>
 </body>
 </html>
