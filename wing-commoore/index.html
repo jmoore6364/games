@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Wing Commoore</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<link rel="icon" href="data:,">
+<style>
+  :root { --amber:#ffb020; --cyan:#37e0ff; }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%; width: 100%;
+    background: #02040a; overflow: hidden; touch-action: none; overscroll-behavior: none;
+    font-family: "Courier New", monospace; color: #cfe6ff;
+    -webkit-user-select: none; user-select: none;
+  }
+  #wrap {
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(ellipse at center, #0a1226 0%, #02040a 70%);
+  }
+  canvas {
+    background: #01030a; display: block;
+    width: min(100vw, calc(100vh * 1.6));
+    height: min(100vh, calc(100vw / 1.6));
+    aspect-ratio: 960 / 600;
+    touch-action: none;
+    box-shadow: 0 0 40px rgba(20,60,120,0.4);
+  }
+  /* On-screen touch controls */
+  #touch { position: fixed; inset: 0; pointer-events: none; z-index: 5; display: none; }
+  #touch.on { display: block; }
+  .stick {
+    position: absolute; left: 3.5vw; bottom: 4vh; width: 32vw; max-width: 220px; height: 32vw; max-height: 220px;
+    border-radius: 50%; background: rgba(20,40,70,0.35); border: 2px solid rgba(80,160,230,0.5);
+    pointer-events: auto; touch-action: none;
+  }
+  .stick .nub {
+    position: absolute; left: 50%; top: 50%; width: 38%; height: 38%; margin: -19% 0 0 -19%;
+    border-radius: 50%; background: rgba(80,180,255,0.6); border: 2px solid rgba(200,240,255,0.8);
+  }
+  .btns { position: absolute; right: 3vw; bottom: 3vh; display: flex; flex-direction: column-reverse; gap: 2.2vh; align-items: flex-end; }
+  .row { display: flex; gap: 2.4vw; }
+  .btn {
+    pointer-events: auto; touch-action: none; -webkit-tap-highlight-color: transparent;
+    width: 17vw; max-width: 96px; height: 17vw; max-height: 96px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; text-align: center;
+    font-family: "Courier New", monospace; font-weight: bold; font-size: clamp(10px, 3vw, 15px);
+    color: #eaf6ff; background: rgba(30,50,80,0.5); border: 2px solid rgba(120,190,240,0.6);
+    letter-spacing: 0.5px;
+  }
+  .btn:active, .btn.act { background: rgba(90,170,255,0.7); }
+  .btn.fire { background: rgba(120,40,40,0.55); border-color: rgba(255,120,120,0.7); }
+  .btn.fire:active { background: rgba(230,70,70,0.8); }
+  .btn.msl { background: rgba(120,90,30,0.55); border-color: rgba(255,190,90,0.7); }
+  .btn.ab  { background: rgba(30,90,120,0.55); border-color: rgba(90,220,255,0.7); }
+  #hint {
+    position: fixed; left: 50%; bottom: 6px; transform: translateX(-50%);
+    font-size: 11px; color: #6f8fb5; text-align: center; z-index: 4; pointer-events: none;
+    white-space: nowrap; opacity: 0.8;
+  }
+  @media (max-width: 760px) { #hint { display:none; } }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game" width="960" height="600"></canvas>
+</div>
+<div id="touch">
+  <div class="stick" id="stick"><div class="nub" id="nub"></div></div>
+  <div class="btns">
+    <div class="row">
+      <div class="btn ab"  id="tAb">AFT<br>BURN</div>
+      <div class="btn fire" id="tFire">FIRE</div>
+    </div>
+    <div class="row">
+      <div class="btn" id="tTarget">TGT</div>
+      <div class="btn msl" id="tMsl">MSL</div>
+    </div>
+  </div>
+</div>
+<div id="hint">ARROWS/WS pitch · A/D yaw · Q/E roll · SPACE fire · M missile · T target · SHIFT afterburn · Z/X throttle · R restart · ; mute</div>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+{
+  "name": "wing-commoore",
+  "version": "1.0.0",
+  "description": "Wing Commoore — a Wing Commander style space dogfighting sim, vanilla JS + canvas",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
