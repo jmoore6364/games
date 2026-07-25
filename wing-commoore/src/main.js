@@ -112,7 +112,7 @@ function spawnOne(dirBias) {
     shield: 34 + Math.random() * 14,
     hull: 46 + Math.random() * 20,
     speed: 30 + Math.random() * 12,
-    maxTurn: 1.0 + Math.random() * 0.4,
+    maxTurn: 0.7 + Math.random() * 0.3,
   });
   // face the player
   e.ori.fwd = V.norm(V.sub(p.pos, pos));
