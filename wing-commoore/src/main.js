@@ -3,7 +3,7 @@ import {
   V, makeBasis, pitch, yaw, roll, reortho, toCam, project,
   makeStars, drawStars, drawModel,
 } from './render3d.js';
-import { makeFighterModel, spawnEnemy, updateEnemy, turnToward } from './ships.js';
+import { makeFighterModel, spawnEnemy, updateEnemy } from './ships.js';
 import { Audio } from './audio.js';
 import { Input } from './input.js';
 import * as HUD from './hud.js';
@@ -20,7 +20,6 @@ input.bindTouch({
   fire: document.getElementById('tFire'), ab: document.getElementById('tAb'),
   msl: document.getElementById('tMsl'), target: document.getElementById('tTarget'),
   thrUp: document.getElementById('tThrUp'), thrDn: document.getElementById('tThrDn'),
-  aim: document.getElementById('tAim'),
 }, audio);
 
 // show touch controls on touch devices
@@ -113,8 +112,8 @@ function spawnOne(dirBias) {
     model: makeFighterModel(),
     shield: 20 + Math.random() * 10,
     hull: 32 + Math.random() * 14,
-    speed: 24 + Math.random() * 8, // slower than the player's cruise so they can be caught & lined up
-    maxTurn: 0.7 + Math.random() * 0.3,
+    speed: 17 + Math.random() * 6, // well below the player's cruise so they can't camp your tail
+    maxTurn: 0.42 + Math.random() * 0.22, // sluggish — can't whip around to chase a turning player
   });
   // face the player
   e.ori.fwd = V.norm(V.sub(p.pos, pos));
@@ -237,21 +236,6 @@ function autoTarget() {
   g.targetId = best ? best.id : null;
 }
 
-// Target the aim-assist should swing toward: the locked target if any, else the
-// nearest living enemy (any direction, so it can bring one off your tail around).
-function assistTarget() {
-  const p = g.player;
-  const locked = g.enemies.find((e) => e.id === g.targetId && !e.dead && e.warp <= 0);
-  if (locked) return locked;
-  let best = null, bd = Infinity;
-  for (const e of g.enemies) {
-    if (e.dead || e.warp > 0.2) continue;
-    const d = dist2(e.pos, p.pos);
-    if (d < bd) { bd = d; best = e; }
-  }
-  return best;
-}
-
 // ---------- update ----------
 let last = performance.now();
 function frame(now) {
@@ -302,16 +286,6 @@ function update(dt) {
   if (Math.abs(pIn) > 0.01) pitch(p.ori, pIn * TURN * dt);
   if (Math.abs(yIn) > 0.01) yaw(p.ori, yIn * TURN * dt);
   if (Math.abs(rIn) > 0.01) roll(p.ori, rIn * ROLL * dt);
-  // Aim-assist: while held, swing the nose onto the nearest enemy (even one on
-  // your six) so touch players can actually get a target in front to shoot.
-  const assistHeld = input.down('f') || input.held.aim;
-  if (assistHeld) {
-    const t = assistTarget();
-    if (t) {
-      const desired = V.norm(V.sub(t.pos, p.pos));
-      turnToward(p.ori, desired, TURN * 1.15 * dt);
-    }
-  }
   reortho(p.ori);
 
   // ---- throttle & afterburner ----

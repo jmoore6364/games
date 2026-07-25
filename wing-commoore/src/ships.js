@@ -110,19 +110,20 @@ export function updateEnemy(e, dt, player, rng = Math.random) {
   } else if (e.state === 'hold') {
     e.state = 'approach'; e.stateCd = 0;
   } else if (e.state === 'breakoff') {
-    // brief extend after a pass, then turn back so the player gets a shot at it
-    if (e.stateCd <= 0 || dist > 200) { e.state = 'approach'; e.stateCd = 0; }
+    // extend well away after a pass, then drift back — never camp the player's tail
+    if (e.stateCd <= 0 || dist > 220) { e.state = 'approach'; e.stateCd = 0; }
   } else if (e.stateCd <= 0) {
     if (dist > 260) {
       e.state = 'approach';
       e.stateCd = 1.4 + rng() * 1.2;
-    } else if (dist < 55) {
-      // right on top of the player: peel off briefly, then come back around
+    } else if (dist < 90) {
+      // peel off early — before it can slip behind you — and extend out
       e.state = 'breakoff';
-      e.stateCd = 0.9 + rng() * 0.7;
+      e.stateCd = 1.4 + rng() * 1.0;
       e.jink = { x: (rng() * 2 - 1), y: (rng() * 2 - 1) };
     } else {
-      e.state = rng() < 0.55 ? 'attack' : 'evade';
+      // mostly loose passes/evades rather than aggressive tail-chasing
+      e.state = rng() < 0.35 ? 'attack' : 'evade';
       e.stateCd = 1.0 + rng() * 1.3;
       e.jink = { x: (rng() * 2 - 1), y: (rng() * 2 - 1) };
     }
