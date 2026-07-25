@@ -19,6 +19,7 @@ input.bindTouch({
   stick: document.getElementById('stick'), nub: document.getElementById('nub'),
   fire: document.getElementById('tFire'), ab: document.getElementById('tAb'),
   msl: document.getElementById('tMsl'), target: document.getElementById('tTarget'),
+  thrUp: document.getElementById('tThrUp'), thrDn: document.getElementById('tThrDn'),
 }, audio);
 
 // show touch controls on touch devices
