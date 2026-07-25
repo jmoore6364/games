@@ -37,6 +37,14 @@ const CARS = [
   { name: 'MOORE WAGON', tag: 'LAUNCH + GRIP',  top: 0.94, accel: 1.2,  steer: 1.2,  pips: [3, 4, 5] },
 ];
 const TOUR_POINTS = [10, 8, 7, 6, 5, 4, 3, 2];
+
+// championship cups — course indices into buildCourses()
+// 0 coast, 1 route66, 2 forest, 3 bayou, 4 rockies, 5 volcano, 6 city
+const CUPS = [
+  { id: 'sunshine', name: 'SUNSHINE CUP', tag: 'COAST · 66 · AUTUMN · BAYOU', courses: [0, 1, 2, 3] },
+  { id: 'summit',   name: 'SUMMIT CUP',   tag: 'ROCKIES · INFERNO · CITY',    courses: [4, 5, 6] },
+  { id: 'grand',    name: 'GRAND TOUR',   tag: 'ALL SEVEN COURSES',           courses: [0, 1, 2, 3, 4, 5, 6] },
+];
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ ';
 const P_COLORS = ['#ff4030', '#ffe14a'];
 
@@ -71,6 +79,8 @@ export class Game {
     this.curPlayer = 0;
     this.pview = [];
     this.mode = 'single';    // 'single' | 'tour'
+    this.cupIndex = 0;
+    this.tourCourses = null;  // course indices for the active cup
     this.tourIndex = 0;
     this.tourPoints = null;
     this.tourOver = false;
@@ -280,6 +290,7 @@ export class Game {
 
     switch (this.state) {
       case 'title': this.updateTitle(dt); break;
+      case 'cup': this.updateCupSelect(dt); break;
       case 'car': this.updateCarSelect(dt); break;
       case 'countdown': this.updateCountdown(dt, inputs); break;
       case 'race': this.updateRaceAll(dt, inputs); break;
@@ -290,11 +301,12 @@ export class Game {
         break;
       case 'standings':
         if (this.input.consume('start')) {
-          if (!this.tourOver && this.tourIndex < this.courses.length - 1) {
+          if (!this.tourOver && this.tourIndex < this.tourCourses.length - 1) {
             this.tourIndex++;
-            this.loadCourse(this.tourIndex);
+            this.loadCourse(this.tourCourses[this.tourIndex]);
             this.startRace();
           } else {
+            this.saveCupResult();
             this.state = 'champion';
           }
         }
@@ -340,18 +352,38 @@ export class Game {
     }
     if (this.input.consume('start')) {
       if (this.menuIndex === this.courses.length) {
-        this.mode = 'tour';
-        this.tourIndex = 0;
-        this.tourPoints = {};
-        this.tourOver = false;
-        this.loadCourse(0);
-      } else {
-        this.mode = 'single';
-        this.loadCourse(this.menuIndex);
+        this.state = 'cup';       // pick a championship first
+        this.sound.blip(700, 0.1);
+        return;
       }
+      this.mode = 'single';
+      this.loadCourse(this.menuIndex);
       this.state = 'car';
       this.carSelP = 0;
       this.sound.blip(700, 0.1);
+    }
+  }
+
+  updateCupSelect(dt) {
+    this.attractPos = wrap(this.attractPos + MAX_SPEED * 0.35 * dt, this.trackLength);
+    if (this.input.consume('left')) {
+      this.cupIndex = (this.cupIndex + CUPS.length - 1) % CUPS.length;
+      this.sound.blip(500, 0.08);
+    }
+    if (this.input.consume('right')) {
+      this.cupIndex = (this.cupIndex + 1) % CUPS.length;
+      this.sound.blip(500, 0.08);
+    }
+    if (this.input.consume('start')) {
+      this.mode = 'tour';
+      this.tourCourses = CUPS[this.cupIndex].courses.slice();
+      this.tourIndex = 0;
+      this.tourPoints = {};
+      this.tourOver = false;
+      this.loadCourse(this.tourCourses[0]);
+      this.state = 'car';
+      this.carSelP = 0;
+      this.sound.blip(800, 0.1);
     }
   }
 
@@ -438,6 +470,22 @@ export class Game {
 
   tourTable() {
     return Object.entries(this.tourPoints).sort((a, b) => b[1] - a[1]);
+  }
+
+  saveCupResult() {
+    try {
+      const table = this.tourTable();
+      const rank = table.findIndex(([n]) => n === 'YOU') + 1;
+      if (!rank) return;
+      const key = `cruisin-moore-cup-${CUPS[this.cupIndex].id}`;
+      const prev = parseInt(localStorage.getItem(key), 10);
+      if (!prev || rank < prev) localStorage.setItem(key, String(rank));
+    } catch { /* private mode */ }
+  }
+
+  getCupBest(id) {
+    try { return parseInt(localStorage.getItem(`cruisin-moore-cup-${id}`), 10) || null; }
+    catch { return null; }
   }
 
   updateCountdown(dt, inputs) {
@@ -951,7 +999,7 @@ export class Game {
 
   render() {
     const ctx = this.ctx;
-    const inMenu = this.state === 'title' || this.state === 'car';
+    const inMenu = this.state === 'title' || this.state === 'car' || this.state === 'cup';
     const two = this.players.length === 2 && !inMenu;
 
     if (two) {
@@ -984,6 +1032,7 @@ export class Game {
 
     switch (this.state) {
       case 'title': this.renderTitle(); break;
+      case 'cup': this.renderCupSelect(); break;
       case 'car': this.renderCarSelect(); break;
       case 'countdown': this.renderCountdown(); break;
       case 'race': break;
@@ -1312,7 +1361,7 @@ export class Game {
       ctx.fillRect(bx + p * bw - 3, by - 3, 6, bh + 6);
     }
     if (this.mode === 'tour') {
-      this.text(`TOUR RACE ${this.tourIndex + 1}/${this.courses.length}`, W / 2, by + 34, 13, '#ff8ad8');
+      this.text(`TOUR RACE ${this.tourIndex + 1}/${this.tourCourses.length}`, W / 2, by + 34, 13, '#ff8ad8');
     }
 
     // ghost gap
@@ -1443,7 +1492,7 @@ export class Game {
     ctx.strokeRect(W / 2 - 210, 270, 420, 84);
     if (isTour) {
       this.text('MOORE TOUR', W / 2, 305, 26, '#ff8ad8');
-      this.text(`ALL ${this.courses.length} COURSES · POINTS CHAMPIONSHIP`, W / 2, 336, 15, '#9adcff');
+      this.text('CHAMPIONSHIP CUPS · POINTS RACING', W / 2, 336, 15, '#9adcff');
     } else {
       const c = this.course;
       this.text(c.name, W / 2, 305, 26, '#fff');
@@ -1464,6 +1513,42 @@ export class Game {
       : '←→ STEER · ↑ GAS · ↓ BRAKE · R RESTART · M MUTE', W / 2, H - 24, 14, '#99a');
   }
 
+  renderCupSelect() {
+    const ctx = this.ctx;
+    ctx.fillStyle = 'rgba(6,6,18,0.6)';
+    ctx.fillRect(0, 0, W, H);
+    this.text('MOORE TOUR', W / 2, 88, 40, '#ff8ad8');
+    this.text('CHOOSE YOUR CHAMPIONSHIP', W / 2, 120, 16, '#9adcff');
+
+    for (let i = 0; i < CUPS.length; i++) {
+      const cup = CUPS[i];
+      const cx = W / 2 + (i - 1) * 300;
+      const sel = i === this.cupIndex;
+      ctx.fillStyle = sel ? 'rgba(30,30,62,0.92)' : 'rgba(10,10,24,0.72)';
+      ctx.fillRect(cx - 140, 160, 280, 250);
+      ctx.strokeStyle = sel ? '#ff8ad8' : '#445'; ctx.lineWidth = 3;
+      ctx.strokeRect(cx - 140, 160, 280, 250);
+      this.text(cup.name, cx, 200, 22, sel ? '#fff' : '#99a');
+      this.text(`${cup.courses.length} RACES`, cx, 226, 14, '#ffb14a');
+      // course list
+      cup.courses.forEach((ci, r) => {
+        this.text(this.courses[ci].name, cx, 262 + r * 24, 13, sel ? '#9adcff' : '#778');
+      });
+      // best result
+      const best = this.getCupBest(cup.id);
+      const by = 160 + 250 - 22;
+      if (best === 1) this.text('★ CHAMPION ★', cx, by, 15, '#ffe14a');
+      else if (best) {
+        const sup = ['st', 'nd', 'rd'][best - 1] || 'th';
+        this.text(`BEST: ${best}${sup}`, cx, by, 14, '#889');
+      } else this.text('NOT YET RACED', cx, by, 12, '#667');
+    }
+
+    if (Math.floor(performance.now() / 500) % 2 === 0) {
+      this.text('←→ CHOOSE · ENTER/GAS START', W / 2, 456, 22, '#7dff6a');
+    }
+  }
+
   renderCarSelect() {
     const ctx = this.ctx;
     ctx.fillStyle = 'rgba(6,6,18,0.55)';
@@ -1471,7 +1556,7 @@ export class Game {
     const two = this.twoPlayer && this.mode === 'single';
     this.text(two ? `PLAYER ${this.carSelP + 1} — SELECT YOUR RIDE` : 'SELECT YOUR RIDE',
       W / 2, 88, two ? 34 : 40, two ? P_COLORS[this.carSelP] : '#ffe14a');
-    this.text(this.mode === 'tour' ? `MOORE TOUR · ${this.courses.length} RACES` : this.course.name,
+    this.text(this.mode === 'tour' ? `${CUPS[this.cupIndex].name} · ${this.tourCourses.length} RACES` : this.course.name,
       W / 2, 120, 16, this.mode === 'tour' ? '#ff8ad8' : '#9adcff');
 
     const statNames = ['SPEED', 'ACCEL', 'GRIP'];
@@ -1513,8 +1598,8 @@ export class Game {
     ctx.fillRect(W / 2 - 260, 44, 520, 452);
     ctx.strokeStyle = '#ff8ad8'; ctx.lineWidth = 3;
     ctx.strokeRect(W / 2 - 260, 44, 520, 452);
-    this.text('TOUR STANDINGS', W / 2, 88, 30, '#ffe14a');
-    this.text(`AFTER RACE ${this.tourIndex + 1} OF ${this.courses.length}`, W / 2, 114, 14, '#9adcff');
+    this.text(`${CUPS[this.cupIndex].name} STANDINGS`, W / 2, 88, 28, '#ffe14a');
+    this.text(`AFTER RACE ${this.tourIndex + 1} OF ${this.tourCourses.length}`, W / 2, 114, 14, '#9adcff');
     this.tourTable().forEach(([name, pts], i) => {
       const y = 154 + i * 36;
       const you = name === 'YOU';
@@ -1524,7 +1609,7 @@ export class Game {
       this.text(`${pts} PTS`, W / 2 + 205, y, 20, you ? '#ffe14a' : '#9adcff', 'right');
     });
     if (Math.floor(performance.now() / 500) % 2 === 0) {
-      const last = this.tourOver || this.tourIndex >= this.courses.length - 1;
+      const last = this.tourOver || this.tourIndex >= this.tourCourses.length - 1;
       this.text(last ? 'PRESS ENTER FOR FINAL RESULTS' : 'PRESS ENTER FOR NEXT RACE', W / 2, 478, 16, '#7dff6a');
     }
   }
@@ -1584,12 +1669,13 @@ export class Game {
     ctx.fillRect(W / 2 - 280, 44, 560, 452);
     ctx.strokeStyle = '#ffe14a'; ctx.lineWidth = 4;
     ctx.strokeRect(W / 2 - 280, 44, 560, 452);
+    const cupName = CUPS[this.cupIndex].name;
     if (rank === 1) {
-      this.text('★ TOUR CHAMPION ★', W / 2, 100, 40, '#ffe14a');
+      this.text(`★ ${cupName} CHAMPION ★`, W / 2, 100, 34, '#ffe14a');
       this.text('CRUIS-TACULAR, COAST TO COAST!', W / 2, 132, 16, '#ff8ad8');
     } else {
       const sup = ['st', 'nd', 'rd'][rank - 1] || 'th';
-      this.text('TOUR COMPLETE', W / 2, 100, 36, '#9adcff');
+      this.text(`${cupName} COMPLETE`, W / 2, 100, 32, '#9adcff');
       this.text(this.tourOver ? 'RAN OUT OF TIME ON THE ROAD' : `${rank}${sup} OVERALL — KEEP CRUIS’N`, W / 2, 132, 16, '#fff');
     }
     table.forEach(([name, pts], i) => {
