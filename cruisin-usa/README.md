@@ -18,9 +18,11 @@ npm test           # course geometry + sprite reference sanity checks
 
 Pick a course — **Pacific Coast**, **Route 66**, **Autumn Valley**,
 **Bayou Run**, **Rocky Summit**, **Inferno Pass**, or **Moore City
-Nights** — or take on the **Moore Tour**, a points championship across
-all seven. Then pick your ride: the balanced **Roadster**, the
-fast-but-slippery **La Bomba**, or the grippy **Moore Wagon**. Beat 7 rivals across 2 laps before the clock runs out;
+Nights** — or take on the **Moore Tour**, a points championship run as
+three cups: the four-race **Sunshine Cup**, the three-race **Summit
+Cup**, or the full seven-race **Grand Tour**. Your best overall placing
+in each cup is saved. Then pick your ride: the balanced **Roadster**,
+the fast-but-slippery **La Bomba**, or the grippy **Moore Wagon**. Beat 7 rivals across 2 laps before the clock runs out;
 checkpoints and the lap line add time. Watch for oncoming traffic in the
 left lanes: a head-on hit at speed sends you into the signature Cruis'n
 barrel-roll wipeout, and so does clipping a palm tree, cactus, or
