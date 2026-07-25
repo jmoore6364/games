@@ -3,7 +3,7 @@ import {
   V, makeBasis, pitch, yaw, roll, reortho, toCam, project,
   makeStars, drawStars, drawModel,
 } from './render3d.js';
-import { makeFighterModel, spawnEnemy, updateEnemy } from './ships.js';
+import { makeFighterModel, spawnEnemy, updateEnemy, turnToward } from './ships.js';
 import { Audio } from './audio.js';
 import { Input } from './input.js';
 import * as HUD from './hud.js';
@@ -20,6 +20,7 @@ input.bindTouch({
   fire: document.getElementById('tFire'), ab: document.getElementById('tAb'),
   msl: document.getElementById('tMsl'), target: document.getElementById('tTarget'),
   thrUp: document.getElementById('tThrUp'), thrDn: document.getElementById('tThrDn'),
+  aim: document.getElementById('tAim'),
 }, audio);
 
 // show touch controls on touch devices
@@ -112,7 +113,7 @@ function spawnOne(dirBias) {
     model: makeFighterModel(),
     shield: 20 + Math.random() * 10,
     hull: 32 + Math.random() * 14,
-    speed: 30 + Math.random() * 12,
+    speed: 24 + Math.random() * 8, // slower than the player's cruise so they can be caught & lined up
     maxTurn: 0.7 + Math.random() * 0.3,
   });
   // face the player
@@ -132,12 +133,36 @@ function playerFire() {
   p.gunHeat = Math.min(1, p.gunHeat + HEAT_PER);
   if (p.gunHeat >= 1) p.overheat = true;
   const base = V.add(p.pos, V.scale(p.ori.fwd, 3));
-  const vel = V.add(V.scale(p.ori.fwd, BOLT_SPEED), V.scale(p.ori.fwd, p.speed));
+  // Aim assist: if an enemy is roughly ahead, curve the shots onto its lead
+  // point so the player only has to get it into the forward arc, not dead-center.
+  let aimDir = p.ori.fwd;
+  const assist = bestAimTarget();
+  if (assist) {
+    const rel = V.sub(assist.pos, p.pos);
+    const t = V.len(rel) / BOLT_SPEED;
+    const lead = V.add(assist.pos, V.scale(assist.vel, t));
+    aimDir = V.norm(V.sub(lead, base));
+  }
+  const vel = V.add(V.scale(aimDir, BOLT_SPEED), V.scale(p.ori.fwd, p.speed));
   for (const off of [-1.7, 1.7]) {
     const o = V.add(base, V.scale(p.ori.right, off));
     g.bolts.push({ pos: V.add(o, V.scale(p.ori.up, -0.4)), vel: V.clone(vel), life: BOLT_LIFE, friendly: true });
   }
   audio.laser();
+}
+// Pick the enemy nearest the reticle within a generous cone & range, for aim assist.
+function bestAimTarget() {
+  const p = g.player;
+  let best = null, bestDot = 0.9; // ~25° half-cone
+  for (const e of g.enemies) {
+    if (e.dead || e.warp > 0.2) continue;
+    const rel = V.sub(e.pos, p.pos);
+    const d = V.len(rel);
+    if (d > 300 || d < 4) continue;
+    const dot = V.dot(V.scale(rel, 1 / d), p.ori.fwd);
+    if (dot > bestDot) { bestDot = dot; best = e; }
+  }
+  return best;
 }
 function enemyFire(e) {
   const gun = V.add(e.pos, V.scale(e.ori.fwd, 4));
@@ -212,6 +237,21 @@ function autoTarget() {
   g.targetId = best ? best.id : null;
 }
 
+// Target the aim-assist should swing toward: the locked target if any, else the
+// nearest living enemy (any direction, so it can bring one off your tail around).
+function assistTarget() {
+  const p = g.player;
+  const locked = g.enemies.find((e) => e.id === g.targetId && !e.dead && e.warp <= 0);
+  if (locked) return locked;
+  let best = null, bd = Infinity;
+  for (const e of g.enemies) {
+    if (e.dead || e.warp > 0.2) continue;
+    const d = dist2(e.pos, p.pos);
+    if (d < bd) { bd = d; best = e; }
+  }
+  return best;
+}
+
 // ---------- update ----------
 let last = performance.now();
 function frame(now) {
@@ -262,6 +302,16 @@ function update(dt) {
   if (Math.abs(pIn) > 0.01) pitch(p.ori, pIn * TURN * dt);
   if (Math.abs(yIn) > 0.01) yaw(p.ori, yIn * TURN * dt);
   if (Math.abs(rIn) > 0.01) roll(p.ori, rIn * ROLL * dt);
+  // Aim-assist: while held, swing the nose onto the nearest enemy (even one on
+  // your six) so touch players can actually get a target in front to shoot.
+  const assistHeld = input.down('f') || input.held.aim;
+  if (assistHeld) {
+    const t = assistTarget();
+    if (t) {
+      const desired = V.norm(V.sub(t.pos, p.pos));
+      turnToward(p.ori, desired, TURN * 1.15 * dt);
+    }
+  }
   reortho(p.ori);
 
   // ---- throttle & afterburner ----
@@ -327,7 +377,7 @@ function update(dt) {
     if (b.friendly) {
       for (const e of g.enemies) {
         if (e.dead || e.warp > 0.2) continue;
-        if (dist2(b.pos, e.pos) < (e.radius + 1.2) ** 2) { hitEnemy(e, BOLT_DMG); b.life = 0; break; }
+        if (dist2(b.pos, e.pos) < (e.radius + 3) ** 2) { hitEnemy(e, BOLT_DMG); b.life = 0; break; }
       }
     } else {
       if (dist2(b.pos, p.pos) < 4 ** 2) {
