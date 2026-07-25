@@ -28,7 +28,7 @@ if ('ontouchstart' in window || navigator.maxTouchPoints > 0) touchEl.classList.
 
 // ---------- tuning ----------
 const MAX_SPEED = 55, AB_SPEED = 120, MIN_SPEED = 0;
-const TURN = 1.5, ROLL = 2.2;
+const TURN = 2.3, ROLL = 2.9;
 const BOLT_SPEED = 300, BOLT_LIFE = 1.3, BOLT_DMG = 16;
 const E_BOLT_SPEED = 200, E_BOLT_LIFE = 2.2, E_BOLT_DMG = 5;
 const FIRE_CD = 0.13, HEAT_PER = 0.085, HEAT_COOL = 0.55;
@@ -250,7 +250,13 @@ function update(dt) {
   if (input.down('d')) yIn += 1;
   if (input.down('q')) rIn += 1;
   if (input.down('e')) rIn -= 1;
-  if (input.stick.active) { yIn += input.stick.x; pIn += -input.stick.y; }
+  if (input.stick.active) {
+    // Touch stick: a thumb rarely reaches the physical edge, so scale the input
+    // up (clamped) — full turn authority is reached at ~55% deflection, making
+    // the ship actually swing around fast enough to get an enemy off your tail.
+    yIn += Math.max(-1, Math.min(1, input.stick.x * 1.8));
+    pIn += -Math.max(-1, Math.min(1, input.stick.y * 1.8));
+  }
   pIn = Math.max(-1, Math.min(1, pIn));
   yIn = Math.max(-1, Math.min(1, yIn));
   if (Math.abs(pIn) > 0.01) pitch(p.ori, pIn * TURN * dt);
@@ -722,6 +728,7 @@ window.__wc = {
   },
   forceLock() { const t = g.enemies.find((e) => !e.dead); if (t) { g.targetId = t.id; g.lock.id = t.id; g.lock.prog = 1; } },
   get game() { return g; },
+  get input() { return input; },
 };
 
 requestAnimationFrame(frame);
