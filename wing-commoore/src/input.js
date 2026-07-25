@@ -72,10 +72,23 @@ export class Input {
       el.addEventListener('touchstart', on, { passive: false });
       el.addEventListener('mousedown', on);
     };
+    // repeat an edge event while the button is held (for throttle ramp)
+    const repeatBtn = (el, name) => {
+      if (!el) return;
+      let iv = null;
+      const on = (e) => { e.preventDefault(); this.pressed.add(name); el.classList.add('act'); if (audio) audio.resume(); clearInterval(iv); iv = setInterval(() => this.pressed.add(name), 130); };
+      const off = (e) => { if (e) e.preventDefault(); el.classList.remove('act'); clearInterval(iv); iv = null; };
+      el.addEventListener('touchstart', on, { passive: false });
+      el.addEventListener('touchend', off, { passive: false });
+      el.addEventListener('touchcancel', off, { passive: false });
+      el.addEventListener('mousedown', on); el.addEventListener('mouseup', off); el.addEventListener('mouseleave', off);
+    };
     holdBtn(dom.fire, 'fire');
     holdBtn(dom.ab, 'ab');
     tapBtn(dom.msl, 'missile');
     tapBtn(dom.target, 'target');
+    repeatBtn(dom.thrUp, 'throttleUp');
+    repeatBtn(dom.thrDn, 'throttleDown');
     // also let FIRE/target/start-on-tap resume audio & start
     tapBtn(dom.fire, 'startTap');
   }

@@ -53,6 +53,13 @@
   .btn.fire:active { background: rgba(230,70,70,0.8); }
   .btn.msl { background: rgba(120,90,30,0.55); border-color: rgba(255,190,90,0.7); }
   .btn.ab  { background: rgba(30,90,120,0.55); border-color: rgba(90,220,255,0.7); }
+  /* throttle pad on the left edge (tap or hold to ramp) */
+  .thrpad { position: absolute; left: 2.5vw; top: 46%; transform: translateY(-50%);
+    display: flex; flex-direction: column; gap: 1.6vh; pointer-events: none; }
+  .btn.thr { width: 13vw; max-width: 74px; height: 13vw; max-height: 74px;
+    background: rgba(30,90,60,0.5); border-color: rgba(90,230,150,0.65);
+    font-size: clamp(11px, 3.3vw, 16px); }
+  .btn.thr:active, .btn.thr.act { background: rgba(70,220,140,0.75); }
   #hint {
     position: fixed; left: 50%; bottom: 6px; transform: translateX(-50%);
     font-size: 11px; color: #6f8fb5; text-align: center; z-index: 4; pointer-events: none;
@@ -67,6 +74,10 @@
 </div>
 <div id="touch">
   <div class="stick" id="stick"><div class="nub" id="nub"></div></div>
+  <div class="thrpad">
+    <div class="btn thr" id="tThrUp">THR&#9650;</div>
+    <div class="btn thr" id="tThrDn">THR&#9660;</div>
+  </div>
   <div class="btns">
     <div class="row">
       <div class="btn ab"  id="tAb">AFT<br>BURN</div>
