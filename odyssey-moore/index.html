@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The Odyssey of Moore</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<link rel="icon" href="data:,">
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%; width: 100%;
+    background: #0a0712; overflow: hidden; touch-action: none; overscroll-behavior: none;
+    font-family: "Trebuchet MS", "Georgia", serif; color: #eadfc6;
+    -webkit-user-select: none; user-select: none;
+  }
+  #wrap {
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(ellipse at center, #1a1226 0%, #08060f 72%);
+  }
+  canvas {
+    background: #10142a; display: block;
+    width: min(100vw, calc(100vh * 1.6));
+    height: min(100vh, calc(100vw / 1.6));
+    aspect-ratio: 960 / 600;
+    touch-action: none;
+    box-shadow: 0 0 44px rgba(120,80,40,0.35);
+  }
+  /* on-screen touch controls */
+  #touch { position: fixed; inset: 0; pointer-events: none; z-index: 5; display: none; }
+  #touch.on { display: block; }
+  .stick {
+    position: absolute; left: 3.5vw; bottom: 4vh; width: 32vw; max-width: 210px; height: 32vw; max-height: 210px;
+    border-radius: 50%; background: rgba(40,30,60,0.35); border: 2px solid rgba(200,150,90,0.5);
+    pointer-events: auto; touch-action: none;
+  }
+  .stick .nub {
+    position: absolute; left: 50%; top: 50%; width: 38%; height: 38%; margin: -19% 0 0 -19%;
+    border-radius: 50%; background: rgba(200,150,90,0.55); border: 2px solid rgba(240,225,200,0.85);
+  }
+  .btns { position: absolute; right: 3vw; bottom: 3vh; display: flex; flex-direction: column-reverse; gap: 2.2vh; align-items: flex-end; }
+  .row { display: flex; gap: 2.6vw; align-items: center; }
+  .btn {
+    pointer-events: auto; touch-action: none; -webkit-tap-highlight-color: transparent;
+    width: 17vw; max-width: 94px; height: 17vw; max-height: 94px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; text-align: center;
+    font-family: "Trebuchet MS", sans-serif; font-weight: bold; font-size: clamp(10px, 3vw, 15px);
+    color: #f4ead2; background: rgba(60,45,70,0.5); border: 2px solid rgba(200,150,90,0.6);
+    letter-spacing: 0.4px; line-height: 1.05;
+  }
+  .btn:active, .btn.act { background: rgba(200,150,90,0.7); }
+  #bA { background: rgba(120,50,40,0.55); border-color: rgba(230,120,90,0.7); }
+  #bA:active, #bA.act { background: rgba(230,90,60,0.8); }
+  #bB { background: rgba(120,95,35,0.55); border-color: rgba(230,190,90,0.75); }
+  #bB:active, #bB.act { background: rgba(230,180,70,0.8); }
+  #bC { background: rgba(40,95,95,0.55); border-color: rgba(120,215,205,0.7); }
+  #bC:active, #bC.act { background: rgba(90,210,200,0.75); }
+  /* choice buttons across the bottom-center */
+  #choices { position: absolute; left: 50%; bottom: 3vh; transform: translateX(-50%);
+    display: none; flex-direction: column; gap: 1.4vh; pointer-events: none; width: 68vw; max-width: 460px; }
+  .choice {
+    pointer-events: auto; touch-action: none; -webkit-tap-highlight-color: transparent;
+    padding: 2.4vh 3vw; border-radius: 10px; text-align: center;
+    font-family: "Trebuchet MS", sans-serif; font-weight: bold; font-size: clamp(12px, 3.2vw, 16px);
+    color: #f4ead2; background: rgba(60,45,30,0.85); border: 2px solid rgba(200,150,90,0.7);
+  }
+  .choice:active { background: rgba(200,150,90,0.7); }
+  #hint {
+    position: fixed; left: 50%; bottom: 4px; transform: translateX(-50%);
+    font-size: 11px; color: #a08a6a; text-align: center; z-index: 4; pointer-events: none;
+    white-space: nowrap; opacity: 0.85;
+  }
+  @media (max-width: 820px) { #hint { display: none; } }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game" width="960" height="600"></canvas>
+</div>
+<div id="touch">
+  <div class="stick" id="stick"><div class="nub" id="nub"></div></div>
+  <div class="btns">
+    <div class="row"><div class="btn" id="bC">ATHENA</div></div>
+    <div class="row"><div class="btn" id="bB">BOW</div><div class="btn" id="bA">SWORD</div></div>
+  </div>
+  <div id="choices">
+    <div class="choice" id="bC1">1</div>
+    <div class="choice" id="bC2">2</div>
+    <div class="choice" id="bC3">3</div>
+  </div>
+</div>
+<div id="hint">WASD/Arrows move &middot; SPACE attack/ram &middot; K bow/volley &middot; L Athena &middot; 1/2/3 choose &middot; M mute &middot; R restart</div>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
