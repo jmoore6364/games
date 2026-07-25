@@ -103,7 +103,13 @@ export function updateEnemy(e, dt, player, rng = Math.random) {
   e.thinkCd -= dt;
   e.stateCd -= dt;
   // --- state selection: give the dogfight a rhythm so the player can shake them ---
-  if (e.state === 'breakoff') {
+  // e.hold is set by the game each frame so only the nearest fighter presses the
+  // attack; the rest circle at standoff range instead of ganging up.
+  if (e.hold) {
+    e.state = 'hold';
+  } else if (e.state === 'hold') {
+    e.state = 'approach'; e.stateCd = 0;
+  } else if (e.state === 'breakoff') {
     // committed to extending away — only re-engage once we've opened the range
     if (e.stateCd <= 0 || dist > 320) { e.state = 'approach'; e.stateCd = 0; }
   } else if (e.stateCd <= 0) {
@@ -124,7 +130,13 @@ export function updateEnemy(e, dt, player, rng = Math.random) {
 
   // desired facing
   let desired;
-  if (e.state === 'breakoff') {
+  if (e.state === 'hold') {
+    // circle at a standoff distance instead of crowding the player
+    const ideal = 190;
+    const radial = dist > ideal ? dir : V.scale(dir, -1);
+    const side = V.add(V.scale(e.ori.right, 0.8), V.scale(e.ori.up, 0.15));
+    desired = V.norm(V.add(radial, side));
+  } else if (e.state === 'breakoff') {
     // fly AWAY from the player, angled off to one side (a real disengagement)
     const away = V.scale(dir, -1);
     const side = V.add(V.scale(e.ori.right, e.jink.x), V.scale(e.ori.up, e.jink.y));
@@ -147,6 +159,7 @@ export function updateEnemy(e, dt, player, rng = Math.random) {
   let spd = e.speed;
   if (e.state === 'breakoff') spd = e.speed * 1.3;
   else if (e.state === 'evade') spd = e.speed * 1.12;
+  else if (e.state === 'hold') spd = e.speed * (dist < 190 ? 0.6 : 0.85);
   else if (dist < 50) spd = e.speed * 0.55;
   const tvel = V.scale(e.ori.fwd, spd);
   e.vel.x += (tvel.x - e.vel.x) * Math.min(1, dt * 2);
