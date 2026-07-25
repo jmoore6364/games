@@ -109,22 +109,23 @@ export function updateEnemy(e, dt, player, rng = Math.random) {
     e.state = 'hold';
   } else if (e.state === 'hold') {
     e.state = 'approach'; e.stateCd = 0;
+  } else if (dist > 180) {
+    // LEASH: never drift off into a far-off dot — come back into view so that
+    // when the player turns, an enemy is actually there.
+    e.state = 'approach'; e.stateCd = 0.5;
   } else if (e.state === 'breakoff') {
-    // extend well away after a pass, then drift back — never camp the player's tail
-    if (e.stateCd <= 0 || dist > 220) { e.state = 'approach'; e.stateCd = 0; }
+    // short peel-off after a pass, then straight back into the close fight
+    if (e.stateCd <= 0 || dist > 150) { e.state = 'approach'; e.stateCd = 0; }
   } else if (e.stateCd <= 0) {
-    if (dist > 260) {
-      e.state = 'approach';
-      e.stateCd = 1.4 + rng() * 1.2;
-    } else if (dist < 90) {
-      // peel off early — before it can slip behind you — and extend out
+    if (dist < 90) {
+      // peel off early — before it can slip behind you
       e.state = 'breakoff';
-      e.stateCd = 1.4 + rng() * 1.0;
+      e.stateCd = 1.0 + rng() * 0.7;
       e.jink = { x: (rng() * 2 - 1), y: (rng() * 2 - 1) };
     } else {
       // mostly loose passes/evades rather than aggressive tail-chasing
-      e.state = rng() < 0.35 ? 'attack' : 'evade';
-      e.stateCd = 1.0 + rng() * 1.3;
+      e.state = rng() < 0.4 ? 'attack' : 'evade';
+      e.stateCd = 1.0 + rng() * 1.2;
       e.jink = { x: (rng() * 2 - 1), y: (rng() * 2 - 1) };
     }
   }
@@ -156,12 +157,14 @@ export function updateEnemy(e, dt, player, rng = Math.random) {
   const turnRate = e.state === 'breakoff' ? e.maxTurn * 0.5 : e.maxTurn;
   turnToward(e.ori, desired, turnRate * dt);
 
-  // throttle: run hard on the break-off, ease off when right on top of the player
+  // Distance-scaled throttle: gentle up close (not aggressive), but hustle back
+  // fast when far so it never gets left behind and vanishes when you turn.
   let spd = e.speed;
-  if (e.state === 'breakoff') spd = e.speed * 0.85;
-  else if (e.state === 'evade') spd = e.speed * 1.0;
-  else if (e.state === 'hold') spd = e.speed * (dist < 130 ? 0.5 : 0.8);
-  else if (dist < 50) spd = e.speed * 0.55;
+  if (dist > 160) spd = e.speed * 2.3;
+  else if (e.state === 'breakoff') spd = e.speed * 0.9;
+  else if (e.state === 'hold') spd = e.speed * (dist < 130 ? 0.5 : 1.0);
+  else if (dist < 60) spd = e.speed * 0.5;
+  else spd = e.speed * 0.85;
   const tvel = V.scale(e.ori.fwd, spd);
   e.vel.x += (tvel.x - e.vel.x) * Math.min(1, dt * 2);
   e.vel.y += (tvel.y - e.vel.y) * Math.min(1, dt * 2);

@@ -105,15 +105,15 @@ function spawnOne(dirBias) {
     const b = (Math.random() * 2 - 1) * 0.7;
     dir = V.norm(V.add(V.add(p.ori.fwd, V.scale(p.ori.right, a)), V.scale(p.ori.up, b)));
   }
-  const dist = 300 + Math.random() * 180;
+  const dist = 170 + Math.random() * 90; // spawn close & in view, not as a far-off dot
   const pos = V.add(p.pos, V.scale(dir, dist));
   const e = spawnEnemy(pos, {
     name: pick(['DRALTHMOORE', 'SALTHMOORE', 'KRANT-MOORE', 'GRIKATH-M']),
     model: makeFighterModel(),
     shield: 20 + Math.random() * 10,
     hull: 32 + Math.random() * 14,
-    speed: 17 + Math.random() * 6, // well below the player's cruise so they can't camp your tail
-    maxTurn: 0.42 + Math.random() * 0.22, // sluggish — can't whip around to chase a turning player
+    speed: 18 + Math.random() * 6,
+    maxTurn: 0.5 + Math.random() * 0.25, // sluggish near you, but enough to circle back into view
   });
   // face the player
   e.ori.fwd = V.norm(V.sub(p.pos, pos));
