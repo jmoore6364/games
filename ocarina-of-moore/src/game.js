@@ -50,7 +50,7 @@ export class Game {
       atk: 0, atkType: 'slash', charge: 0, spinReady: false,
       roll: 0, rollDir: [1, 0], rollCd: 0, blocking: false, anim: 0, dead: false,
     };
-    this.cam = { yaw: -Math.PI / 2, pitch: 0.5, dist: 8, curYaw: -Math.PI / 2, curPitch: 0.5, eye: [0, 5, 12], target: [0, 1, 0] };
+    this.cam = { yaw: Math.PI / 2, pitch: 0.5, dist: 8, curYaw: Math.PI / 2, curPitch: 0.5, eye: [0, 5, 12], target: [0, 1, 0] };
     this.lock = null;          // locked enemy/boss ref
     this.enemies = []; this.projectiles = []; this.pickups = []; this.effects = [];
     this.dyn = null;           // dynamic dungeon object state
@@ -82,7 +82,9 @@ export class Game {
     // spawn player
     const s = a.spawns[spawnKey] || Object.values(a.spawns)[0];
     this.player.x = s.x; this.player.z = s.z; this.player.y = 0; this.player.yaw = s.yaw;
-    this.cam.yaw = s.yaw - Math.PI; this.cam.curYaw = this.cam.yaw;
+    // Camera sits BEHIND the player looking forward: eye = player - dir(camYaw)*dist,
+    // so camYaw must equal the player's facing (not the opposite).
+    this.cam.yaw = s.yaw; this.cam.curYaw = this.cam.yaw;
     this.audio.setTrack(name === 'dungeon' ? 'dungeon' : name === 'village' ? 'village' : 'overworld');
   }
 
