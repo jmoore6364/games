@@ -81,11 +81,12 @@ export function buildVillage(renderer) {
     addHouse(M, h[0], h[1], h[2], h[3], h[4], h[5], h[6]);
     box(h[0] - h[2] / 2, h[1] - h[3] / 2, h[0] + h[2] / 2, h[1] + h[3] / 2);
   }
-  // Shop (distinct blue roof, front counter)
-  addHouse(M, 0, 22, 11, 8, 5, [0.62, 0.72, 0.85], [0.20, 0.35, 0.55]);
-  box(-5.5, 18, 5.5, 26);
+  // Shop (distinct blue roof, front counter) — set off to the west so the
+  // north path out of the village stays clear.
+  addHouse(M, -9, 22, 11, 8, 5, [0.62, 0.72, 0.85], [0.20, 0.35, 0.55]);
+  box(-14.5, 18, -3.5, 26);
   // shop sign banner
-  M.box(-3, 4.6, 17.7, 3, 5.4, 17.9, [0.9, 0.85, 0.4, 0.5]);
+  M.box(-12, 4.6, 17.7, -6, 5.4, 17.9, [0.9, 0.85, 0.4, 0.5]);
 
   // trees & bushes ring
   for (let i = 0; i < 14; i++) {
@@ -103,7 +104,7 @@ export function buildVillage(renderer) {
   colliders.push({ cx: 0, cz: 0, r: 1.3 });
 
   // perimeter fence-ish colliders (soft box ring)
-  box(-32, -30, 32, -28); box(-32, 32, 32, 34);
+  box(-32, -30, 32, -28); box(-32, 32, -4, 34); box(4, 32, 32, 34); // north wall with a gap for the exit
   box(-32, -30, -28, 34); box(28, -30, 32, 34);
 
   const handle = renderer.uploadMesh(M);
@@ -111,7 +112,7 @@ export function buildVillage(renderer) {
   return {
     name: 'village', light: LIGHTS.village, handle, colliders,
     spawns: { start: { x: 0, z: 6, yaw: Math.PI / 2 }, fromField: { x: 0, z: 30, yaw: -Math.PI / 2 } },
-    triggers: [{ x0: -3, z0: 33, x1: 3, z1: 36, to: 'field', spawn: 'fromVillage' }],
+    triggers: [{ x0: -4, z0: 31, x1: 4, z1: 36, to: 'field', spawn: 'fromVillage' }],
     torches: [{ x: -3, z: 3, }, { x: 3, z: 3 }, { x: -3, z: -3 }, { x: 3, z: -3 }],
     npcs: [
       { id: 'elder', x: 0, z: 10, yaw: Math.PI / 2, color: [0.7, 0.65, 0.9], name: 'Elder Moore',
@@ -120,7 +121,7 @@ export function buildVillage(renderer) {
                 'Take my blade. Press Z to lock on, then circle and strike. Bring the Gem home!'] },
       { id: 'kid', x: -6, z: -2, yaw: 0, color: [0.9, 0.7, 0.4], name: 'Village Kid',
         lines: ['Hold SHIFT to raise your shield!', 'Press X to roll out of danger!'] },
-      { id: 'shopkeep', x: 0, z: 18.5, yaw: -Math.PI / 2, color: [0.4, 0.6, 0.85], name: 'Shopkeeper', shop: true,
+      { id: 'shopkeep', x: -9, z: 18.5, yaw: -Math.PI / 2, color: [0.4, 0.6, 0.85], name: 'Shopkeeper', shop: true,
         lines: ['Welcome! Spend your rupees on Hearts, Arrows and Bombs.'] },
     ],
     shop: [
