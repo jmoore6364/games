@@ -109,6 +109,10 @@
   <div class="panel stage">
     <h2>Sprite Viewer</h2>
     <canvas id="sprite" width="320" height="320"></canvas>
+    <div class="poses" id="facing">
+      <button data-face="front" class="on">FRONT</button>
+      <button data-face="side">SIDE</button>
+    </div>
     <div class="poses" id="poses">
       <button data-pose="idle" class="on">IDLE</button>
       <button data-pose="waddle">WADDLE</button>
@@ -162,13 +166,13 @@
   <div class="panel">
     <h2>Design Notes</h2>
     <p style="font-size:13px;color:#ccd;line-height:1.6;margin:0">
-      Silhouette-first design: one big circle reads instantly at 16px. Head and body share the same sphere — no neck, no doubt. The striped tail is the only long element, used as a motion flag in the roll animation. Mask and belly patch give the front/back read; feet are two pixels, as nature intended.
+      Silhouette-first design: one big circle reads instantly at 16px. Head and body share the same sphere — no neck, no doubt. True to the reference photo, the tail is a barely-there nub — the rear silhouette stays a clean circle, with a dark saddle of fur over the back. Mask and belly patch give the front/back read; feet are two pixels, as nature intended. In profile the sphere stays put — only the snout, one ear, and the tail change, so front and side frames swap cleanly mid-game.
     </p>
   </div>
 
   <div class="panel wide">
     <h2>Sprite Sheet Strip</h2>
-    <canvas id="strip" width="1280" height="320"></canvas>
+    <canvas id="strip" width="1280" height="640"></canvas>
   </div>
 
 </div>
@@ -247,19 +251,70 @@
     else { px(g, 18, y - 2, 4, 2, PAL.outline); }
   }
 
+  function drawBodySide(g, squish) {
+    // Matched to the reference photo of the real Jimothy: sphere first,
+    // barely any tail, dark saddle over the back, small high-set head.
+    const cy = 18 + squish;
+    // tail: a barely-there nub, low on the rump, tucked against the body
+    px(g, 3, cy + 2, 5, 5, PAL.outline);
+    px(g, 4, cy + 3, 3, 3, PAL.furDark);
+    // body sphere: dark back shading over a lighter front
+    ball(g, 16, cy, 11, PAL.outline);
+    ball(g, 16, cy, 10, PAL.furDark);
+    ball(g, 18, cy + 2, 8, PAL.fur);
+    ball(g, 19, cy + 6, 4, PAL.belly);
+    // ears: far ear peeking over, near ear seated on the head
+    px(g, 11, cy - 11, 3, 3, PAL.outline);
+    px(g, 12, cy - 10, 1, 1, PAL.furDark);
+    px(g, 15, cy - 12, 5, 4, PAL.outline);
+    px(g, 16, cy - 11, 3, 2, PAL.ear);
+    // short snout
+    ball(g, 25, cy - 2, 3, PAL.outline);
+    ball(g, 25, cy - 2, 2, PAL.face);
+    // thin white brow, mask sweeping eye-to-snout, thin cheek stripe
+    px(g, 17, cy - 9, 7, 1, PAL.face);
+    px(g, 15, cy - 8, 10, 4, PAL.mask);
+    px(g, 18, cy - 4, 6, 1, PAL.face);
+    // eye inside the mask
+    px(g, 20, cy - 7, 2, 2, '#fff');
+    px(g, 21, cy - 6, 1, 1, PAL.outline);
+    // nose at snout tip
+    px(g, 26, cy - 3, 2, 2, PAL.nose);
+    return cy;
+  }
+
+  function drawFeetSide(g, phase) {
+    const y = 29;
+    if (phase !== 1) px(g, 9, y, 4, 2, PAL.outline);
+    else px(g, 8, y - 2, 4, 2, PAL.outline);
+    if (phase !== 2) px(g, 19, y, 4, 2, PAL.outline);
+    else px(g, 20, y - 2, 4, 2, PAL.outline);
+  }
+
+  const BODIES = {
+    front: { body: drawBody, feet: drawFeet },
+    side:  { body: drawBodySide, feet: drawFeetSide },
+  };
+
   const POSES = {
-    idle(g, t) {
+    idle(g, t, face) {
+      const b = BODIES[face];
       const bob = (t >> 4) % 2;            // slow 2-frame bob
-      const cy = drawBody(g, bob ? 1 : 0);
-      drawFeet(g, 0);
-      if ((t >> 3) % 8 === 7) px(g, 8, cy - 6, 16, 4, PAL.mask); // blink
+      const cy = b.body(g, bob ? 1 : 0);
+      b.feet(g, 0);
+      if ((t >> 3) % 8 === 7) {            // blink
+        if (face === 'front') px(g, 8, cy - 6, 16, 4, PAL.mask);
+        else px(g, 20, cy - 7, 2, 2, PAL.mask);
+      }
     },
-    waddle(g, t) {
+    waddle(g, t, face) {
+      const b = BODIES[face];
       const f = (t >> 2) % 2;
-      drawBody(g, f ? 1 : 0);
-      drawFeet(g, f ? 1 : 2);
+      b.body(g, f ? 1 : 0);
+      b.feet(g, f ? 1 : 2);
     },
     roll(g, t) {
+      // rolling is a side view by definition — shared by both facings
       // pure sphere + rotating stripe + speedlines
       ball(g, 18, 20, 11, PAL.outline);
       ball(g, 18, 20, 10, PAL.fur);
@@ -273,14 +328,21 @@
       ball(g, 18, 20, 4, PAL.belly);
       px(g, 0, 14, 6, 1, PAL.gold); px(g, 0, 20, 8, 1, PAL.gold); px(g, 0, 26, 5, 1, PAL.gold);
     },
-    snack(g, t) {
-      const cy = drawBody(g, 1);
-      drawFeet(g, 0);
+    snack(g, t, face) {
+      const b = BODIES[face];
+      const cy = b.body(g, 1);
+      b.feet(g, 0);
       const f = (t >> 3) % 2;
       // held snack (golden cookie) + munch crumbs
-      px(g, 22, cy + 2, 4, 4, PAL.gold);
-      px(g, 23, cy + 3, 1, 1, '#c98a04');
-      if (f) { px(g, 26, cy, 1, 1, PAL.gold); px(g, 27, cy + 5, 1, 1, PAL.gold); }
+      if (face === 'front') {
+        px(g, 22, cy + 2, 4, 4, PAL.gold);
+        px(g, 23, cy + 3, 1, 1, '#c98a04');
+        if (f) { px(g, 26, cy, 1, 1, PAL.gold); px(g, 27, cy + 5, 1, 1, PAL.gold); }
+      } else {
+        px(g, 25, cy + 3, 4, 4, PAL.gold);
+        px(g, 26, cy + 4, 1, 1, '#c98a04');
+        if (f) { px(g, 29, cy + 1, 1, 1, PAL.gold); px(g, 30, cy + 6, 1, 1, PAL.gold); }
+      }
     },
   };
 
@@ -291,33 +353,41 @@
   const g = off.getContext('2d');
   ctx.imageSmoothingEnabled = false;
 
-  let pose = 'idle', t = 0;
+  let pose = 'idle', facing = 'front', t = 0;
   document.getElementById('poses').addEventListener('click', e => {
     if (!e.target.dataset.pose) return;
     pose = e.target.dataset.pose;
     for (const b of e.currentTarget.querySelectorAll('button'))
       b.classList.toggle('on', b === e.target);
   });
+  document.getElementById('facing').addEventListener('click', e => {
+    if (!e.target.dataset.face) return;
+    facing = e.target.dataset.face;
+    for (const b of e.currentTarget.querySelectorAll('button'))
+      b.classList.toggle('on', b === e.target);
+  });
 
   function frame() {
     g.clearRect(0, 0, 32, 32);
-    POSES[pose](g, t++);
+    POSES[pose](g, t++, facing);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(off, 0, 0, 32, 32, 0, 0, canvas.width, canvas.height);
     requestAnimationFrame(frame);
   }
   frame();
 
-  // Static sprite-sheet strip: one frame of each pose.
+  // Static sprite-sheet strip: front row, then side row.
   const strip = document.getElementById('strip');
   const sctx = strip.getContext('2d');
   sctx.imageSmoothingEnabled = false;
-  ['idle', 'waddle', 'roll', 'snack'].forEach((p, i) => {
-    g.clearRect(0, 0, 32, 32);
-    POSES[p](g, p === 'waddle' ? 4 : 0);
-    sctx.drawImage(off, 0, 0, 32, 32, i * 320, 0, 320, 320);
-    sctx.strokeStyle = '#222236'; sctx.lineWidth = 4;
-    sctx.strokeRect(i * 320 + 2, 2, 316, 316);
+  ['front', 'side'].forEach((face, row) => {
+    ['idle', 'waddle', 'roll', 'snack'].forEach((p, i) => {
+      g.clearRect(0, 0, 32, 32);
+      POSES[p](g, p === 'waddle' ? 4 : 0, face);
+      sctx.drawImage(off, 0, 0, 32, 32, i * 320, row * 320, 320, 320);
+      sctx.strokeStyle = '#222236'; sctx.lineWidth = 4;
+      sctx.strokeRect(i * 320 + 2, row * 320 + 2, 316, 316);
+    });
   });
 })();
 </script>
