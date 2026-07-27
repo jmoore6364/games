@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<link rel="icon" href="data:,">
+<title>Ocarina of Moore</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0f14; font-family: 'Trebuchet MS', system-ui, sans-serif; color: #f4ecd8; -webkit-user-select: none; user-select: none; touch-action: none; }
+  #wrap { position: fixed; inset: 0; }
+  canvas { display: block; width: 100%; height: 100%; }
+
+  /* HUD */
+  #hud { position: absolute; top: 10px; left: 12px; pointer-events: none; text-shadow: 0 2px 3px #000; }
+  #hearts { display: flex; gap: 3px; margin-bottom: 6px; }
+  .heart { width: 22px; height: 22px; position: relative; }
+  .heart svg { width: 100%; height: 100%; filter: drop-shadow(0 1px 1px #000); }
+  #stats { display: flex; gap: 14px; font-size: 15px; font-weight: bold; align-items: center; }
+  .stat { display: flex; align-items: center; gap: 4px; }
+  .chip { display:inline-block; width:14px; height:14px; border-radius:3px; }
+  #itembox { position:absolute; top:10px; right:120px; width:56px; height:56px; border:3px solid #c9a94e; border-radius:10px; background:rgba(20,26,34,.7); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:bold; text-align:center; pointer-events:none; text-shadow:0 1px 2px #000;}
+  #itembox small{display:block;font-size:10px;opacity:.8;font-weight:normal}
+
+  #minimap { position: absolute; top: 10px; right: 12px; width: 100px; height: 100px; border: 2px solid #c9a94e; border-radius: 8px; background: rgba(10,16,22,.6); }
+
+  #msg { position: absolute; top: 20%; left: 50%; transform: translateX(-50%); font-size: 26px; font-weight: bold; text-align: center; text-shadow: 0 3px 6px #000, 0 0 12px #000; opacity: 0; transition: opacity .3s; pointer-events: none; color:#ffe9a8; }
+  #msg.show { opacity: 1; }
+
+  #keyhint { position: absolute; bottom: 8px; left: 12px; font-size: 12px; line-height: 1.5; opacity: .82; text-shadow: 0 1px 2px #000; pointer-events:none; max-width: 46%; }
+  #keyhint b { color:#ffe08a; }
+
+  #mute { position:absolute; top:120px; right:12px; width:40px;height:40px;border-radius:8px;border:2px solid #c9a94e;background:rgba(20,26,34,.7);color:#f4ecd8;font-size:18px;cursor:pointer; z-index:6;}
+
+  /* overlays */
+  .overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align:center; background: radial-gradient(circle at 50% 40%, rgba(10,20,30,.55), rgba(4,7,10,.9)); z-index: 10; }
+  .overlay.hidden { display: none; }
+  #title h1 { font-size: clamp(34px, 8vw, 78px); color: #ffe08a; text-shadow: 0 4px 0 #6b4b12, 0 0 24px #8a6a1a; letter-spacing: 2px; }
+  #title h2 { font-size: clamp(14px, 3vw, 22px); font-weight: normal; color: #bcd; margin-top: 6px; }
+  #title .play { margin-top: 34px; font-size: 22px; padding: 14px 40px; border: 3px solid #c9a94e; border-radius: 40px; background: rgba(30,50,40,.6); color: #fff; cursor: pointer; animation: pulse 1.6s infinite; }
+  #title .story { margin-top: 26px; max-width: 560px; font-size: 15px; line-height: 1.6; color:#cdd6c8; padding:0 16px;}
+  @keyframes pulse { 50% { transform: scale(1.06); box-shadow: 0 0 22px #c9a94e; } }
+
+  #dialogue { position:absolute; left:50%; bottom: 130px; transform:translateX(-50%); width: min(680px, 92%); background: linear-gradient(180deg, rgba(24,36,54,.96), rgba(14,22,34,.96)); border: 3px solid #c9a94e; border-radius: 14px; padding: 16px 20px; z-index: 9; box-shadow: 0 8px 30px #000; }
+  #dialogue.hidden { display:none; }
+  #dialogue .who { color:#ffe08a; font-weight:bold; margin-bottom:6px; font-size:15px; }
+  #dialogue .txt { font-size: 18px; line-height:1.45; }
+  #dialogue .more { text-align:right; font-size:12px; opacity:.7; margin-top:8px; }
+
+  #shop { z-index: 11; }
+  #shop .panel { background: linear-gradient(180deg, rgba(24,36,54,.97), rgba(14,22,34,.97)); border:3px solid #c9a94e; border-radius:16px; padding:20px 26px; width:min(420px,92%); }
+  #shop h3 { color:#ffe08a; margin-bottom:4px; }
+  #shop .note { font-size:13px; opacity:.85; margin-bottom:14px; }
+  .shopitem { display:flex; justify-content:space-between; padding:10px 14px; border-radius:8px; font-size:16px; }
+  .shopitem.sel { background: rgba(201,169,78,.28); outline:2px solid #ffe08a; }
+  .shopitem .cost { color:#9de29d; font-weight:bold; }
+  #shop .hint { margin-top:14px; font-size:12px; opacity:.7; }
+
+  #endcard h1 { font-size: clamp(30px,7vw,64px); }
+  #endcard .sub { font-size:18px; margin-top:14px; color:#cde; }
+  #endcard .again { margin-top:28px; font-size:18px; padding:12px 32px; border:3px solid #c9a94e; border-radius:30px; background:rgba(30,50,40,.6); color:#fff; cursor:pointer; }
+
+  /* touch controls */
+  #touch { position:absolute; inset:0; z-index: 7; pointer-events:none; display:none; }
+  #touch.on { display:block; }
+  #stickzone { position:absolute; left:0; bottom:0; width:45%; height:60%; pointer-events:none; }
+  #stickbase { position:absolute; width:120px; height:120px; border-radius:50%; border:3px solid rgba(255,255,255,.35); background:rgba(255,255,255,.08); transform:translate(-50%,-50%); display:none; }
+  #stickknob { position:absolute; width:56px; height:56px; border-radius:50%; background:rgba(255,255,255,.5); border:2px solid rgba(255,255,255,.7); transform:translate(-50%,-50%); display:none; }
+  #btns { position:absolute; right:14px; bottom:20px; width:230px; height:230px; pointer-events:none; }
+  .btn { position:absolute; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; color:#fff; text-shadow:0 1px 2px #000; pointer-events:auto; user-select:none; border:3px solid rgba(255,255,255,.5); font-size:13px; }
+  .btn:active { filter:brightness(1.4); }
+  #b_attack { right:6px; bottom:70px; width:78px; height:78px; background:rgba(200,60,50,.72); font-size:15px; }
+  #b_item { right:78px; bottom:16px; width:62px; height:62px; background:rgba(60,110,200,.72); }
+  #b_target { right:90px; bottom:104px; width:60px; height:60px; background:rgba(210,170,50,.75); }
+  #b_roll { right:150px; bottom:44px; width:56px; height:56px; background:rgba(80,170,110,.72); }
+  #b_action { right:16px; bottom:160px; width:56px; height:56px; background:rgba(150,90,190,.75); }
+  #ttop { position:absolute; top:64px; right:12px; display:flex; gap:8px; pointer-events:none; }
+  #tpause { pointer-events:auto; width:40px;height:40px;border-radius:8px;border:2px solid #c9a94e;background:rgba(20,26,34,.7);color:#fff;font-size:16px;}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="c"></canvas>
+
+  <div id="hud">
+    <div id="hearts"></div>
+    <div id="stats">
+      <span class="stat"><span class="chip" style="background:#3ad36b"></span><span id="rupees">0</span></span>
+      <span class="stat">🔑<span id="keys">0</span></span>
+      <span class="stat">➶<span id="arrows">0</span></span>
+      <span class="stat">💣<span id="bombs">0</span></span>
+    </div>
+  </div>
+  <div id="itembox">—</div>
+  <canvas id="minimap" width="100" height="100"></canvas>
+  <button id="mute" title="Mute (M)">🔊</button>
+
+  <div id="msg"></div>
+
+  <div id="keyhint">
+    <b>WASD</b> move · <b>Mouse/Arrows</b> camera · <b>Space</b> sword (hold=spin) · <b>Shift</b> shield · <b>X</b> roll · <b>Z</b> lock-on · <b>Q</b> item · <b>Tab</b> cycle · <b>E</b> talk/open · <b>O</b> ocarina
+  </div>
+
+  <div id="dialogue" class="hidden"><div class="who"></div><div class="txt"></div><div class="more">▶ E / tap to continue</div></div>
+
+  <div id="touch" >
+    <div id="stickzone"></div>
+    <div id="stickbase"></div><div id="stickknob"></div>
+    <div id="btns">
+      <div class="btn" id="b_action">ACT</div>
+      <div class="btn" id="b_target">Z</div>
+      <div class="btn" id="b_attack">SWORD</div>
+      <div class="btn" id="b_roll">ROLL</div>
+      <div class="btn" id="b_item">ITEM</div>
+    </div>
+    <div id="ttop"><button id="tpause">⏸</button></div>
+  </div>
+
+  <div id="title" class="overlay">
+    <h1>Ocarina of Moore</h1>
+    <h2>A Legend of Moore adventure</h2>
+    <div class="story">The Ocarina Gem has been stolen by the beast <b>Gohma-Moore</b>. Cross Hyrule-Moore Field, brave the Deku Dungeon, and bring the relic home to save the village.</div>
+    <button class="play" id="playbtn">▶ Begin Quest</button>
+  </div>
+
+  <div id="shop" class="overlay hidden"><div class="panel">
+    <h3 id="shopname">Shop</h3><div class="note" id="shopnote"></div>
+    <div id="shoplist"></div>
+    <div class="hint">Move: stick/▲▼ · Buy: E/Space · Exit: Z/Esc</div>
+  </div></div>
+
+  <div id="endcard" class="overlay hidden"><h1 id="endtitle"></h1><div class="sub" id="endsub"></div><button class="again" id="againbtn">↺ Play Again</button></div>
+</div>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>

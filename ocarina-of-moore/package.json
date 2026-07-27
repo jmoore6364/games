@@ -1,0 +1,9 @@
+{
+  "name": "ocarina-of-moore",
+  "version": "1.0.0",
+  "description": "Ocarina of Moore — a Legend of Zelda: Ocarina of Time-style 3D action-adventure rendered in WebGL. Vanilla JS ES modules, zero dependencies, all procedural geometry and synthesized audio.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
