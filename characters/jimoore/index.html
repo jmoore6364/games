@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Jimoore the Raccoon — Character Sheet</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='14' font-size='14'%3E%F0%9F%A6%9D%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #101018; --panel: #1a1a28; --panel-hi: #222236;
+    --gold: #f8a800; --teal: #0aa7a0; --muted: #99a; --dim: #667;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh;
+    background: var(--bg); color: #eee;
+    font-family: monospace;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 40px 16px 60px;
+  }
+  h1 {
+    color: var(--gold); letter-spacing: 4px; text-transform: uppercase;
+    text-shadow: 3px 3px 0 #78290c;
+    font-size: clamp(22px, 6vw, 40px);
+    margin: 0 0 6px; text-align: center;
+  }
+  .subtitle { color: var(--muted); font-size: 13px; letter-spacing: 2px; margin: 0 0 28px; text-align: center; }
+  .subtitle b { color: var(--teal); }
+
+  .sheet {
+    width: 100%; max-width: 1000px;
+    display: grid; gap: 16px;
+    grid-template-columns: minmax(280px, 1fr) minmax(280px, 1fr);
+  }
+  @media (max-width: 700px) { .sheet { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: var(--panel); border: 3px solid var(--teal); border-radius: 8px;
+    padding: 18px;
+  }
+  .panel h2 {
+    margin: 0 0 12px; font-size: 14px; letter-spacing: 3px; text-transform: uppercase;
+    color: var(--gold);
+  }
+  .panel.wide { grid-column: 1 / -1; }
+
+  .stage {
+    display: flex; flex-direction: column; align-items: center; gap: 14px;
+  }
+  #sprite {
+    image-rendering: pixelated;
+    background:
+      linear-gradient(#161624 1px, transparent 1px),
+      linear-gradient(90deg, #161624 1px, transparent 1px),
+      #12121e;
+    background-size: 16px 16px;
+    border: 3px solid var(--panel-hi); border-radius: 6px;
+    width: 100%; max-width: 320px; aspect-ratio: 1;
+  }
+  .poses { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .poses button {
+    font-family: monospace; font-size: 13px; letter-spacing: 1px;
+    background: var(--panel-hi); color: #eee; border: 2px solid var(--dim);
+    border-radius: 5px; padding: 8px 14px; cursor: pointer;
+  }
+  .poses button.on { border-color: var(--gold); color: var(--gold); }
+  .poses button:hover { border-color: var(--teal); }
+
+  .bio p { margin: 0 0 10px; line-height: 1.6; font-size: 14px; color: #ccd; }
+  .bio .tag { color: var(--teal); }
+  .vitals { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 10px; }
+  .vitals td { padding: 4px 0; border-bottom: 1px dashed #333348; }
+  .vitals td:first-child { color: var(--muted); width: 42%; }
+
+  .stat { margin-bottom: 10px; }
+  .stat .label { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; }
+  .stat .label b { color: #eee; font-weight: normal; }
+  .stat .label span { color: var(--dim); }
+  .bar { height: 14px; background: #12121e; border: 2px solid var(--panel-hi); border-radius: 4px; overflow: hidden; }
+  .bar i {
+    display: block; height: 100%;
+    background: repeating-linear-gradient(90deg, var(--teal) 0 10px, #0c8d87 10px 14px);
+  }
+  .bar.gold i { background: repeating-linear-gradient(90deg, var(--gold) 0 10px, #c98a04 10px 14px); }
+
+  .move { border-left: 4px solid var(--gold); padding: 6px 0 6px 12px; margin-bottom: 12px; }
+  .move b { color: var(--gold); font-size: 14px; letter-spacing: 1px; }
+  .move .keys { color: var(--teal); font-size: 12px; margin-left: 6px; }
+  .move p { margin: 4px 0 0; font-size: 13px; color: #ccd; line-height: 1.5; }
+
+  .swatches { display: flex; flex-wrap: wrap; gap: 10px; }
+  .swatch { text-align: center; font-size: 11px; color: var(--muted); }
+  .swatch i {
+    display: block; width: 46px; height: 46px; border-radius: 6px;
+    border: 2px solid var(--panel-hi); margin-bottom: 4px;
+  }
+  #strip { image-rendering: pixelated; width: 100%; max-width: 640px; display: block; margin: 0 auto; }
+  .foot { color: var(--dim); font-size: 12px; margin-top: 26px; letter-spacing: 1px; text-align: center; }
+  .foot a { color: var(--teal); }
+</style>
+</head>
+<body>
+
+<h1>Jimoore the Raccoon</h1>
+<p class="subtitle">CHARACTER DESIGN SHEET &nbsp;//&nbsp; inspired by <b>Jimothy</b>, Seattle's famously spherical raccoon</p>
+
+<div class="sheet">
+
+  <div class="panel stage">
+    <h2>Sprite Viewer</h2>
+    <canvas id="sprite" width="320" height="320"></canvas>
+    <div class="poses" id="facing">
+      <button data-face="front" class="on">FRONT</button>
+      <button data-face="side">SIDE</button>
+    </div>
+    <div class="poses" id="poses">
+      <button data-pose="idle" class="on">IDLE</button>
+      <button data-pose="waddle">WADDLE</button>
+      <button data-pose="roll">TRASH ROLL</button>
+      <button data-pose="snack">SNACK</button>
+    </div>
+  </div>
+
+  <div class="panel bio">
+    <h2>Dossier</h2>
+    <p><span class="tag">CLASS:</span> Round Rogue &nbsp;·&nbsp; <span class="tag">ALIGNMENT:</span> Chaotic Snacky</p>
+    <p>Born beneath the boardwalks of Moore Island, Jimoore never grew long — he grew <em>round</em>. What the other raccoons called a flaw, he calls a feature: a perfect sphere has no weak points.</p>
+    <p>Slowest walker in the arcade, fastest roller. He can't jump over a trash can, but he doesn't need to — he bounces off it, bowls through the level, and leaves with the snacks.</p>
+    <table class="vitals">
+      <tr><td>SPECIES</td><td>Procyon lotor (sphere variant)</td></tr>
+      <tr><td>HOME STAGE</td><td>Ballard Back-Alley, Moore Island</td></tr>
+      <tr><td>HEIGHT</td><td>Short. Aggressively short.</td></tr>
+      <tr><td>SHAPE</td><td>Round (canonical)</td></tr>
+      <tr><td>LIKES</td><td>Unattended snacks, official proclamations</td></tr>
+      <tr><td>DISLIKES</td><td>Stairs, being called "chonky" (he prefers "aerodynamic")</td></tr>
+    </table>
+  </div>
+
+  <div class="panel">
+    <h2>Stats</h2>
+    <div class="stat"><div class="label"><b>WADDLE SPEED</b><span>2/10</span></div><div class="bar"><i style="width:20%"></i></div></div>
+    <div class="stat"><div class="label"><b>ROLL SPEED</b><span>10/10</span></div><div class="bar gold"><i style="width:100%"></i></div></div>
+    <div class="stat"><div class="label"><b>JUMP</b><span>1/10</span></div><div class="bar"><i style="width:10%"></i></div></div>
+    <div class="stat"><div class="label"><b>BOUNCE</b><span>9/10</span></div><div class="bar gold"><i style="width:90%"></i></div></div>
+    <div class="stat"><div class="label"><b>DEFENSE</b><span>8/10</span></div><div class="bar"><i style="width:80%"></i></div></div>
+    <div class="stat"><div class="label"><b>CHARM</b><span>10/10</span></div><div class="bar gold"><i style="width:100%"></i></div></div>
+  </div>
+
+  <div class="panel">
+    <h2>Moveset</h2>
+    <div class="move"><b>TRASH ROLL</b><span class="keys">[ HOLD ↓ + → ]</span>
+      <p>Tucks into a perfect sphere and accelerates downhill forever. Breaks crates, bowling-pins enemies, cannot be stopped by conventional means.</p></div>
+    <div class="move"><b>CHONK SLAM</b><span class="keys">[ ↓ IN AIR ]</span>
+      <p>A short hop, then gravity does the rest. Shockwave radius scales with snacks eaten this level.</p></div>
+    <div class="move"><b>LID SHIELD</b><span class="keys">[ HOLD B ]</span>
+      <p>Raises a trash-can lid. Blocks projectiles; reflects them at max CHARM.</p></div>
+    <div class="move"><b>RASCAL BOUNCE</b><span class="keys">[ JUMP ON ENEMY ]</span>
+      <p>He can't jump high, but each bounce off an enemy doubles his height. Chain five for the secret "Washingtonian of the Day" fanfare.</p></div>
+  </div>
+
+  <div class="panel">
+    <h2>Palette</h2>
+    <div class="swatches" id="swatches"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Design Notes</h2>
+    <p style="font-size:13px;color:#ccd;line-height:1.6;margin:0">
+      Silhouette-first design: one big circle reads instantly at 16px. Head and body share the same sphere — no neck, no doubt. True to the reference photo, the tail is a barely-there nub — the rear silhouette stays a clean circle, with a dark saddle of fur over the back. Mask and belly patch give the front/back read; feet are two pixels, as nature intended. In profile the sphere stays put — only the snout, one ear, and the tail change, so front and side frames swap cleanly mid-game.
+    </p>
+  </div>
+
+  <div class="panel wide">
+    <h2>Sprite Sheet Strip</h2>
+    <canvas id="strip" width="1280" height="640"></canvas>
+  </div>
+
+</div>
+
+<p class="foot">MOORE ARCADE R&amp;D DIVISION · concept unit JM-01 "JIMOORE"</p>
+
+<script>
+(() => {
+  // 32x32 logical pixel grid, drawn with rects so everything stays chunky.
+  const PAL = {
+    outline: '#16161c',
+    fur:     '#8a8f98',
+    furDark: '#6d727c',
+    belly:   '#c8ccd4',
+    face:    '#eef0f4',
+    mask:    '#23232c',
+    nose:    '#101014',
+    ear:     '#e8a0a0',
+    gold:    '#f8a800',
+  };
+
+  const swatchBox = document.getElementById('swatches');
+  for (const [name, hex] of Object.entries(PAL)) {
+    const d = document.createElement('div');
+    d.className = 'swatch';
+    d.innerHTML = `<i style="background:${hex}"></i>${name}<br>${hex}`;
+    swatchBox.appendChild(d);
+  }
+
+  function px(g, x, y, w, h, c) { g.fillStyle = c; g.fillRect(x, y, w, h); }
+
+  // Filled circle on the pixel grid (midpoint-ish scanline).
+  function ball(g, cx, cy, r, c) {
+    for (let y = -r; y <= r; y++) {
+      const w = Math.floor(Math.sqrt(r * r - y * y) + 0.5);
+      px(g, cx - w, cy + y, w * 2 + 1, 1, c);
+    }
+  }
+
+  function drawBody(g, squish) {
+    // squish: 0 = round, positive = flattened (landing), negative = stretched
+    const cy = 18 + squish;
+    // stubby ringed tail poking out lower-left
+    px(g, 1, cy - 1, 5, 6, PAL.outline);
+    px(g, 2, cy, 3, 4, PAL.furDark);
+    px(g, 2, cy + 1, 3, 1, PAL.mask);
+    px(g, 2, cy + 3, 3, 1, PAL.mask);
+    // body sphere w/ outline
+    ball(g, 16, cy, 11, PAL.outline);
+    ball(g, 16, cy, 10, PAL.fur);
+    // belly patch (kept clear of the face)
+    ball(g, 16, cy + 6, 4, PAL.belly);
+    // ears
+    px(g, 8, cy - 12, 4, 4, PAL.outline);  px(g, 9, cy - 11, 2, 2, PAL.ear);
+    px(g, 20, cy - 12, 4, 4, PAL.outline); px(g, 21, cy - 11, 2, 2, PAL.ear);
+    // white cheeks + muzzle under the mask; forehead stays gray
+    ball(g, 16, cy + 1, 5, PAL.face);
+    px(g, 9, cy - 2, 3, 3, PAL.face);
+    px(g, 20, cy - 2, 3, 3, PAL.face);
+    // mask band
+    px(g, 8, cy - 6, 16, 4, PAL.mask);
+    // eyes
+    px(g, 11, cy - 5, 2, 2, '#fff'); px(g, 19, cy - 5, 2, 2, '#fff');
+    px(g, 12, cy - 4, 1, 1, PAL.outline); px(g, 19, cy - 4, 1, 1, PAL.outline);
+    // nose
+    px(g, 15, cy - 1, 2, 2, PAL.nose);
+    return cy;
+  }
+
+  function drawFeet(g, phase) {
+    // phase 0: both down; 1: left up; 2: right up
+    const y = 29;
+    if (phase !== 1) { px(g, 10, y, 4, 2, PAL.outline); }
+    else { px(g, 10, y - 2, 4, 2, PAL.outline); }
+    if (phase !== 2) { px(g, 18, y, 4, 2, PAL.outline); }
+    else { px(g, 18, y - 2, 4, 2, PAL.outline); }
+  }
+
+  function drawBodySide(g, squish) {
+    // Matched to the reference photo of the real Jimothy: sphere first,
+    // barely any tail, dark saddle over the back, small high-set head.
+    const cy = 18 + squish;
+    // tail: a barely-there nub, low on the rump, tucked against the body
+    px(g, 3, cy + 2, 5, 5, PAL.outline);
+    px(g, 4, cy + 3, 3, 3, PAL.furDark);
+    // body sphere: dark back shading over a lighter front
+    ball(g, 16, cy, 11, PAL.outline);
+    ball(g, 16, cy, 10, PAL.furDark);
+    ball(g, 18, cy + 2, 8, PAL.fur);
+    ball(g, 19, cy + 6, 4, PAL.belly);
+    // ears: far ear peeking over, near ear seated on the head
+    px(g, 11, cy - 11, 3, 3, PAL.outline);
+    px(g, 12, cy - 10, 1, 1, PAL.furDark);
+    px(g, 15, cy - 12, 5, 4, PAL.outline);
+    px(g, 16, cy - 11, 3, 2, PAL.ear);
+    // short snout
+    ball(g, 25, cy - 2, 3, PAL.outline);
+    ball(g, 25, cy - 2, 2, PAL.face);
+    // thin white brow, mask sweeping eye-to-snout, thin cheek stripe
+    px(g, 17, cy - 9, 7, 1, PAL.face);
+    px(g, 15, cy - 8, 10, 4, PAL.mask);
+    px(g, 18, cy - 4, 6, 1, PAL.face);
+    // eye inside the mask
+    px(g, 20, cy - 7, 2, 2, '#fff');
+    px(g, 21, cy - 6, 1, 1, PAL.outline);
+    // nose at snout tip
+    px(g, 26, cy - 3, 2, 2, PAL.nose);
+    return cy;
+  }
+
+  function drawFeetSide(g, phase) {
+    const y = 29;
+    if (phase !== 1) px(g, 9, y, 4, 2, PAL.outline);
+    else px(g, 8, y - 2, 4, 2, PAL.outline);
+    if (phase !== 2) px(g, 19, y, 4, 2, PAL.outline);
+    else px(g, 20, y - 2, 4, 2, PAL.outline);
+  }
+
+  const BODIES = {
+    front: { body: drawBody, feet: drawFeet },
+    side:  { body: drawBodySide, feet: drawFeetSide },
+  };
+
+  const POSES = {
+    idle(g, t, face) {
+      const b = BODIES[face];
+      const bob = (t >> 4) % 2;            // slow 2-frame bob
+      const cy = b.body(g, bob ? 1 : 0);
+      b.feet(g, 0);
+      if ((t >> 3) % 8 === 7) {            // blink
+        if (face === 'front') px(g, 8, cy - 6, 16, 4, PAL.mask);
+        else px(g, 20, cy - 7, 2, 2, PAL.mask);
+      }
+    },
+    waddle(g, t, face) {
+      const b = BODIES[face];
+      const f = (t >> 2) % 2;
+      b.body(g, f ? 1 : 0);
+      b.feet(g, f ? 1 : 2);
+    },
+    roll(g, t) {
+      // rolling is a side view by definition — shared by both facings
+      // pure sphere + rotating stripe + speedlines
+      ball(g, 18, 20, 11, PAL.outline);
+      ball(g, 18, 20, 10, PAL.fur);
+      const a = (t / 4) % (Math.PI * 2);
+      for (let i = 0; i < 3; i++) {
+        const ang = a + i * (Math.PI * 2 / 3);
+        const sx = Math.round(18 + Math.cos(ang) * 6);
+        const sy = Math.round(20 + Math.sin(ang) * 6);
+        px(g, sx - 1, sy - 1, 3, 3, PAL.mask);
+      }
+      ball(g, 18, 20, 4, PAL.belly);
+      px(g, 0, 14, 6, 1, PAL.gold); px(g, 0, 20, 8, 1, PAL.gold); px(g, 0, 26, 5, 1, PAL.gold);
+    },
+    snack(g, t, face) {
+      const b = BODIES[face];
+      const cy = b.body(g, 1);
+      b.feet(g, 0);
+      const f = (t >> 3) % 2;
+      // held snack (golden cookie) + munch crumbs
+      if (face === 'front') {
+        px(g, 22, cy + 2, 4, 4, PAL.gold);
+        px(g, 23, cy + 3, 1, 1, '#c98a04');
+        if (f) { px(g, 26, cy, 1, 1, PAL.gold); px(g, 27, cy + 5, 1, 1, PAL.gold); }
+      } else {
+        px(g, 25, cy + 3, 4, 4, PAL.gold);
+        px(g, 26, cy + 4, 1, 1, '#c98a04');
+        if (f) { px(g, 29, cy + 1, 1, 1, PAL.gold); px(g, 30, cy + 6, 1, 1, PAL.gold); }
+      }
+    },
+  };
+
+  const canvas = document.getElementById('sprite');
+  const ctx = canvas.getContext('2d');
+  const off = document.createElement('canvas');
+  off.width = off.height = 32;
+  const g = off.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+
+  let pose = 'idle', facing = 'front', t = 0;
+  document.getElementById('poses').addEventListener('click', e => {
+    if (!e.target.dataset.pose) return;
+    pose = e.target.dataset.pose;
+    for (const b of e.currentTarget.querySelectorAll('button'))
+      b.classList.toggle('on', b === e.target);
+  });
+  document.getElementById('facing').addEventListener('click', e => {
+    if (!e.target.dataset.face) return;
+    facing = e.target.dataset.face;
+    for (const b of e.currentTarget.querySelectorAll('button'))
+      b.classList.toggle('on', b === e.target);
+  });
+
+  function frame() {
+    g.clearRect(0, 0, 32, 32);
+    POSES[pose](g, t++, facing);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(off, 0, 0, 32, 32, 0, 0, canvas.width, canvas.height);
+    requestAnimationFrame(frame);
+  }
+  frame();
+
+  // Static sprite-sheet strip: front row, then side row.
+  const strip = document.getElementById('strip');
+  const sctx = strip.getContext('2d');
+  sctx.imageSmoothingEnabled = false;
+  ['front', 'side'].forEach((face, row) => {
+    ['idle', 'waddle', 'roll', 'snack'].forEach((p, i) => {
+      g.clearRect(0, 0, 32, 32);
+      POSES[p](g, p === 'waddle' ? 4 : 0, face);
+      sctx.drawImage(off, 0, 0, 32, 32, i * 320, row * 320, 320, 320);
+      sctx.strokeStyle = '#222236'; sctx.lineWidth = 4;
+      sctx.strokeRect(i * 320 + 2, row * 320 + 2, 316, 316);
+    });
+  });
+})();
+</script>
+
+</body>
+</html>
