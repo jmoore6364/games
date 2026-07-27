@@ -1,0 +1,9 @@
+{
+  "name": "jimoore",
+  "version": "0.1.0",
+  "description": "Jimoore: Trash Bandit — top-down stealth-arcade starring a very round raccoon, vanilla JS + canvas",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
