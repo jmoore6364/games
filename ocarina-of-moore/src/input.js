@@ -72,7 +72,7 @@ export class Input {
     window.addEventListener('mousemove', (e) => {
       if (!dragging) return;
       this.camDX += (e.clientX - lx) * 0.01;
-      this.camDY += (e.clientY - ly) * 0.008;
+      this.camDY += (e.clientY - ly) * 0.012;
       lx = e.clientX; ly = e.clientY;
     });
   }
@@ -108,7 +108,7 @@ export class Input {
           this._stickVec = { x: Math.max(-1, Math.min(1, dx / R)), y: Math.max(-1, Math.min(1, -dy / R)) };
         } else if (t.identifier === this._camId) {
           this.camDX += (t.clientX - this._camLast.x) * 0.011;
-          this.camDY += (t.clientY - this._camLast.y) * 0.009;
+          this.camDY += (t.clientY - this._camLast.y) * 0.014;
           this._camLast = { x: t.clientX, y: t.clientY };
         }
       }
