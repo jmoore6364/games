@@ -827,19 +827,25 @@ export class Game {
       cam.pitch = clamp(cam.pitch + cd.dy, 0.15, 0.9);
     } else {
       // Dragging is FREE-LOOK: it adds a temporary offset (cam.look) that does NOT
-      // steer movement, so you can look around while walking. On release it eases
-      // back to 0 and the camera returns behind you.
+      // steer movement. Auto-follow and the return-to-behind only happen while you
+      // are WALKING; standing still keeps the camera exactly where you left it.
       cam.look += cd.dx;
       cam.pitch = clamp(cam.pitch + cd.dy, 0.12, 1.1);
       const mv = this.input.move;
+      const mag = Math.hypot(mv.x, mv.y);
+      const moving = mag > 0.2;
       const dragging = Math.abs(cd.dx) > 1e-4 || Math.abs(cd.dy) > 1e-4;
       this._camIdle = dragging ? 0 : (this._camIdle || 0) + dt;
+      // The moment you start walking, fold a standing free-look into the chassis so
+      // you head where you were looking (seamless: base+look is unchanged).
+      if (moving && !this._wasMoving) { cam.base += cam.look; cam.look = 0; }
+      this._wasMoving = moving;
       // Auto-follow: swing the chassis behind the direction of travel when moving forward.
-      if (this._camIdle > 0.4 && mv.y > 0.2) {
+      if (moving && this._camIdle > 0.4 && mv.y > 0.2) {
         cam.base = angLerp(cam.base, p.yaw, Math.min(1, dt * 2.5));
       }
-      // Free-look return: after the drag stops, ease the look offset back to zero.
-      if (!dragging && this._camIdle > 0.35) {
+      // Return-to-behind: only while walking, after the drag stops, ease look to 0.
+      if (moving && !dragging && this._camIdle > 0.35) {
         cam.look = lerp(cam.look, 0, Math.min(1, dt * 3));
         if (Math.abs(cam.look) < 0.002) cam.look = 0;
       }
