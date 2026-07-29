@@ -50,7 +50,10 @@ export class Game {
       atk: 0, atkType: 'slash', charge: 0, spinReady: false,
       roll: 0, rollDir: [1, 0], rollCd: 0, blocking: false, anim: 0, dead: false,
     };
-    this.cam = { yaw: Math.PI / 2, pitch: 0.5, dist: 8, curYaw: Math.PI / 2, curPitch: 0.5, eye: [0, 5, 12], target: [0, 1, 0] };
+    // base = chassis yaw the camera trails behind (movement is relative to this);
+    // look = temporary free-look offset from dragging, decays back to 0 on release;
+    // curFrac = smoothed occlusion distance fraction (1 = full distance).
+    this.cam = { base: Math.PI / 2, look: 0, pitch: 0.5, dist: 8, curYaw: Math.PI / 2, curPitch: 0.5, curFrac: 1, eye: [0, 5, 12], target: [0, 1, 0] };
     this.lock = null;          // locked enemy/boss ref
     this.enemies = []; this.projectiles = []; this.pickups = []; this.effects = [];
     this.dyn = null;           // dynamic dungeon object state
@@ -84,7 +87,7 @@ export class Game {
     this.player.x = s.x; this.player.z = s.z; this.player.y = 0; this.player.yaw = s.yaw;
     // Camera sits BEHIND the player looking forward: eye = player - dir(camYaw)*dist,
     // so camYaw must equal the player's facing (not the opposite).
-    this.cam.yaw = s.yaw; this.cam.curYaw = this.cam.yaw;
+    this.cam.base = s.yaw; this.cam.look = 0; this.cam.curYaw = s.yaw; this.cam.curFrac = 1;
     this.audio.setTrack(name === 'dungeon' ? 'dungeon' : name === 'village' ? 'village' : 'overworld');
   }
 
@@ -355,8 +358,9 @@ export class Game {
 
     const mv = inp.move;
     const mag = Math.hypot(mv.x, mv.y);
-    // camera basis
-    const cy = this.cam.curYaw;
+    // camera basis — relative to the chassis yaw (base), NOT the free-look offset,
+    // so looking around with the camera doesn't steer where you walk.
+    const cy = this.cam.base;
     const fwd = [Math.cos(cy), Math.sin(cy)];
     const right = [Math.cos(cy + Math.PI / 2), Math.sin(cy + Math.PI / 2)];
     let wx = 0, wz = 0;
@@ -819,36 +823,45 @@ export class Game {
     const cd = this.input.camDelta();
     if (this.lock && this.lock && !this.lock.dead) {
       const tx = this.lock.x - p.x, tz = this.lock.z - p.z;
-      const desired = Math.atan2(tz, tx);
-      cam.yaw = desired;
+      cam.base = Math.atan2(tz, tx); cam.look = 0;
       cam.pitch = clamp(cam.pitch + cd.dy, 0.15, 0.9);
     } else {
-      cam.yaw += cd.dx;
+      // Dragging is FREE-LOOK: it adds a temporary offset (cam.look) that does NOT
+      // steer movement, so you can look around while walking. On release it eases
+      // back to 0 and the camera returns behind you.
+      cam.look += cd.dx;
       cam.pitch = clamp(cam.pitch + cd.dy, 0.12, 1.1);
-      // Auto-follow: once the camera's been left alone briefly, gently swing it to
-      // trail behind the hero's direction of travel (OoT-style recenter). Dragging
-      // the camera (or arrow-key look) pauses it so you can still look around.
       const mv = this.input.move;
       const dragging = Math.abs(cd.dx) > 1e-4 || Math.abs(cd.dy) > 1e-4;
       this._camIdle = dragging ? 0 : (this._camIdle || 0) + dt;
-      // only trail when moving forward-ish, so pure strafing/backing doesn't spin it
-      if (this._camIdle > 0.5 && mv.y > 0.2) {
-        cam.yaw = angLerp(cam.yaw, p.yaw, Math.min(1, dt * 2.5));
+      // Auto-follow: swing the chassis behind the direction of travel when moving forward.
+      if (this._camIdle > 0.4 && mv.y > 0.2) {
+        cam.base = angLerp(cam.base, p.yaw, Math.min(1, dt * 2.5));
+      }
+      // Free-look return: after the drag stops, ease the look offset back to zero.
+      if (!dragging && this._camIdle > 0.35) {
+        cam.look = lerp(cam.look, 0, Math.min(1, dt * 3));
+        if (Math.abs(cam.look) < 0.002) cam.look = 0;
       }
     }
-    cam.curYaw = angLerp(cam.curYaw, cam.yaw, this.lock ? 0.12 : 0.15);
+    cam.curYaw = angLerp(cam.curYaw, cam.base + cam.look, this.lock ? 0.15 : 0.2);
     cam.curPitch = lerp(cam.curPitch, cam.pitch, 0.15);
 
     const cy = cam.curYaw, cp = cam.curPitch;
     const dist = cam.dist;
-    let ex = p.x - Math.cos(cy) * Math.cos(cp) * dist;
-    let ez = p.z - Math.sin(cy) * Math.cos(cp) * dist;
-    let ey = p.y + 2.2 + Math.sin(cp) * dist;
-    // keep the view clear: if a building is between the hero and the camera,
-    // pull the camera IN along the view ray to just in front of it (rather than
-    // shoving it sideways, which made it jump around near buildings).
-    const cc = this._camCollide(p.x, p.z, ex, ez);
-    ex = cc.x; ez = cc.z;
+    const hx = -Math.cos(cy) * Math.cos(cp), hz = -Math.sin(cy) * Math.cos(cp); // horiz eye offset (len = cos pitch)
+    const exFull = p.x + hx * dist, ezFull = p.z + hz * dist;
+    // Occlusion: how far along the ray we can go before a building blocks it (0..1).
+    const cc = this._camCollide(p.x, p.z, exFull, ezFull);
+    const hlen = Math.hypot(hx, hz) * dist || 1;
+    const desiredFrac = clamp(Math.hypot(cc.x - p.x, cc.z - p.z) / hlen, 0.12, 1);
+    // Smooth the distance: pull IN instantly (never clip through a wall) but ease
+    // OUT slowly so the camera doesn't pop when you clear a building.
+    if (desiredFrac < cam.curFrac) cam.curFrac = desiredFrac;
+    else cam.curFrac = lerp(cam.curFrac, desiredFrac, Math.min(1, dt * 3));
+    const f = cam.curFrac;
+    const ex = p.x + hx * dist * f, ez = p.z + hz * dist * f;
+    const ey = p.y + 2.2 + Math.sin(cp) * dist * f;
     cam.eye = [ex, ey, ez];
     // look target: between player and lock
     let tx = p.x, ty = p.y + 1.3, tz = p.z;
