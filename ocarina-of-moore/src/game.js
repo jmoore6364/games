@@ -799,6 +799,16 @@ export class Game {
     } else {
       cam.yaw += cd.dx;
       cam.pitch = clamp(cam.pitch + cd.dy, 0.12, 1.1);
+      // Auto-follow: once the camera's been left alone briefly, gently swing it to
+      // trail behind the hero's direction of travel (OoT-style recenter). Dragging
+      // the camera (or arrow-key look) pauses it so you can still look around.
+      const mv = this.input.move;
+      const dragging = Math.abs(cd.dx) > 1e-4 || Math.abs(cd.dy) > 1e-4;
+      this._camIdle = dragging ? 0 : (this._camIdle || 0) + dt;
+      // only trail when moving forward-ish, so pure strafing/backing doesn't spin it
+      if (this._camIdle > 0.5 && mv.y > 0.2) {
+        cam.yaw = angLerp(cam.yaw, p.yaw, Math.min(1, dt * 2.5));
+      }
     }
     cam.curYaw = angLerp(cam.curYaw, cam.yaw, this.lock ? 0.12 : 0.15);
     cam.curPitch = lerp(cam.curPitch, cam.pitch, 0.15);
