@@ -171,6 +171,32 @@ export class Game {
   }
 
   // resolve a circle against colliders; returns {x,z, pushBlock?}
+  // Third-person camera occlusion: march the ray from the hero (px,pz) out to the
+  // desired eye (ex,ez); if it passes into a building/wall box collider, return a
+  // point just before it so the camera pulls in instead of clipping behind walls.
+  // Only box colliders count (buildings, fences) — small round props (trees, rocks)
+  // are ignored so the camera doesn't snap in near every bush.
+  _camCollide(px, pz, ex, ez) {
+    const dx = ex - px, dz = ez - pz;
+    const full = Math.hypot(dx, dz);
+    if (full < 0.001) return { x: ex, z: ez };
+    const margin = 0.5, steps = 20;
+    let tHit = 1;
+    for (const c of (this.cur.colliders || [])) {
+      if (c.x0 == null) continue; // boxes only
+      for (let i = 1; i <= steps; i++) {
+        const t = i / steps;
+        if (t >= tHit) break;
+        const x = px + dx * t, z = pz + dz * t;
+        if (x > c.x0 - margin && x < c.x1 + margin && z > c.z0 - margin && z < c.z1 + margin) {
+          tHit = Math.max(0.12, t - 1 / steps);
+          break;
+        }
+      }
+    }
+    return { x: px + dx * tHit, z: pz + dz * tHit };
+  }
+
   _resolve(x, z, r, colliders, allowPush) {
     for (let iter = 0; iter < 2; iter++) {
       for (const c of colliders) {
@@ -818,9 +844,11 @@ export class Game {
     let ex = p.x - Math.cos(cy) * Math.cos(cp) * dist;
     let ez = p.z - Math.sin(cy) * Math.cos(cp) * dist;
     let ey = p.y + 2.2 + Math.sin(cp) * dist;
-    // keep camera out of walls (pull in if blocked)
-    const res = this._resolve(ex, ez, 0.6, this.cur.colliders, false);
-    ex = res.x; ez = res.z;
+    // keep the view clear: if a building is between the hero and the camera,
+    // pull the camera IN along the view ray to just in front of it (rather than
+    // shoving it sideways, which made it jump around near buildings).
+    const cc = this._camCollide(p.x, p.z, ex, ez);
+    ex = cc.x; ez = cc.z;
     cam.eye = [ex, ey, ez];
     // look target: between player and lock
     let tx = p.x, ty = p.y + 1.3, tz = p.z;
