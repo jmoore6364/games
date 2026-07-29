@@ -824,13 +824,13 @@ export class Game {
     if (this.lock && this.lock && !this.lock.dead) {
       const tx = this.lock.x - p.x, tz = this.lock.z - p.z;
       cam.base = Math.atan2(tz, tx); cam.look = 0;
-      cam.pitch = clamp(cam.pitch + cd.dy, 0.15, 0.9);
+      cam.pitch = clamp(cam.pitch + cd.dy, 0.08, 1.15);
     } else {
       // Dragging is FREE-LOOK: it adds a temporary offset (cam.look) that does NOT
       // steer movement. Auto-follow and the return-to-behind only happen while you
       // are WALKING; standing still keeps the camera exactly where you left it.
       cam.look += cd.dx;
-      cam.pitch = clamp(cam.pitch + cd.dy, 0.12, 1.1);
+      cam.pitch = clamp(cam.pitch + cd.dy, 0.05, 1.3);
       const mv = this.input.move;
       const mag = Math.hypot(mv.x, mv.y);
       const moving = mag > 0.2;
