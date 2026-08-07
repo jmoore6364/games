@@ -64,8 +64,10 @@
   #touch { position:absolute; inset:0; z-index: 7; pointer-events:none; display:none; }
   #touch.on { display:block; }
   #stickzone { position:absolute; left:0; bottom:0; width:45%; height:60%; pointer-events:none; }
-  #stickbase { position:absolute; width:120px; height:120px; border-radius:50%; border:3px solid rgba(255,255,255,.35); background:rgba(255,255,255,.08); transform:translate(-50%,-50%); display:none; }
-  #stickknob { position:absolute; width:56px; height:56px; border-radius:50%; background:rgba(255,255,255,.5); border:2px solid rgba(255,255,255,.7); transform:translate(-50%,-50%); display:none; }
+  #stickbase, #stick2base { position:absolute; width:120px; height:120px; border-radius:50%; border:3px solid rgba(255,255,255,.35); background:rgba(255,255,255,.08); transform:translate(-50%,-50%); display:none; }
+  #stickknob, #stick2knob { position:absolute; width:56px; height:56px; border-radius:50%; background:rgba(255,255,255,.5); border:2px solid rgba(255,255,255,.7); transform:translate(-50%,-50%); display:none; }
+  #stick2base { border-color:rgba(140,200,255,.4); background:rgba(140,200,255,.08); }
+  #stick2knob { background:rgba(140,200,255,.5); border-color:rgba(140,200,255,.7); }
   #btns { position:absolute; right:14px; bottom:20px; width:230px; height:230px; pointer-events:none; }
   .btn { position:absolute; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; color:#fff; text-shadow:0 1px 2px #000; pointer-events:auto; user-select:none; border:3px solid rgba(255,255,255,.5); font-size:13px; }
   .btn:active { filter:brightness(1.4); }
@@ -98,7 +100,7 @@
   <div id="msg"></div>
 
   <div id="keyhint">
-    <b>WASD</b> move · <b>Mouse/Arrows</b> camera · <b>Space</b> sword (hold=spin) · <b>Shift</b> shield · <b>X</b> roll · <b>Z</b> lock-on · <b>Q</b> item · <b>Tab</b> cycle · <b>E</b> talk/open · <b>O</b> ocarina
+    <b>W/S</b> forward/back · <b>A/D</b> strafe · <b>Mouse/Arrows</b> turn &amp; look · <b>Space</b> sword (hold=spin) · <b>Shift</b> shield · <b>X</b> roll · <b>Z</b> lock-on · <b>Q</b> item · <b>Tab</b> cycle · <b>E</b> talk/open · <b>O</b> ocarina
   </div>
 
   <div id="dialogue" class="hidden"><div class="who"></div><div class="txt"></div><div class="more">▶ E / tap to continue</div></div>
@@ -106,6 +108,7 @@
   <div id="touch" >
     <div id="stickzone"></div>
     <div id="stickbase"></div><div id="stickknob"></div>
+    <div id="stick2base"></div><div id="stick2knob"></div>
     <div id="btns">
       <div class="btn" id="b_action">ACT</div>
       <div class="btn" id="b_target">Z</div>
