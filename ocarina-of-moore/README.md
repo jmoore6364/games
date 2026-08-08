@@ -37,9 +37,13 @@ Open the URL and press **Begin Quest**.
 
 ## Controls
 
+Dual-stick scheme: the **left stick** (or WASD) moves — forward/back and
+strafe — while the **right stick** (or mouse/arrows) turns you and looks
+up/down. Your character always faces where the camera points.
+
 **Keyboard / mouse**
-- **WASD** — move (camera-relative)
-- **Mouse drag / Arrow keys** — rotate camera
+- **W/S** — forward / back · **A/D** — strafe left / right
+- **Mouse drag / Arrow keys** — turn and look up/down
 - **Space** — sword slash (*hold to charge, release for a spin attack*)
 - **Shift** — raise shield / block (deflects melee when facing the attacker)
 - **X** — roll / dodge (brief i-frames)
@@ -49,8 +53,9 @@ Open the URL and press **Begin Quest**.
 - **O** — play the ocarina motif · **M** — mute · **P / Esc** — pause
 
 **Touch (phones)** — auto-detected
-- Left half: floating **analog stick** (deadzone + ease-in response curve).
-- Right half: **drag to rotate the camera**.
+- Left half: floating **move stick** — forward/back and strafe (deadzone +
+  ease-in response curve).
+- Right half: floating **camera stick** — turn left/right, look up/down.
 - Bottom-right buttons: **SWORD · ITEM · Z (target) · ROLL · ACT**.
 
 ## Signature mechanic — Z-targeting

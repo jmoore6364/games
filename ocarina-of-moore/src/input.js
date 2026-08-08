@@ -1,8 +1,8 @@
 // input.js — unified keyboard / mouse / touch input.
 // Exposes a per-frame movement vector (camera-relative applied by the game),
 // accumulated camera-rotation deltas, and edge/held button queries. Touch adds
-// a floating analog stick (left half) with a response curve, camera drag (right
-// half) and virtual action buttons wired from the DOM.
+// dual floating analog sticks with a response curve — left = move/strafe,
+// right = turn + look up/down — and virtual action buttons wired from the DOM.
 
 export const IS_TOUCH = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 
@@ -79,12 +79,17 @@ export class Input {
 
   _bindTouch() {
     const c = this.canvas;
-    this._stickId = null; this._camId = null;
+    this._stickId = null; this._stick2Id = null;
     this._stickOrigin = { x: 0, y: 0 };
     this._stickVec = { x: 0, y: 0 };
     this.stickActive = false;
+    this._stick2Origin = { x: 0, y: 0 };
+    this._stick2Vec = { x: 0, y: 0 };
+    this.stick2Active = false;
 
     const half = () => window.innerWidth / 2;
+    const R = 55;
+    const clampVec = (dx, dy) => ({ x: Math.max(-1, Math.min(1, dx / R)), y: Math.max(-1, Math.min(1, -dy / R)) });
 
     c.addEventListener('touchstart', (e) => {
       for (const t of e.changedTouches) {
@@ -92,9 +97,10 @@ export class Input {
           this._stickId = t.identifier;
           this._stickOrigin = { x: t.clientX, y: t.clientY };
           this.stickActive = true;
-        } else if (t.clientX >= half() && this._camId === null) {
-          this._camId = t.identifier;
-          this._camLast = { x: t.clientX, y: t.clientY };
+        } else if (t.clientX >= half() && this._stick2Id === null) {
+          this._stick2Id = t.identifier;
+          this._stick2Origin = { x: t.clientX, y: t.clientY };
+          this.stick2Active = true;
         }
       }
       e.preventDefault();
@@ -103,13 +109,9 @@ export class Input {
     c.addEventListener('touchmove', (e) => {
       for (const t of e.changedTouches) {
         if (t.identifier === this._stickId) {
-          const dx = t.clientX - this._stickOrigin.x, dy = t.clientY - this._stickOrigin.y;
-          const R = 55;
-          this._stickVec = { x: Math.max(-1, Math.min(1, dx / R)), y: Math.max(-1, Math.min(1, -dy / R)) };
-        } else if (t.identifier === this._camId) {
-          this.camDX += (t.clientX - this._camLast.x) * 0.011;
-          this.camDY += (t.clientY - this._camLast.y) * 0.014;
-          this._camLast = { x: t.clientX, y: t.clientY };
+          this._stickVec = clampVec(t.clientX - this._stickOrigin.x, t.clientY - this._stickOrigin.y);
+        } else if (t.identifier === this._stick2Id) {
+          this._stick2Vec = clampVec(t.clientX - this._stick2Origin.x, t.clientY - this._stick2Origin.y);
         }
       }
       e.preventDefault();
@@ -118,7 +120,7 @@ export class Input {
     const end = (e) => {
       for (const t of e.changedTouches) {
         if (t.identifier === this._stickId) { this._stickId = null; this._stickVec = { x: 0, y: 0 }; this.stickActive = false; }
-        if (t.identifier === this._camId) this._camId = null;
+        if (t.identifier === this._stick2Id) { this._stick2Id = null; this._stick2Vec = { x: 0, y: 0 }; this.stick2Active = false; }
       }
     };
     c.addEventListener('touchend', end);
@@ -161,6 +163,13 @@ export class Input {
     if (this._cam.camR) this.camDX += 0.045;
     if (this._cam.camU) this.camDY -= 0.03;
     if (this._cam.camD) this.camDY += 0.03;
+
+    // right stick: rate-based turn (x) and look up/down (y), stick up = look up
+    if (IS_TOUCH && this.stick2Active) {
+      const c = Input.curve(this._stick2Vec.x, this._stick2Vec.y);
+      this.camDX += c.x * 0.055;
+      this.camDY -= c.y * 0.035;
+    }
   }
 
   // consume accumulated camera delta
@@ -185,5 +194,9 @@ export class Input {
 
   stickInfo() {
     return { active: this.stickActive, origin: this._stickOrigin, vec: this._stickVec };
+  }
+
+  stick2Info() {
+    return { active: this.stick2Active, origin: this._stick2Origin, vec: this._stick2Vec };
   }
 }

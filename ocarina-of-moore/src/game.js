@@ -50,8 +50,9 @@ export class Game {
       atk: 0, atkType: 'slash', charge: 0, spinReady: false,
       roll: 0, rollDir: [1, 0], rollCd: 0, blocking: false, anim: 0, dead: false,
     };
-    // base = chassis yaw the camera trails behind (movement is relative to this);
-    // look = temporary free-look offset from dragging, decays back to 0 on release;
+    // base = chassis yaw, steered directly by the right stick / drag / arrows
+    // (movement strafes relative to this and the character faces along it);
+    // look = extra yaw offset, only used transiently around lock-on;
     // curFrac = smoothed occlusion distance fraction (1 = full distance).
     this.cam = { base: Math.PI / 2, look: 0, pitch: 0.5, dist: 8, curYaw: Math.PI / 2, curPitch: 0.5, curFrac: 1, eye: [0, 5, 12], target: [0, 1, 0] };
     this.lock = null;          // locked enemy/boss ref
@@ -374,9 +375,11 @@ export class Game {
       wz = tf[1] * mv.y + tr[1] * mv.x;
       p.yaw = Math.atan2(tf[1], tf[0]);
     } else {
+      // dual-stick: left stick strafes relative to the camera; the character
+      // always faces where the camera (right stick) points.
       wx = fwd[0] * mv.y + right[0] * mv.x;
       wz = fwd[1] * mv.y + right[1] * mv.x;
-      if (mag > 0.05) p.yaw = Math.atan2(wz, wx);
+      p.yaw = cy;
     }
     let speed = 6.2;
     if (p.blocking) speed = 2.2;
@@ -826,29 +829,11 @@ export class Game {
       cam.base = Math.atan2(tz, tx); cam.look = 0;
       cam.pitch = clamp(cam.pitch + cd.dy, 0.08, 1.15);
     } else {
-      // Dragging is FREE-LOOK: it adds a temporary offset (cam.look) that does NOT
-      // steer movement. Auto-follow and the return-to-behind only happen while you
-      // are WALKING; standing still keeps the camera exactly where you left it.
-      cam.look += cd.dx;
+      // Dual-stick: right stick / drag / arrows steer directly — turning rotates
+      // the chassis (and the character with it); pitch looks up and down.
+      cam.base += cd.dx;
       cam.pitch = clamp(cam.pitch + cd.dy, 0.05, 1.3);
-      const mv = this.input.move;
-      const mag = Math.hypot(mv.x, mv.y);
-      const moving = mag > 0.2;
-      const dragging = Math.abs(cd.dx) > 1e-4 || Math.abs(cd.dy) > 1e-4;
-      this._camIdle = dragging ? 0 : (this._camIdle || 0) + dt;
-      // The moment you start walking, fold a standing free-look into the chassis so
-      // you head where you were looking (seamless: base+look is unchanged).
-      if (moving && !this._wasMoving) { cam.base += cam.look; cam.look = 0; }
-      this._wasMoving = moving;
-      // Auto-follow: swing the chassis behind the direction of travel when moving forward.
-      if (moving && this._camIdle > 0.4 && mv.y > 0.2) {
-        cam.base = angLerp(cam.base, p.yaw, Math.min(1, dt * 2.5));
-      }
-      // Return-to-behind: only while walking, after the drag stops, ease look to 0.
-      if (moving && !dragging && this._camIdle > 0.35) {
-        cam.look = lerp(cam.look, 0, Math.min(1, dt * 3));
-        if (Math.abs(cam.look) < 0.002) cam.look = 0;
-      }
+      cam.look = 0;
     }
     cam.curYaw = angLerp(cam.curYaw, cam.base + cam.look, this.lock ? 0.15 : 0.2);
     cam.curPitch = lerp(cam.curPitch, cam.pitch, 0.15);

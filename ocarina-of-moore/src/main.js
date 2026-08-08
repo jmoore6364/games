@@ -70,6 +70,7 @@ if (IS_TOUCH) {
   // shield: hold Z-target region? add long-press on attack? Provide block via roll double? keep block on a gesture: use two-finger? Simplest: block when action held near — skip; block available via keyboard. Provide a small block toggle by holding item? We'll map block to holding the attack button's neighbor: none.
 }
 const stickBase = el('stickbase'), stickKnob = el('stickknob');
+const stick2Base = el('stick2base'), stick2Knob = el('stick2knob');
 
 // ---- minimap ---------------------------------------------------------------
 function drawMinimap() {
@@ -142,15 +143,18 @@ function updateHUD(s) {
       : 'Moore has fallen... The village still needs a hero.';
   } else endEl.classList.add('hidden');
 
-  // stick visual
+  // stick visuals
   if (IS_TOUCH) {
-    const si = input.stickInfo();
-    if (si.active) {
-      stickBase.style.display = stickKnob.style.display = 'block';
-      stickBase.style.left = si.origin.x + 'px'; stickBase.style.top = si.origin.y + 'px';
-      stickKnob.style.left = (si.origin.x + si.vec.x * 45) + 'px';
-      stickKnob.style.top = (si.origin.y - si.vec.y * 45) + 'px';
-    } else { stickBase.style.display = stickKnob.style.display = 'none'; }
+    const drawStick = (si, base, knob) => {
+      if (si.active) {
+        base.style.display = knob.style.display = 'block';
+        base.style.left = si.origin.x + 'px'; base.style.top = si.origin.y + 'px';
+        knob.style.left = (si.origin.x + si.vec.x * 45) + 'px';
+        knob.style.top = (si.origin.y - si.vec.y * 45) + 'px';
+      } else { base.style.display = knob.style.display = 'none'; }
+    };
+    drawStick(input.stickInfo(), stickBase, stickKnob);
+    drawStick(input.stick2Info(), stick2Base, stick2Knob);
   }
 }
 
