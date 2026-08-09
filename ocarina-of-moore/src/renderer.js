@@ -1,7 +1,8 @@
 // renderer.js — WebGL1 low-poly renderer for Ocarina of Moore.
 // Directional + ambient (Lambert) lighting, a per-vertex emissive flag for
 // self-lit glows (torches, gems), a gradient sky-box with a sun, depth buffer,
-// backface culling and distance fog. All geometry procedural. SwiftShader-safe.
+// backface culling, distance fog, alpha blending, and translucent blob
+// shadows. All geometry procedural. SwiftShader-safe.
 
 import { mat4, normalize, program, locations, buffer } from './gl.js';
 import { Mesh } from './mesh.js';
@@ -81,11 +82,14 @@ export class Renderer {
     const cy = new Mesh(); cy.cyl(0, 0, 0.5, -0.5, 0.5, 10, [1, 1, 1, 0], true); this.unitCyl = this._upload(cy);
     const cn = new Mesh(); cn.cone(0, 0, 0.5, 0, 1, 10, [1, 1, 1, 0]); cn.discDown(0, 0, 0.5, 0, 10, [1, 1, 1, 0]); this.unitCone = this._upload(cn);
     const sp = new Mesh(); sp.sphere(0, 0, 0, 0.5, 5, 8, [1, 1, 1, 0]); this.unitSphere = this._upload(sp);
+    const dc = new Mesh(); dc.discUp(0, 0, 0.5, 0, 14, [1, 1, 1, 0]); this.unitDisc = this._upload(dc);
 
     gl.enable(gl.DEPTH_TEST);
     gl.enable(gl.CULL_FACE);
     gl.cullFace(gl.BACK);
     gl.frontFace(gl.CCW);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
     gl.clearColor(0.1, 0.1, 0.1, 1);
   }
 
@@ -184,6 +188,8 @@ export class Renderer {
     gl.uniform1f(U.uTintMix, 0);
   }
   drawBox(cx, cy, cz, yaw, sx, sy, sz, color, alpha) { this._prim(this.unitBox, cx, cy, cz, yaw, sx, sy, sz, color, 0, alpha); }
+  // soft blob shadow: dark translucent disc just above the ground plane
+  drawShadow(cx, cz, r, alpha) { this._prim(this.unitDisc, cx, 0.035, cz, 0, r * 2, 1, r * 2, [0.02, 0.03, 0.05], 0, alpha == null ? 0.32 : alpha); }
   drawCyl(cx, cy, cz, yaw, r, h, color, alpha) { this._prim(this.unitCyl, cx, cy, cz, yaw, r * 2, h, r * 2, color, 0, alpha); }
   drawCone(cx, cy, cz, yaw, r, h, color, alpha) { this._prim(this.unitCone, cx, cy, cz, yaw, r * 2, h, r * 2, color, 0, alpha); }
   drawSphere(cx, cy, cz, r, color, alpha) { this._prim(this.unitSphere, cx, cy, cz, 0, r * 2, r * 2, r * 2, color, 0, alpha); }

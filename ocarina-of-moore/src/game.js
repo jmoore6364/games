@@ -32,6 +32,17 @@ const C = {
 const RUPEE_COL = { green: [0.3, 0.9, 0.4], blue: [0.35, 0.6, 0.95], red: [0.95, 0.4, 0.4] };
 const RUPEE_VAL = { green: 1, blue: 5, red: 20 };
 
+// low-poly clouds drifting over the outdoor areas; x wraps over a 240-unit band
+// so a few are always near the playfield. puffs = [dx, dz, radius].
+const CLOUDS = [
+  { x: -90, z: 15, y: 26, sp: 1.1, puffs: [[0, 0, 5], [4.5, 1, 3.6], [-4.5, -0.5, 3.2]] },
+  { x: -20, z: 55, y: 30, sp: 0.8, puffs: [[0, 0, 6], [5.5, -1, 4], [-5, 1.5, 4.4], [1, 3, 3.4]] },
+  { x: 45, z: -12, y: 24, sp: 1.4, puffs: [[0, 0, 4.2], [3.8, 0.8, 3]] },
+  { x: 95, z: 90, y: 28, sp: 0.9, puffs: [[0, 0, 5.5], [5, 0, 3.8], [-4.6, 1, 3.5]] },
+  { x: -55, z: 115, y: 32, sp: 1.2, puffs: [[0, 0, 6.5], [6, -1, 4.5], [-5.5, 0.5, 4]] },
+  { x: 20, z: 25, y: 34, sp: 0.7, puffs: [[0, 0, 5], [4.4, 1.2, 3.6]] },
+];
+
 export class Game {
   constructor(renderer, input, audio) {
     this.r = renderer; this.input = input; this.audio = audio;
@@ -824,7 +835,7 @@ export class Game {
   updateCamera(dt) {
     const p = this.player, cam = this.cam;
     const cd = this.input.camDelta();
-    if (this.lock && this.lock && !this.lock.dead) {
+    if (this.lock && !this.lock.dead) {
       const tx = this.lock.x - p.x, tz = this.lock.z - p.z;
       cam.base = Math.atan2(tz, tx); cam.look = 0;
       cam.pitch = clamp(cam.pitch + cd.dy, 0.08, 1.15);
@@ -869,6 +880,7 @@ export class Game {
     for (const e of this.enemies) if (!e.dead) pts.push({ x: e.x, z: e.z, kind: 'enemy' });
     if (this.boss && !this.boss.dead) pts.push({ x: this.boss.x, z: this.boss.z, kind: 'boss' });
     for (const pk of this.pickups) if (!pk.taken) pts.push({ x: pk.x, z: pk.z, kind: pk.type });
+    if (this.cur.npcs) for (const n of this.cur.npcs) pts.push({ x: n.x, z: n.z, kind: 'npc' });
     if (this.dyn) for (const c of this.dyn.chests) if (!c.opened) pts.push({ x: c.x, z: c.z, kind: 'chest' });
     let bounds = { x0: -35, z0: -35, x1: 35, z1: 40 };
     if (this.cur.name === 'field') bounds = { x0: -50, z0: -20, x1: 50, z1: 130 };
@@ -916,15 +928,22 @@ export class Game {
 
   _drawDynamic() {
     const r = this.r, t = this.time;
-    // torches (both dungeon dyn and area meta)
-    const torches = (this.cur.torches || []).concat(this.dyn ? [] : []);
-    for (const tc of torches) {
+    // torches
+    for (const tc of (this.cur.torches || [])) {
+      r.drawShadow(tc.x, tc.z, 0.28, 0.24);
       r.drawCyl(tc.x, 0, tc.z, 0, 0.16, 2.2, [0.35, 0.28, 0.2]);
-      const fl = 0.35 + Math.sin(t * 12 + tc.x) * 0.08;
-      r.drawGlow('sphere', tc.x, 2.3 + Math.sin(t * 9 + tc.z) * 0.05, tc.z, fl, C.flame);
-      r.drawGlow('sphere', tc.x, 2.5, tc.z, fl * 0.6, C.flameC);
+      r.drawCyl(tc.x, 2.1, tc.z, 0, 0.26, 0.28, [0.2, 0.16, 0.12]); // bowl
+      const fl = 0.27 + Math.sin(t * 12 + tc.x) * 0.05;
+      r.drawGlow('sphere', tc.x, 2.5 + Math.sin(t * 9 + tc.z) * 0.05, tc.z, fl, C.flame);
+      r.drawGlow('sphere', tc.x, 2.68, tc.z, fl * 0.55, C.flameC);
     }
     if (!this.dyn) {
+      // drifting clouds over the outdoor areas
+      for (const cl of CLOUDS) {
+        const cx = ((cl.x + t * cl.sp + 120) % 240) - 120;
+        for (const puff of cl.puffs)
+          r.drawSphere(cx + puff[0], cl.y + puff[2] * 0.3, cl.z + puff[1], puff[2], [0.96, 0.97, 1.0], 0.88);
+      }
       // village well cover glow, field pond sparkle — minimal
       // field/village cracked boulders
       if (this.cur.cracked) for (const c of this.cur.cracked) if (!c.gone) {
@@ -988,13 +1007,14 @@ export class Game {
     for (const pk of this.pickups) {
       if (pk.taken) continue;
       const y = 0.6 + Math.sin((pk.bob || 0)) * 0.15;
+      r.drawShadow(pk.x, pk.z, 0.22, 0.2);
       if (pk.type === 'rupee') { const c = RUPEE_COL[pk.color || 'green']; r.drawBox(pk.x, y, pk.z, t * 2, 0.3, 0.55, 0.2, c); }
       else { r.drawBox(pk.x, y, pk.z, t * 2, 0.4, 0.4, 0.2, C.heart); r.drawBox(pk.x, y + 0.12, pk.z, t * 2, 0.2, 0.2, 0.24, C.heart); }
     }
     // npcs
     if (this.cur.npcs) for (const n of this.cur.npcs) this._drawNPC(n);
     // signs
-    if (this.cur.signs) for (const s of this.cur.signs) { r.drawCyl(s.x, 0.6, s.z, 0, 0.08, 1.2, [0.4, 0.28, 0.16]); r.drawBox(s.x, 1.3, s.z, 0, 1.0, 0.6, 0.1, [0.6, 0.45, 0.28]); }
+    if (this.cur.signs) for (const s of this.cur.signs) { r.drawShadow(s.x, s.z, 0.3, 0.22); r.drawCyl(s.x, 0.6, s.z, 0, 0.08, 1.2, [0.4, 0.28, 0.16]); r.drawBox(s.x, 1.3, s.z, 0, 1.0, 0.6, 0.1, [0.6, 0.45, 0.28]); }
     // enemies
     for (const e of this.enemies) if (!e.dead) this._drawEnemy(e);
     // boss
@@ -1002,7 +1022,7 @@ export class Game {
     // projectiles
     for (const pr of this.projectiles) {
       if (pr.kind === 'arrow') { const c = pr.boss ? [0.9, 0.4, 0.3] : [0.85, 0.8, 0.5]; r.drawBox(pr.x, pr.y, pr.z, Math.atan2(pr.vz, pr.vx), 0.5, 0.08, 0.08, c); }
-      else { r.drawSphere(pr.x, pr.y, pr.z, 0.3, [0.15, 0.15, 0.18]); if (Math.sin(t * 30) > 0) r.drawGlow('sphere', pr.x, pr.y + 0.35, pr.z, 0.08, [1, 0.5, 0.2]); }
+      else { r.drawShadow(pr.x, pr.z, 0.2, 0.24); r.drawSphere(pr.x, pr.y, pr.z, 0.3, [0.15, 0.15, 0.18]); if (Math.sin(t * 30) > 0) r.drawGlow('sphere', pr.x, pr.y + 0.35, pr.z, 0.08, [1, 0.5, 0.2]); }
     }
     // effects
     for (const e of this.effects) {
@@ -1025,6 +1045,7 @@ export class Game {
 
   _drawHero() {
     const p = this.player, r = this.r;
+    r.drawShadow(p.x, p.z, 0.55);
     if (p.invuln > 0 && Math.floor(this.time * 20) % 2 === 0 && p.hurtT > 0) return; // hurt blink
     const yaw = p.yaw, c = Math.cos(yaw), s = Math.sin(yaw);
     const swing = Math.sin(p.anim) * 0.5;
@@ -1037,9 +1058,11 @@ export class Game {
     // torso
     r.drawBox(bx, by + 0.55, bz, yaw, 0.62, 0.72, 0.44, C.tunic);
     r.drawBox(bx, by + 0.2, bz, yaw, 0.66, 0.3, 0.48, C.tunicD);
-    // head + cap
+    // head + cap + eyes
     r.drawBox(bx, by + 1.15, bz, yaw, 0.4, 0.4, 0.4, C.skin);
     r.drawCone(bx, by + 1.35, bz, yaw, 0.32, 0.7, C.cap);
+    for (const side of [-1, 1])
+      r.drawBox(bx + c * 0.19 - s * side * 0.1, by + 1.2, bz + s * 0.19 + c * side * 0.1, yaw, 0.05, 0.09, 0.06, [0.1, 0.1, 0.14]);
     // arms (swing)
     let al = fwd(0.05, 0.36), ar = fwd(0.05, -0.36);
     const armYL = by + 0.6 - swing * 0.1, armYR = by + 0.6 + swing * 0.1;
@@ -1063,10 +1086,14 @@ export class Game {
 
   _drawNPC(n) {
     const r = this.r, yaw = n.yaw || 0, bob = Math.sin(this.time * 2 + n.x) * 0.03;
+    const c = Math.cos(yaw), s = Math.sin(yaw);
+    r.drawShadow(n.x, n.z, 0.5);
     r.drawBox(n.x, 0.3, n.z + 0.12, yaw, 0.22, 0.6, 0.24, [0.3, 0.25, 0.2]);
     r.drawBox(n.x, 0.3, n.z - 0.12, yaw, 0.22, 0.6, 0.24, [0.3, 0.25, 0.2]);
     r.drawBox(n.x, 0.85 + bob, n.z, yaw, 0.6, 0.7, 0.42, n.color);
     r.drawBox(n.x, 1.35 + bob, n.z, yaw, 0.4, 0.4, 0.4, C.skin);
+    for (const side of [-1, 1])
+      r.drawBox(n.x + c * 0.19 - s * side * 0.1, 1.4 + bob, n.z + s * 0.19 + c * side * 0.1, yaw, 0.05, 0.09, 0.06, [0.1, 0.1, 0.14]);
     if (n.shop) r.drawBox(n.x, 1.7 + bob, n.z, yaw, 0.45, 0.2, 0.45, [0.3, 0.3, 0.4]);
     else r.drawCone(n.x, 1.55 + bob, n.z, yaw, 0.28, 0.4, [0.5, 0.4, 0.6]);
     // "talk" indicator when near
@@ -1076,6 +1103,7 @@ export class Game {
 
   _drawEnemy(e) {
     const r = this.r, yaw = e.yaw, col = e.hurt > 0 ? [1, 0.8, 0.8] : (e.kind === 'bat' ? C.bat : C.blin);
+    r.drawShadow(e.x, e.z, e.kind === 'bat' ? 0.38 : 0.5, e.kind === 'bat' ? 0.22 : undefined);
     if (e.kind === 'bat') {
       r.drawSphere(e.x, e.y, e.z, 0.35, col);
       const wf = Math.sin(e.anim * 3) * 0.6;
@@ -1104,6 +1132,7 @@ export class Game {
   _drawBoss(b) {
     const r = this.r, yaw = b.yaw, c = Math.cos(yaw), s = Math.sin(yaw);
     const col = b.hurt > 0 ? [1, 0.7, 0.6] : (b.phase === 2 ? [0.55, 0.22, 0.24] : C.boss);
+    r.drawShadow(b.x, b.z, 2.5, 0.38);
     // body dome
     r.drawSphere(b.x, 2.2, b.z, 2.4, col);
     r.drawBox(b.x, 1.0, b.z, yaw, 4.2, 2.0, 3.6, C.bossD);

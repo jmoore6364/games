@@ -13,24 +13,24 @@
 
   /* HUD */
   #hud { position: absolute; top: 10px; left: 12px; pointer-events: none; text-shadow: 0 2px 3px #000; }
+  #hudpanel { background: linear-gradient(180deg, rgba(16,22,30,.72), rgba(10,15,21,.62)); border: 2px solid rgba(201,169,78,.75); border-radius: 12px; padding: 8px 12px; box-shadow: 0 4px 14px rgba(0,0,0,.35); }
   #hearts { display: flex; gap: 3px; margin-bottom: 6px; }
   .heart { width: 22px; height: 22px; position: relative; }
   .heart svg { width: 100%; height: 100%; filter: drop-shadow(0 1px 1px #000); }
   #stats { display: flex; gap: 14px; font-size: 15px; font-weight: bold; align-items: center; }
   .stat { display: flex; align-items: center; gap: 4px; }
-  .chip { display:inline-block; width:14px; height:14px; border-radius:3px; }
-  #itembox { position:absolute; top:10px; right:120px; width:56px; height:56px; border:3px solid #c9a94e; border-radius:10px; background:rgba(20,26,34,.7); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:bold; text-align:center; pointer-events:none; text-shadow:0 1px 2px #000;}
+  .chip { display:inline-block; width:14px; height:14px; border-radius:3px; box-shadow: 0 1px 2px rgba(0,0,0,.5); }
+  #itembox { position:absolute; top:10px; right:122px; width:58px; height:58px; border:2px solid rgba(201,169,78,.75); border-radius:12px; background:linear-gradient(180deg, rgba(16,22,30,.72), rgba(10,15,21,.62)); box-shadow: 0 4px 14px rgba(0,0,0,.35); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:bold; text-align:center; pointer-events:none; text-shadow:0 1px 2px #000;}
   #itembox small{display:block;font-size:10px;opacity:.8;font-weight:normal}
 
-  #minimap { position: absolute; top: 10px; right: 12px; width: 100px; height: 100px; border: 2px solid #c9a94e; border-radius: 8px; background: rgba(10,16,22,.6); }
+  #minimap { position: absolute; top: 10px; right: 12px; width: 100px; height: 100px; border: 2px solid rgba(201,169,78,.75); border-radius: 12px; background: rgba(10,16,22,.6); box-shadow: 0 4px 14px rgba(0,0,0,.35); }
 
-  #msg { position: absolute; top: 20%; left: 50%; transform: translateX(-50%); font-size: 26px; font-weight: bold; text-align: center; text-shadow: 0 3px 6px #000, 0 0 12px #000; opacity: 0; transition: opacity .3s; pointer-events: none; color:#ffe9a8; }
-  #msg.show { opacity: 1; }
+  #msg { position: absolute; top: 20%; left: 50%; transform: translateX(-50%) scale(.92); font-size: 26px; font-weight: bold; text-align: center; text-shadow: 0 3px 6px #000, 0 0 12px #000; opacity: 0; transition: opacity .3s, transform .3s; pointer-events: none; color:#ffe9a8; letter-spacing: .5px; }
+  #msg.show { opacity: 1; transform: translateX(-50%) scale(1); }
 
-  #keyhint { position: absolute; bottom: 8px; left: 12px; font-size: 12px; line-height: 1.5; opacity: .82; text-shadow: 0 1px 2px #000; pointer-events:none; max-width: 46%; }
-  #keyhint b { color:#ffe08a; }
-
-  #mute { position:absolute; top:120px; right:12px; width:40px;height:40px;border-radius:8px;border:2px solid #c9a94e;background:rgba(20,26,34,.7);color:#f4ecd8;font-size:18px;cursor:pointer; z-index:6;}
+  #keyhint { position: absolute; bottom: 8px; left: 12px; font-size: 11.5px; line-height: 2.1; opacity: .9; pointer-events:none; max-width: 54%; color:#cfd8cf; text-shadow: 0 1px 2px #000; }
+  #keyhint b { color:#ffe08a; background: rgba(16,22,30,.8); border: 1px solid rgba(201,169,78,.55); border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px; font-size: 10.5px; margin-right: 1px; white-space: nowrap; }
+  #mute { position:absolute; top:122px; right:12px; width:40px;height:40px;border-radius:10px;border:2px solid rgba(201,169,78,.75);background:linear-gradient(180deg, rgba(16,22,30,.8), rgba(10,15,21,.7));color:#f4ecd8;font-size:18px;cursor:pointer; z-index:6;}
 
   /* overlays */
   .overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align:center; background: radial-gradient(circle at 50% 40%, rgba(10,20,30,.55), rgba(4,7,10,.9)); z-index: 10; }
@@ -63,14 +63,13 @@
   /* touch controls */
   #touch { position:absolute; inset:0; z-index: 7; pointer-events:none; display:none; }
   #touch.on { display:block; }
-  #stickzone { position:absolute; left:0; bottom:0; width:45%; height:60%; pointer-events:none; }
   #stickbase, #stick2base { position:absolute; width:120px; height:120px; border-radius:50%; border:3px solid rgba(255,255,255,.35); background:rgba(255,255,255,.08); transform:translate(-50%,-50%); display:none; }
-  #stickknob, #stick2knob { position:absolute; width:56px; height:56px; border-radius:50%; background:rgba(255,255,255,.5); border:2px solid rgba(255,255,255,.7); transform:translate(-50%,-50%); display:none; }
+  #stickknob, #stick2knob { position:absolute; width:56px; height:56px; border-radius:50%; background:rgba(255,255,255,.5); border:2px solid rgba(255,255,255,.7); transform:translate(-50%,-50%); display:none; box-shadow: 0 2px 8px rgba(0,0,0,.35); }
   #stick2base { border-color:rgba(140,200,255,.4); background:rgba(140,200,255,.08); }
   #stick2knob { background:rgba(140,200,255,.5); border-color:rgba(140,200,255,.7); }
   #btns { position:absolute; right:14px; bottom:20px; width:230px; height:230px; pointer-events:none; }
-  .btn { position:absolute; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; color:#fff; text-shadow:0 1px 2px #000; pointer-events:auto; user-select:none; border:3px solid rgba(255,255,255,.5); font-size:13px; }
-  .btn:active { filter:brightness(1.4); }
+  .btn { position:absolute; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; color:#fff; text-shadow:0 1px 2px #000; pointer-events:auto; user-select:none; border:3px solid rgba(255,255,255,.5); font-size:13px; box-shadow: 0 4px 10px rgba(0,0,0,.4), inset 0 -6px 12px rgba(0,0,0,.25), inset 0 4px 8px rgba(255,255,255,.18); }
+  .btn:active { filter:brightness(1.4); transform: scale(.94); }
   #b_attack { right:6px; bottom:70px; width:78px; height:78px; background:rgba(200,60,50,.72); font-size:15px; }
   #b_item { right:78px; bottom:16px; width:62px; height:62px; background:rgba(60,110,200,.72); }
   #b_target { right:90px; bottom:104px; width:60px; height:60px; background:rgba(210,170,50,.75); }
@@ -85,12 +84,14 @@
   <canvas id="c"></canvas>
 
   <div id="hud">
-    <div id="hearts"></div>
-    <div id="stats">
-      <span class="stat"><span class="chip" style="background:#3ad36b"></span><span id="rupees">0</span></span>
-      <span class="stat">🔑<span id="keys">0</span></span>
-      <span class="stat">➶<span id="arrows">0</span></span>
-      <span class="stat">💣<span id="bombs">0</span></span>
+    <div id="hudpanel">
+      <div id="hearts"></div>
+      <div id="stats">
+        <span class="stat"><span class="chip" style="background:#3ad36b"></span><span id="rupees">0</span></span>
+        <span class="stat">🔑<span id="keys">0</span></span>
+        <span class="stat">➶<span id="arrows">0</span></span>
+        <span class="stat">💣<span id="bombs">0</span></span>
+      </div>
     </div>
   </div>
   <div id="itembox">—</div>
@@ -106,7 +107,6 @@
   <div id="dialogue" class="hidden"><div class="who"></div><div class="txt"></div><div class="more">▶ E / tap to continue</div></div>
 
   <div id="touch" >
-    <div id="stickzone"></div>
     <div id="stickbase"></div><div id="stickknob"></div>
     <div id="stick2base"></div><div id="stick2knob"></div>
     <div id="btns">
