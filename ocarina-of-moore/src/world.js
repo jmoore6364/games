@@ -19,14 +19,14 @@ export const LIGHTS = {
     fogStart: 55, fogEnd: 170, emisBoost: 0.3,
   },
   dungeon: {
-    skyTop: [0.03, 0.03, 0.06], skyHor: [0.06, 0.06, 0.10], fog: [0.04, 0.04, 0.06],
-    ambient: [0.30, 0.28, 0.36], sunCol: [0.30, 0.27, 0.22], sunDir: norm([0.3, 0.7, 0.2]),
-    fogStart: 18, fogEnd: 58, emisBoost: 1.1,
+    skyTop: [0.04, 0.04, 0.08], skyHor: [0.09, 0.09, 0.14], fog: [0.08, 0.08, 0.12],
+    ambient: [0.46, 0.44, 0.54], sunCol: [0.42, 0.38, 0.32], sunDir: norm([0.3, 0.7, 0.2]),
+    fogStart: 24, fogEnd: 70, emisBoost: 1.1,
   },
   boss: {
-    skyTop: [0.08, 0.02, 0.03], skyHor: [0.16, 0.05, 0.06], fog: [0.07, 0.03, 0.04],
-    ambient: [0.34, 0.24, 0.26], sunCol: [0.42, 0.24, 0.20], sunDir: norm([0.2, 0.7, 0.3]),
-    fogStart: 22, fogEnd: 64, emisBoost: 1.0,
+    skyTop: [0.10, 0.03, 0.04], skyHor: [0.20, 0.07, 0.08], fog: [0.12, 0.05, 0.06],
+    ambient: [0.50, 0.36, 0.38], sunCol: [0.52, 0.32, 0.26], sunDir: norm([0.2, 0.7, 0.3]),
+    fogStart: 28, fogEnd: 78, emisBoost: 1.0,
   },
 };
 function norm(v) { const l = Math.hypot(v[0], v[1], v[2]); return [v[0] / l, v[1] / l, v[2] / l]; }
@@ -214,10 +214,9 @@ export function buildField(renderer) {
 // room helper: builds walls (mesh + colliders) with doorway gaps.
 function room(M, colliders, b, doors, wc, h) {
   const T = 1.0; // wall thickness
-  const flr = [0.20, 0.19, 0.24, 0];
   // floor
   for (let x = b.x0; x < b.x1; x += 4) for (let z = b.z0; z < b.z1; z += 4) {
-    const c = ((x + z) & 4) ? [0.19, 0.18, 0.23, 0] : [0.16, 0.15, 0.20, 0];
+    const c = ((x + z) & 4) ? [0.25, 0.24, 0.30, 0] : [0.21, 0.20, 0.26, 0];
     const xe = Math.min(x + 4, b.x1), ze = Math.min(z + 4, b.z1);
     M.quad([x, 0, z], [x, 0, ze], [xe, 0, ze], [xe, 0, z], c);
   }
@@ -243,7 +242,7 @@ function room(M, colliders, b, doors, wc, h) {
 export function buildDungeon(renderer) {
   const M = new Mesh();
   const colliders = [];
-  const wc = [0.26, 0.24, 0.30];
+  const wc = [0.33, 0.31, 0.38];
   const H = 6;
 
   // Room bounds (north = +z)
@@ -267,12 +266,12 @@ export function buildDungeon(renderer) {
   const corr = (c) => { M.box(c.x0 - 1, 0, c.z0, c.x0, H, c.z1, wc); M.box(c.x1, 0, c.z0, c.x1 + 1, H, c.z1, wc);
     colliders.push({ x0: c.x0 - 1, z0: c.z0, x1: c.x0, z1: c.z1 }, { x0: c.x1, z0: c.z0, x1: c.x1 + 1, z1: c.z1 });
     for (let x = c.x0; x < c.x1; x += 4) for (let z = c.z0; z < c.z1; z += 4)
-      M.quad([x, 0, z], [x, 0, z + 4], [x + 4, 0, z + 4], [x + 4, 0, z], [0.17, 0.16, 0.21, 0]); };
+      M.quad([x, 0, z], [x, 0, z + 4], [x + 4, 0, z + 4], [x + 4, 0, z], [0.22, 0.21, 0.27, 0]); };
   // horizontal corridor cCD runs along x
   M.box(cCD.x0, 0, cCD.z0 - 1, cCD.x1, H, cCD.z0, wc); M.box(cCD.x0, 0, cCD.z1, cCD.x1, H, cCD.z1 + 1, wc);
   colliders.push({ x0: cCD.x0, z0: cCD.z0 - 1, x1: cCD.x1, z1: cCD.z0 }, { x0: cCD.x0, z0: cCD.z1, x1: cCD.x1, z1: cCD.z1 + 1 });
   for (let x = cCD.x0; x < cCD.x1; x += 3) for (let z = cCD.z0; z < cCD.z1; z += 3)
-    M.quad([x, 0, z], [x, 0, z + 3], [x + 3, 0, z + 3], [x + 3, 0, z], [0.17, 0.16, 0.21, 0]);
+    M.quad([x, 0, z], [x, 0, z + 3], [x + 3, 0, z + 3], [x + 3, 0, z], [0.22, 0.21, 0.27, 0]);
   corr(cAB); corr(cBC); corr(cDBR);
 
   // decorative wall pilasters/banners in boss room

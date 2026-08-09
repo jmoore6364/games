@@ -67,7 +67,6 @@ if (IS_TOUCH) {
   bind('b_attack', 'attack'); bind('b_item', 'item'); bind('b_target', 'target');
   bind('b_roll', 'roll'); bind('b_action', 'action');
   el('tpause').addEventListener('click', () => input.setButton('pause', true));
-  // shield: hold Z-target region? add long-press on attack? Provide block via roll double? keep block on a gesture: use two-finger? Simplest: block when action held near — skip; block available via keyboard. Provide a small block toggle by holding item? We'll map block to holding the attack button's neighbor: none.
 }
 const stickBase = el('stickbase'), stickKnob = el('stickknob');
 const stick2Base = el('stick2base'), stick2Knob = el('stick2knob');
@@ -85,7 +84,8 @@ function drawMinimap() {
   mmctx.fillRect(ox, oy, bw * sc, bh * sc);
   for (const p of d.pts) {
     mmctx.fillStyle = p.kind === 'enemy' ? '#e05555' : p.kind === 'boss' ? '#ff3030'
-      : p.kind === 'chest' ? '#e0b040' : p.kind === 'heart' ? '#ff5b76' : '#3ad36b';
+      : p.kind === 'chest' ? '#e0b040' : p.kind === 'heart' ? '#ff5b76'
+      : p.kind === 'npc' ? '#7ec8ff' : '#3ad36b';
     const r = p.kind === 'boss' ? 4 : 2.2;
     mmctx.beginPath(); mmctx.arc(tx(p.x), tz(p.z), r, 0, 7); mmctx.fill();
   }
