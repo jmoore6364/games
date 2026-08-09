@@ -1,0 +1,9 @@
+{
+  "name": "metal-moore",
+  "version": "0.1.0",
+  "description": "Metal Moore — a Metal Slug style Neo Geo run-and-gun, vanilla JS + canvas",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
