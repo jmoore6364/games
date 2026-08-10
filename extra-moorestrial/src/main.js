@@ -307,8 +307,10 @@ function updatePlay(dt) {
   else if (et.x > PLAY - 8 && game.cur.sx < SW - 1) { game.cur.sx++; et.x = 10; changeScreen(); }
   else if (et.y < 8 && game.cur.sy > 0) { game.cur.sy--; et.y = PLAY - 10; changeScreen(); }
   else if (et.y > PLAY - 8 && game.cur.sy < SH - 1) { game.cur.sy++; et.y = 10; changeScreen(); }
+  // clamp floors/ceilings must sit outside the flip thresholds above (8 / PLAY-8),
+  // or an edge becomes uncrossable at normal frame steps
   et.x = Math.max(6, Math.min(PLAY - 6, et.x));
-  et.y = Math.max(14, Math.min(PLAY - 4, et.y));
+  et.y = Math.max(6, Math.min(PLAY - 4, et.y));
 
   // fell (walked) into a pit?
   const ctx_ = Math.floor(et.x / TILE), cty = Math.floor((et.y + 10) / TILE);
