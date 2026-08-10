@@ -204,8 +204,11 @@ export function buildWorld(round) {
   return { screens, pits, S };
 }
 
+// Out-of-bounds reads as open grass so E.T.'s collision box can slide past an
+// interior screen edge and trigger the flip — the valley's outer rim is fenced
+// by real border tree/rock tiles on the edge screens, not by this bounds check.
 export function tileAt(screen, tx, ty) {
-  if (tx < 0 || ty < 0 || tx >= COLS || ty >= ROWS) return T.TREE;
+  if (tx < 0 || ty < 0 || tx >= COLS || ty >= ROWS) return T.GRASS;
   return screen.tiles[ty * COLS + tx];
 }
 
