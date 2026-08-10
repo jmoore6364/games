@@ -1,0 +1,9 @@
+{
+  "name": "extra-moorestrial",
+  "version": "1.0.0",
+  "description": "The Extra-Moorestrial — the Atari E.T. game done right, vanilla JS + canvas",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
