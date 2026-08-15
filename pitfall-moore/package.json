@@ -1,0 +1,9 @@
+{
+  "name": "pitfall-moore",
+  "version": "1.0.0",
+  "description": "Pitfall Moore — a Pitfall! style jungle flip-screen adventure, vanilla JS + canvas",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
