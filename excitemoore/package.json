@@ -1,0 +1,9 @@
+{
+  "name": "excitemoore",
+  "version": "1.0.0",
+  "description": "Excitemoore — an Excitebike style motocross time-trial, vanilla JS + canvas",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
