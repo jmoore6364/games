@@ -347,7 +347,7 @@ function renderHUD() {
 
 function renderRace() {
   drawBackdrop(ctx, game.camX, game.time);
-  ctx.fillStyle = '#6a9a3a'; ctx.fillRect(0, laneBaseY(LANES - 1) + 14, W, H); // infield grass
+  ctx.fillStyle = '#6a9a3a'; ctx.fillRect(0, laneBaseY(LANES - 1) + 26, W, H); // infield grass
   for (let k = 0; k < LANES; k++) drawLane(ctx, game.track, k, game.camX, game.time);
 
   // draw bikes back-to-front by lane
@@ -393,7 +393,8 @@ function renderTitle() {
   ctx.fillStyle = '#6a9a3a'; ctx.fillRect(0, laneBaseY(LANES - 1) + 14, W, H);
   for (let k = 0; k < LANES; k++) {
     ctx.fillStyle = LANE_COLORS_TITLE[k];
-    ctx.fillRect(0, laneBaseY(k), W, 32);
+    ctx.fillRect(0, laneBaseY(k), W, 26);
+    ctx.fillStyle = '#6a5228'; ctx.fillRect(0, laneBaseY(k) + 25, W, 2);
   }
   ctx.fillStyle = 'rgba(10,6,0,0.55)'; ctx.fillRect(0, 0, W, H);
   centerText([
@@ -410,7 +411,7 @@ function renderTitle() {
   if (Math.floor(game.time * 2) % 2 === 0) centerText([['PRESS ENTER / START', '#f8d858', 12]], 196);
   drawBike(ctx, 60 + (game.time * 60 % (W + 120)) - 60, laneBaseY(3) - 2, 0.1, '#e03838', { frame: game.time * 8, turbo: true });
 }
-const LANE_COLORS_TITLE = ['#c09048', '#b08240', '#a07438', '#906830'];
+const LANE_COLORS_TITLE = ['#c2a86e', '#b89e64', '#c2a86e', '#b89e64'];
 
 function renderFinished() {
   renderRace();
