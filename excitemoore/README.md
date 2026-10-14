@@ -32,13 +32,18 @@ season is over. Qualify on all five tracks to become champion.
   land on one from above and *they* crash.
 
 ## Controls
-- **Right / D** — accelerate · **Left / A** — brake
-- **Space** — turbo (watch the temp gauge)
-- **Up / Down** — switch lanes (flat ground only)
-- **In the air:** Left = lean back, Right = lean forward
+
+Gas is a dedicated button, kept separate from steering — so accelerating into
+a ramp never leans you nose-down. Leaning lives on up/down (there's no lane to
+change while you're in the air).
+
+- **Z / J**, or hold **GAS**, or **Right / D** — accelerate
+- **Space / X** — turbo (watch the temp gauge)
+- **Left / A** — brake
+- **Up / Down** — on the ground: switch lanes · in the air: lean back / forward
 - **Enter** — start / restart · **M** — mute
-- **Gamepad** — stick/d-pad, A = turbo, Start = start
-- **On-screen d-pad + TURBO + START** — touch devices (revealed on first touch)
+- **Gamepad** — A (or right trigger) = gas, X/B = turbo, d-pad = lanes/lean
+- **On-screen d-pad + GAS + TURBO + START** — touch devices (revealed on first touch)
 
 ## Files
 - `index.html` — page shell, inline CSS, canvas, touch controls

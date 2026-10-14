@@ -1,7 +1,7 @@
 // input.js — held-key movement state + tap events, keyboard / touch / gamepad.
 export class Input {
   constructor() {
-    this.held = { up: false, down: false, left: false, right: false, action: false };
+    this.held = { up: false, down: false, left: false, right: false, action: false, gas: false };
     this.handlers = { start: [], mute: [], action: [] };
     this._padPrev = { action: false, start: false };
     this._bindKeys();
@@ -17,7 +17,8 @@ export class Input {
         case 'ArrowDown': case 's': case 'S': return 'down';
         case 'ArrowLeft': case 'a': case 'A': return 'left';
         case 'ArrowRight': case 'd': case 'D': return 'right';
-        case ' ': return 'action';
+        case 'z': case 'Z': case 'j': case 'J': return 'gas';
+        case ' ': case 'x': case 'X': case 'k': case 'K': return 'action';
         default: return null;
       }
     };
@@ -60,7 +61,7 @@ export class Input {
     };
     hold('d-up', 'up'); hold('d-down', 'down');
     hold('d-left', 'left'); hold('d-right', 'right');
-    hold('d-act', 'action');
+    hold('d-act', 'action'); hold('d-gas', 'gas');
     const st = document.getElementById('d-start');
     if (st) {
       const fire = (e) => { e.preventDefault(); this._emit('start'); };
@@ -85,7 +86,8 @@ export class Input {
     this.gpHeld = {
       up: ay < -0.45 || b(12), down: ay > 0.45 || b(13),
       left: ax < -0.45 || b(14), right: ax > 0.45 || b(15),
-      action: b(0) || b(1),
+      gas: b(0) || b(7),          // A / right trigger = gas
+      action: b(2) || b(1) || b(5), // X / B / right bumper = turbo
     };
     if (this.gpHeld.action && !this._padPrev.action) this._emit('action');
     const start = b(9) || b(8);
@@ -100,6 +102,7 @@ export class Input {
       up: this.held.up || !!g.up, down: this.held.down || !!g.down,
       left: this.held.left || !!g.left, right: this.held.right || !!g.right,
       action: this.held.action || !!g.action,
+      gas: this.held.gas || !!g.gas,
     };
   }
 }
