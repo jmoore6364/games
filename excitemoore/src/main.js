@@ -189,13 +189,17 @@ function playerCtrl() {
   if (game.autopilot) return autopilotCtrl(game.p, game.track);
   const d = input.dir();
   const b = game.p;
+  const gas = d.gas || d.right;         // Z / gamepad A, or the classic right
   return {
-    accel: d.right && !b.airborne,
+    accel: gas && !b.airborne,
     brake: d.left && !b.airborne,
     turbo: d.action,
-    up: d.up, down: d.down,
-    leanBack: b.airborne && d.left,
-    leanFwd: b.airborne && d.right,
+    // up/down are contextual: change lanes on the ground, lean in the air.
+    // this keeps leaning off the throttle, so accelerating never nose-dives you.
+    up: !b.airborne && d.up,
+    down: !b.airborne && d.down,
+    leanBack: b.airborne && d.up,        // nose up
+    leanFwd: b.airborne && d.down,       // nose down
     maxSpeed: MAX_TURBO,
   };
 }
@@ -402,8 +406,8 @@ function renderTitle() {
     ['motocross for the Moore Arcade', '#c8b890', 10],
   ], 66, 20);
   centerText([
-    ['RIGHT accelerate - SPACE turbo', '#e8e4c8'],
-    ['UP/DOWN switch lanes - in air LEAN with LEFT/RIGHT', '#e8e4c8'],
+    ['Z or hold GAS = accelerate - SPACE = turbo', '#e8e4c8'],
+    ['UP/DOWN change lanes - in the air UP/DOWN lean', '#e8e4c8'],
     ['match the landing slope or wipe out', '#e8e4c8'],
     ['turbo overheats - ride the cool pads', '#e8e4c8'],
     ['5 tracks - beat the qualifying time - 3 entries', '#8a9a78', 9],
